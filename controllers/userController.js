@@ -1,24 +1,28 @@
-const { client } = require("../config/db");
-const cloudinary = require("../config/cloudinary");
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+exports.createUser = async (req, res) => {
+    try {
+        const { name, email, password } = req.body;
 
-exports.addUser = async (req, res) => {
-  try {
-  } catch (error) {}
-};
+        const existingUser = await prisma.user.findUnique({
+            where: { email },
+        });
 
-// ✅ Get All Users API
-exports.getAllUsers = async (req, res) => {
-  try {
-  } catch (error) {}
-};
+        if (existingUser) {
+            return res.status(400).json({ error: "User already exists" });
+        }
 
-// ✅ Update User API
-exports.updateUser = async (req, res) => {
-  try {
-  } catch (error) {}
-};
+        const user = await prisma.user.create({
+            data: {
+                name,
+                email,
+                password,
+            },
+        });
 
-exports.deleteUser = async (req, res) => {
-  try {
-  } catch (error) {}
+        res.status(201).json(user);
+    } catch (error) {
+        console.error('Error creating user:', error); // Log the error details
+        res.status(500).json({ error: "Internal Server Error" });
+    }
 };
