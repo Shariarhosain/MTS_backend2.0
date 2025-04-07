@@ -8,9 +8,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 model project {
-  id                 Int       @id @default(autoincrement()) 
+  id                 Int       @id @default(autoincrement())
   order_id           String?    
   date               DateTime?
   project_name       String?   @db.VarChar(200)
@@ -18,171 +17,98 @@ model project {
   sales_comments     String?
   opsleader_comments String?
   sheet_link         String?
-  ordered_by         team_member? @relation(fields: [order_by_id], references: [id])
-  order_by_id        Int 
+  team_member        team_member? @relation(fields: [ordered_by], references: [id]) 
+  ordered_by         Int
   deli_last_date     DateTime?
   status             String?
   order_amount       Decimal?  @db.Decimal(65,0)  
   after_fiverr_amount Decimal?   
   bonus              Decimal?  @db.Decimal(65,0)    
   after_Fiverr_bonus Decimal? @db.Decimal(65,0) 
-  assign_tm          team? @relation(fields: [assign_tm_id], references: [id]) 
-  assign_tm_id       Int   
+  team               team? @relation(fields: [assign_tm], references: [id]) 
+  assign_tm          Int   
   rating             Int?
-  department         String?     
-  project_requirements String?
-
-
-
-
+  department         department? @relation(fields: [department_id], references: [id]) 
+  department_id      Int           
+  project_requirements String? @db.Text
 }
 
-
-
 model team {
-  id            Int       @id @default(autoincrement())
-  team_name     String?
-  department    department? @relation(fields: [department_id], references: [id]) 
-  department_id Int
-  member        team_member[]
-  member_id     Int @unique
-  team_achieve  Decimal? @db.Decimal(65,0) 
-  team_cancel   Int?
-  total_carry   Decimal?  @db.Decimal(65,0)
-
-  project project[]
+  id                 Int       @id @default(autoincrement())
+  team_name          String?   @db.VarChar(250) @unique
+  department         department? @relation(fields: [department_id], references: [id])
+  department_id      Int
+  team_member        team_member[]
+  team_achieve       Decimal?  @db.Decimal(65,0) 
+  team_cancel        Int?
+  total_carry        Decimal?  @db.Decimal(65,0)
+  project            project[]  // one team can have many projects
 }
 
 model department {
   id                   Int       @id @default(autoincrement())
-  department_name      String?
+  department_name      String?   @db.VarChar(200) @unique
   department_target    Decimal?  @db.Decimal(65,0)
-  department_teams     team[] 
-  department_profile   profile[]
+  department_teams     team[]    // one department can have many teams
+  department_profile   profile[] // one department can have many profiles
   department_achieve   Decimal?  @db.Decimal(65,0)
   department_cancel    Decimal?  @db.Decimal(65,0)
-  department_special_order Decimal?  @db.Decimal(65,0)
+  department_special_order Decimal? @db.Decimal(65,0)
   department_designation String?
   project_requirements String?
-  total_assign_project Int?
+  assign_project      project[]  // one department can have many projects
   total_carry          Decimal?  @db.Decimal(65,0)
-
- 
-
-  team_member team_member[]
+  total_assign_project Int?
+  team_member          team_member[] // one department can have many team members
 }
-
-
 
 model profile {
-  id                 Int       @id @default(autoincrement())
-  created_date       DateTime?
-  profile_name       String?  
-  
-  profile_person_name team_member @relation(fields: [profile_person_name_id], references: [id]) 
-profile_person_name_id Int @unique
-  order_amount       Decimal?  @db.Decimal(65,0)   
-  bonus_amount       Decimal?  @db.Decimal(65,0)   
-  order_count        Int?
-  special_order      Decimal?  @db.Decimal(65,0)
-  special_order_count Int?
-  rank               Decimal?  @db.Decimal(65,0)
-  cancel_count       Int?
-  complete_count     Int?
-  no_rating          Int?
-  profile_target     Decimal?  @db.Decimal(65,0)
-  Department_profile department @relation(fields: [department_id], references: [id]) 
-  department_id      Int 
-  repeat_order       Decimal?  @db.Decimal(65,0)
-  keywords           String?
-  total_rating       Decimal?  @db.Decimal(65,0)
+  id                    Int       @id @default(autoincrement())
+  created_date          DateTime?
+  profile_name          String?  
+  team_member           team_member? @relation(fields: [profile_person_name_id], references: [id])  
+  profile_person_name_id Int
+  order_amount          Decimal?  @db.Decimal(65,0) 
+  bonus_amount          Decimal?  @db.Decimal(65,0)   
+  order_count           Int?
+  rank                  Decimal?  @db.Decimal(65,0)
+  cancel_count          Int?
+  complete_count        Int?
+  no_rating             Int?
+  profile_target        Decimal?  @db.Decimal(65,0)
+  department            department? @relation(fields: [department_id], references: [id])
+  department_id         Int 
+  repeat_order          Decimal?  @db.Decimal(65,0)
+  keywords              String?
+  total_rating          Decimal?  @db.Decimal(65,0)
 }
-
 
 model team_member {
-  id                 Int       @id @default(autoincrement())
-  first_name         String?
-  last_name          String?
-  email              String?
-  number             String?   @db.VarChar(11) 
-  permanent_address  String?
-  present_address    String?
-  gender             String?   
-  blood_group        String?
-  relationship       String?
-  guardian_relation  String?
-  guardian_number    String?
-  guardian_address   String?
-  department         department? @relation(fields: [department_id], references: [id]) 
-  department_id      Int 
-  religion           String?
-  education          String?
-  dp                 String?
-  designation        String?   
-  role               String?
-  target             Decimal?  @db.Decimal(65,0)
-  rewards            String?
-  rating             Int?      
-  
-
-  project project[]
-
-  profile profile[]
-
-  team team[]
+  id                   Int       @id @default(autoincrement())
+  first_name           String?
+  last_name            String?
+  email                String?   @db.VarChar(200) @unique
+  number               String?   @db.VarChar(50) 
+  permanent_address    String?
+  present_address      String?
+  gender               String?
+  blood_group          String?
+  relationship         String?
+  guardian_relation    String?
+  guardian_number      String?
+  guardian_address     String?
+  team                 team?    @relation(fields: [team_id], references: [id])
+  team_id              Int?
+  department           department? @relation(fields: [department_id], references: [id])  
+  department_id        Int 
+  religion             String?
+  education            String?
+  dp                   String?
+  designation          String?   
+  role                 String?
+  target               Decimal?  @db.Decimal(65,0)
+  rewards              String?
+  rating               Int?      
+  project              project[]  // one team_member can have many projects
+  profile              profile[]  // one team_member can have many profiles
 }
-
-
-
-/*-- Inserting into Department Table
-INSERT INTO department (department_name, department_target, department_achieve, department_cancel, department_special_order, department_designation, project_requirements, total_assign_project, total_carry)
-VALUES
-('Sales', 1000000, 500000, 20000, 100000, 'Manager', 'Manage client orders and projects', 5, 20000),
-('MERN', 1200000, 800000, 30000, 150000, 'Developer', 'Develop applications', 3, 30000),
-('Laravel', 800000, 400000, 15000, 50000, 'Developer', 'Build backend solutions', 4, 25000),
-('Flutter', 600000, 350000, 10000, 40000, 'Developer', 'Mobile app development', 6, 15000),
-('Wordpress', 500000, 200000, 12000, 30000, 'Developer', 'Website management', 7, 10000),
-('Plugin', 300000, 100000, 5000, 15000, 'Developer', 'Develop plugins for platforms', 2, 8000);
-
--- Inserting into Team Table
--- Inserting into Team Table with member_id populated
--- Inserting into Team Table with member_id populated
-INSERT INTO team (team_name, department_id, team_achieve, team_cancel, total_carry, member_id)
-VALUES
-('Sales Team A', 1, 200000, 5000, 10000, 1),  -- assuming member_id = 1 from the team_member table
-('MERN Team A', 2, 400000, 10000, 15000, 2),  -- assuming member_id = 2 from the team_member table  
-('Laravel Team A', 3, 250000, 8000, 12000, 3), -- assuming member_id = 3 from the team_member table
-('Flutter Team A', 4, 200000, 7000, 8000, 4),  -- assuming member_id = 4 from the team_member table
-('Wordpress Team A', 5, 100000, 4000, 5000, 5), -- assuming member_id = 5 from the team_member table
-('Plugin Team A', 6, 70000, 3000, 4000, 6);    -- assuming member_id = 6 from the team_member table
-
--- Inserting into Team Member Table
-INSERT INTO team_member (first_name, last_name, email, number, permanent_address, present_address, gender, blood_group, relationship, guardian_relation, guardian_number, guardian_address, department_id, religion, education, dp, designation, role, target, rewards, rating)
-VALUES
-('John', 'Doe', 'john.doe@example.com', '01900000001', 'Dhaka, Bangladesh', 'Dhaka, Bangladesh', 'Male', 'O+', 'Single', 'Father', '01900000002', 'Dhaka, Bangladesh', 1, 'Islam', 'Bachelor', 'profile_pic.jpg', 'Manager', 'Sales Lead', 50000, 'Performance Bonus', 4),
-('Jane', 'Smith', 'jane.smith@example.com', '01900000002', 'Chittagong, Bangladesh', 'Chittagong, Bangladesh', 'Female', 'A+', 'Married', 'Mother', '01900000003', 'Chittagong, Bangladesh', 2, 'Christian', 'Master', 'profile_pic.jpg', 'Senior Developer', 'Lead MERN Developer', 60000, 'Employee of the Month', 5),
-('Mark', 'Johnson', 'mark.johnson@example.com', '01900000003', 'Sylhet, Bangladesh', 'Sylhet, Bangladesh', 'Male', 'B+', 'Single', 'Father', '01900000004', 'Sylhet, Bangladesh', 3, 'Christian', 'Master', 'profile_pic.jpg', 'Junior Developer', 'Backend Developer', 40000, 'Project Completion Bonus', 3),
-('Lucy', 'Davis', 'lucy.davis@example.com', '01900000004', 'Rajshahi, Bangladesh', 'Rajshahi, Bangladesh', 'Female', 'AB+', 'Married', 'Husband', '01900000005', 'Rajshahi, Bangladesh', 4, 'Hindu', 'Bachelor', 'profile_pic.jpg', 'Junior Developer', 'Mobile App Developer', 35000, 'On-time Delivery Bonus', 4),
-('Mia', 'Brown', 'mia.brown@example.com', '01900000005', 'Barisal, Bangladesh', 'Barisal, Bangladesh', 'Female', 'O-', 'Single', 'Brother', '01900000006', 'Barisal, Bangladesh', 5, 'Islam', 'Bachelor', 'profile_pic.jpg', 'Junior Developer', 'Website Manager', 30000, 'Employee of the Month', 4),
-('James', 'Williams', 'james.williams@example.com', '01900000006', 'Khulna, Bangladesh', 'Khulna, Bangladesh', 'Male', 'A-', 'Married', 'Father', '01900000007', 'Khulna, Bangladesh', 6, 'Christian', 'Master', 'profile_pic.jpg', 'Senior Developer', 'Plugin Developer', 70000, 'Project Bonus', 5);
-
--- Inserting into Profile Table
-INSERT INTO profile (profile_name, profile_person_name_id, order_amount, bonus_amount, order_count, special_order, special_order_count, rank, cancel_count, complete_count, no_rating, profile_target, department_id, repeat_order, keywords, total_rating)
-VALUES
-('John Doe Profile', 1, 100000, 5000, 5, 20000, 1, 3, 2, 3, 0, 1200000, 1, 30000, 'Sales, Client, Projects', 4.5),
-('Jane Smith Profile', 2, 120000, 6000, 4, 15000, 2, 4, 1, 4, 1, 1000000, 2, 35000, 'MERN, Application, Backend', 4.7),
-('Mark Johnson Profile', 3, 90000, 4000, 3, 10000, 1, 2, 2, 2, 0, 950000, 3, 25000, 'Laravel, Backend, Server', 4.2),
-('Lucy Davis Profile', 4, 80000, 3500, 6, 12000, 0, 3, 1, 2, 0, 850000, 4, 22000, 'Flutter, Mobile, App', 4.4),
-('Mia Brown Profile', 5, 70000, 3000, 7, 10000, 2, 3, 3, 3, 1, 700000, 5, 20000, 'Wordpress, Website, Client', 4.3),
-('James Williams Profile', 6, 110000, 7000, 4, 15000, 0, 5, 1, 1, 1, 800000, 6, 40000, 'Plugin, Development, Software', 4.8);
-
--- Inserting into Project Table
-INSERT INTO project (order_id, date, project_name, ops_status, sales_comments, opsleader_comments, sheet_link, order_by_id, deli_last_date, status, order_amount, after_fiverr_amount, bonus, "after_Fiverr_bonus", assign_tm_id, rating, department, project_requirements)
-VALUES
-('ORD001', '2025-03-01', 'Project A', 'Completed', 'Successfully completed', 'Handled all requirements', 'http://example.com/sheet1', 1, '2025-03-15', 'Completed', 100000, 80000, 5000, 4000,5 , 5, 'Sales', 'Sales project for new client'),
-('ORD002', '2025-03-02', 'Project B', 'In Progress', 'Development ongoing', 'Waiting for review', 'http://example.com/sheet2', 2, '2025-04-01', 'In Progress', 120000, 96000, 6000, 5000, 5, 4, 'MERN', 'MERN application development'),
-('ORD003', '2025-03-03', 'Project C', 'Completed', 'Backend setup completed', 'Code review pending', 'http://example.com/sheet3', 3, '2025-03-20', 'Completed', 90000, 72000, 4000, 3000, 3, 4, 'Laravel', 'Backend project for client'),
-('ORD004', '2025-03-04', 'Project D', 'Pending', 'Awaiting design feedback', 'Design phase ongoing', 'http://example.com/sheet4', 4, '2025-03-25', 'Pending', 80000, 64000, 3500, 1500, 4, 4, 'Flutter', 'Mobile app development'),
-('ORD005', '2025-03-05', 'Project E', 'Completed', 'Website deployed', 'Client satisfied', 'http://example.com/sheet5', 5, '2025-03-28', 'Completed', 70000, 56000, 3000, 4000, 5, 5, 'Wordpress', 'Website management and updates'),
-('ORD006', '2025-03-06', 'Project F', 'In Progress', 'Plugin functionality in testing', 'Code testing phase', 'http://example.com/sheet6', 6, '2025-04-05', 'In Progress', 110000, 88000, 7000, 25000, 6, 5, 'Plugin', 'Plugin development');
-*/
