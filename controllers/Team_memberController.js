@@ -3,12 +3,20 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const fs = require('fs');
 const path = require('path');
+const { isNull } = require('util');
 
 // Create a new team member
 exports.createTeamMember = async (req, res) => {
+    const { first_name, last_name, email, number, permanent_address, present_address, gender, blood_group, relationship, guardian_relation, guardian_number, guardian_address, religion, education, designation, role, target, rewards, rating } = req.body;
+    
     try {
-        // Handle the image upload
-        const { first_name, last_name, email, number, permanent_address, present_address, gender, blood_group, relationship, guardian_relation, guardian_number, guardian_address, religion, education, designation, role, target, rewards, rating } = req.body;
+        if (!first_name || !last_name || !email || !number || !permanent_address || !present_address || !gender || !blood_group || !relationship || !guardian_relation || !guardian_number || !guardian_address || !religion || !education || !designation || !role || !target || !rewards || !rating) {
+            // handle the case where any field is missing
+            return res.status(400).json({ message: 'All fields are required.' });
+        }
+        
+
+        
         const dpPath = req.file ? `/uploads/${req.file.filename}` : null;
 
         // Check for existing email
@@ -19,10 +27,6 @@ exports.createTeamMember = async (req, res) => {
             return res.status(400).json({ message: 'Email already exists' });
         }
 
-        // Validate required fields
-        if (!first_name || !last_name || !email || !number) {
-            return res.status(400).json({ message: 'Please provide all required fields' });
-        }
 
         // Email and phone validation regex
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -68,9 +72,22 @@ exports.createTeamMember = async (req, res) => {
     }
 };
 
-// Get all team members (with pagination)
 exports.getAllTeamMembers = async (req, res) => {
     try {
+        // Check if req.body is empty or contains invalid data
+        if (!req.body || Object.keys(req.body).length === 0) {
+            return res.status(200).json({
+                message: 'No pagination data provided, returning empty result.',
+                teamMembers: [],
+                pagination: {
+                    page: 1,
+                    limit: 10,
+                    total: 0,
+                    totalPages: 0,
+                }
+            });
+        }
+
         const { page = 1, limit = 10 } = req.body;
 
         const pageNumber = parseInt(page, 10) || 1;
@@ -95,32 +112,27 @@ exports.getAllTeamMembers = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Error retrieving team members:', error);
         return res.status(500).json({ message: 'An error occurred while retrieving team members', error: error.message });
     }
 };
 
-// Get a single team member by ID
-exports.getTeamMemberById = async (req, res) => {
-    const { id } = req.params;
-    try {
-        const teamMember = await prisma.team_member.findUnique({ where: { id: parseInt(id, 10) } });
-
-        if (!teamMember) {
-            return res.status(404).json({ message: 'Team member not found' });
-        }
-
-        return res.status(200).json({ message: 'Team member retrieved successfully', teamMember });
-    } catch (error) {
-        console.error('Error retrieving team member:', error);
-        return res.status(500).json({ message: 'An error occurred while retrieving the team member', error: error.message });
-    }
-};
 
 // Update a team member by ID
 exports.updateTeamMember = async (req, res) => {
     const { id } = req.params;
     try {
+
+        //find by id if not error
+        const ID = await prisma.team_member.findUnique({
+            where: { id: parseInt(id, 10) }
+        });
+        if (!ID) {
+            return res.status(404).json({ error: 'Team member not found.' });
+        }
+
+
+
+
         upload.single('dp')(req, res, async (err) => {
             if (err) {
                 console.error('Error during image upload:', err);
@@ -133,7 +145,7 @@ exports.updateTeamMember = async (req, res) => {
             }
 
             const updateData = { ...req.body };
-
+            
             if (req.file) {
                 // Delete old image if being updated
                 if (teamMember.dp) {

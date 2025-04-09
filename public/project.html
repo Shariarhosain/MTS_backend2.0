@@ -59,57 +59,69 @@
     <div class="endpoint">
         <h2>1. Create a Project</h2>
         <p><span class="method">POST</span>  http://192.168.10.40:3000/api/project/create</p>
-        
+        201 Created
+        <p>This endpoint allows you to create a new project.</p>
         <h3>Request</h3>
         <p>Body (JSON):</p>
         <pre>
-{
-    "clientName": "Example Client",
-    "opsStatus": "In Progress",
-    "salesComments": "Sales comments here",
-    "opsleaderComments": "Ops leader comments here",
-    "sheetLink": "http://example.com/sheet",
-    "orderedBy": 1,
-    "deliLastDate": "2025-04-10T00:00:00.000Z",
-    "status": "Active",
-    "orderAmount": 1000,
-    "afterFiverrAmount": 800,
-    "bonus": 200,
-    "afterFiverrBonus": 150,
-    "rating": 4,
-    "department": "Sales"
-}
+            {
+                "clientName": "Client A",
+                "ops_status": "Pending",
+                "sales_comments": "Sales comments here.",
+                "opsleader_comments": "Operations leader comments here.",
+                "sheet_link": "https://linktosheet.com",
+                "ordered_by":6,
+                "deli_last_date": "2025-04-10T16:26:15.490Z",
+                "status": "In Progress",
+                "orderAmount": 1000,
+                "bonus": 100,
+                "rating": 4.5,
+                "department": "plugin",
+                "project_requirements":"daafdafefewfwf"
+              }
         </pre>
 
         <h3>Response</h3>
         <pre>
-"message": "Project created successfully",
-{
- 
-    "orderId": "2025-04-09T13:20:15.234Z",
-    "date": "2025-04-09T13:20:15.234Z",
-    "projectName": "Example Client-2025-04-09T13:20:15.234Z",
-    "opsStatus": "In Progress",
-    "salesComments": "Sales comments here",
-    "opsleaderComments": "Ops leader comments here",
-    "sheetLink": "http://example.com/sheet",
-    "orderedBy": 1,
-    "deliLastDate": "2025-04-10T00:00:00.000Z",
-    "status": "Active",
-    "orderAmount": 1000,
-    "afterFiverrAmount": 800,
-    "bonus": 200,
-    "afterFiverrBonus": 150,
-    "rating": 4,
-    "departmentId": 2
-}
+            {
+                "message": "Project created successfully.",
+                "project": {
+                    "id": 53,
+                    "order_id": "1744217196023",
+                    "date": "2025-04-09T16:46:36.211Z",
+                    "project_name": "Client A-1744217196023",
+                    "ops_status": "Pending",
+                    "sales_comments": "Sales comments here.",
+                    "opsleader_comments": "Operations leader comments here.",
+                    "sheet_link": "https://linktosheet.com",
+                    "ordered_by": 6,
+                    "deli_last_date": "2025-04-10T16:26:15.490Z",
+                    "status": "In Progress",
+                    "order_amount": "1000",
+                    "after_fiverr_amount": "800",
+                    "bonus": "100",
+                    "after_Fiverr_bonus": "80",
+                    "rating": 4,
+                    "department_id": 2,
+                    "project_requirements": "daafdafefewfwf"
+                }
+            }
+
         </pre>
 
-        <h3>Error Response</h3>
+        <h3>Error Response 400</h3>
+     
         <div class="error">
             <pre>
 {
-    "error": "clientName, orderedBy, and departmentId are required."
+    "error": "All fields are required."
+}
+            </pre>
+        </div>
+        <div class="error">
+            <pre>
+{
+    error: 'projectName and orderId are not allowed in the request body.'
 }
             </pre>
         </div>
@@ -120,6 +132,15 @@
 }
             </pre>
         </div>
+        <h3>Error Response 500</h3>
+        <div class="error">
+            <pre>
+{
+    error: 'An error occurred while creating the project.' 
+}
+            </pre>
+        </div>
+
     </div>
 
     <div class="endpoint">
@@ -130,49 +151,63 @@
         <p>Body (JSON):</p>
         <pre>
 {
-    "page": 1,
-    "limit": 10
+    "page": "1",
+    "limit": "10"
 }
         </pre>
 
         <h3>Response</h3>
         <pre>
-{
-    "totalProjects": 100,
-    "projects": [
-        {
-            "orderId": "2025-04-09T13:20:15.234Z",
-            "projectName": "Example Client-2025-04-09T13:20:15.234Z",
-            "opsStatus": "In Progress",
-            "salesComments": "Sales comments here",
-            "opsleaderComments": "Ops leader comments here",
-            "sheetLink": "http://example.com/sheet",
-            "orderedBy": 1,
-            "status": "Active",
-            "orderAmount": 1000,
-            "afterFiverrAmount": 800,
-            "bonus": 200,
-            "afterFiverrBonus": 150,
-            "rating": 4,
-            "department": {
-                "name": "Sales"
+            {
+                "message": "All projects retrieved successfully",
+                "projects": [
+                    {
+                        "id": 1,
+                        "order_id": "Order1",
+                        "date": "2025-04-08T11:33:25.088Z",
+                        "project_name": "Project 1",
+                        "ops_status": "Pending",
+                        "sales_comments": "Sales Comment 1",
+                        "opsleader_comments": "Ops Leader Comment 1",
+                        "sheet_link": "http://link-to-sheet-1.com",
+                        "ordered_by": 2,
+                        "deli_last_date": "2025-04-08T11:33:25.088Z",
+                        "status": "Active",
+                        "order_amount": "7206",
+                        "after_fiverr_amount": "1694.049279632002",
+                        "bonus": "780",
+                        "after_Fiverr_bonus": "595",
+                        "rating": 3,
+                        "department_id": 2,
+                        "project_requirements": "Requirements for project 1",
+                        "department": {
+                            "id": 2,
+                            "department_name": "plugin",
+                            "department_target": "4192",
+                            "department_achieve": "6497",
+                            "department_cancel": "598",
+                            "department_special_order": "3880",
+                            "department_designation": "Designation 2",
+                            "project_requirements": "Requirement for department plugin",
+                            "total_carry": null
+                        }
+                    }
+                    
+                ],
+                "pagination": {
+                    "page": 1,
+                    "limit": 10,
+                    "total": 53,
+                    "totalPages": 6
+                }
             }
-        }
-    ],
-    "pagination": {
-        "page": 1,
-        "limit": 10,
-        "total": 100,
-        "totalPages": 10
-    }
-}
         </pre>
 
-        <h3>Error Response</h3>
+        <h3>Error Response 500</h3>
         <div class="error">
             <pre>
 {
-    "error": "An error occurred while fetching projects."
+    error: 'An error occurred while retrieving team members'
 }
             </pre>
         </div>
@@ -186,34 +221,40 @@
         <p>Body (JSON):</p>
         <pre>
 {
-    "opsStatus": "Completed",
-    "salesComments": "Updated sales comments",
-    "opsleaderComments": "Updated ops leader comments"
+    "ops_status": "Completed",
+    "sales_comments": "Updated sales comments",
+    "opsleader_comments": "Updated ops leader comments"
 }
         </pre>
 
         <h3>Response</h3>
         <pre>
-{
-    "orderId": "2025-04-09T13:20:15.234Z",
-    "date": "2025-04-09T13:20:15.234Z",
-    "projectName": "Example Client-2025-04-09T13:20:15.234Z",
-    "opsStatus": "Completed",
-    "salesComments": "Updated sales comments",
-    "opsleaderComments": "Updated ops leader comments",
-    "sheetLink": "http://example.com/sheet",
-    "orderedBy": 1,
-    "status": "Active",
-    "orderAmount": 1000,
-    "afterFiverrAmount": 800,
-    "bonus": 200,
-    "afterFiverrBonus": 150,
-    "rating": 4,
-    "departmentId": 2
-}
+            {
+                "message": "Project updated successfully.",
+                "project": {
+                    "id": 5,
+                    "order_id": "Order5",
+                    "date": "2025-04-08T11:33:25.093Z",
+                    "project_name": "Project 5",
+                    "ops_status": "Completed",
+                    "sales_comments": "Updated sales comments",
+                    "opsleader_comments": "Updated ops leader comments",
+                    "sheet_link": "http://link-to-sheet-5.com",
+                    "ordered_by": 6,
+                    "deli_last_date": "2025-04-08T11:33:25.093Z",
+                    "status": "Active",
+                    "order_amount": "3120",
+                    "after_fiverr_amount": "5052.055887032447",
+                    "bonus": "524",
+                    "after_Fiverr_bonus": "206",
+                    "rating": 0,
+                    "department_id": 1,
+                    "project_requirements": "Requirements for project 5"
+                }
+            }
         </pre>
 
-        <h3>Error Response</h3>
+        <h3>Error Response 404</h3>
         <div class="error">
             <pre>
 {
@@ -221,6 +262,16 @@
 }
             </pre>
         </div>
+        
+        <h3>Error Response 500</h3>
+        <div class="error">
+            <pre>
+{
+    error: 'An error occurred while retrieving team members'
+}
+            </pre>
+        </div>
+    </div>
     </div>
 
     <footer>

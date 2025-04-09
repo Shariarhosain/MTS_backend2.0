@@ -1,11 +1,13 @@
 const express = require('express');
 const router = require('./routes/index'); // Import the main router from routes/index.js
-const bodyParser = require('body-parser'); // Import body-parser for parsing request bodies
+
 
 const app = express(); // Create an instance of express
  const  host= '192.168.10.40'
-app.use(express.json()); // Middleware to parse JSON bodies
-app.use(express.urlencoded({ extended: true })); // Middleware to parse URL-encoded bodies
+// Middleware to parse JSON request bodies  
+app.use(express.json()); // Parse JSON request bodies
+app.use(express.urlencoded({ extended: true })); // Parse URL-encoded request bodies
+
 app.use(express.static('public')); // Serve static files from the 'public' directory
 
 app.use(router); // Use the router for handling routes
