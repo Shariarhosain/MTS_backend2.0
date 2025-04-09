@@ -1,9 +1,17 @@
 const express = require('express');
-const projectRoute = require('./projectRoute.js'); // Import user routes
+const teamMemberRoute = require('./team_memberRoute'); // Import team member routes
+
+
+
 
 const router = express.Router(); // Create a new router instance
 
-router.use('/api/project', projectRoute); // Use user routes for '/users' path
+// Register the routes for project and team members
+router.use('/api/teamMember', teamMemberRoute); // Use team member routes
+
+
+
+
 
 
 module.exports = router; // Export the router for use in other files

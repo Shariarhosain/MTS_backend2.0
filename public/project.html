@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project API Documentation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        pre {
+            background-color: #333;
+            color: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 1rem;
+            margin: 10px 0;
+        }
+        code {
+            color: #f1c40f;
+        }
+        .endpoint {
+            margin-bottom: 30px;
+        }
+        .method {
+            font-weight: bold;
+            color: #2980b9;
+        }
+        .response {
+            background-color: #eafaf1;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .request {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Project API Documentation</h1>
+    <p>Welcome to the API documentation for managing projects. Below are the details for each endpoint.</p>
+
+    <div class="endpoint">
+        <h2>1. Create a Project</h2>
+        <p><span class="method">POST</span>  http://192.168.10.40:3000/api/project/create</p>
+        
+        <h3>Request</h3>
+        <p>Body (JSON):</p>
+        <pre>
+{
+    "clientName": "Example Client",
+    "opsStatus": "In Progress",
+    "salesComments": "Sales comments here",
+    "opsleaderComments": "Ops leader comments here",
+    "sheetLink": "http://example.com/sheet",
+    "orderedBy": 1,
+    "deliLastDate": "2025-04-10T00:00:00.000Z",
+    "status": "Active",
+    "orderAmount": 1000,
+    "afterFiverrAmount": 800,
+    "bonus": 200,
+    "afterFiverrBonus": 150,
+    "rating": 4,
+    "department": "Sales"
+}
+        </pre>
+
+        <h3>Response</h3>
+        <pre>
+"message": "Project created successfully",
+{
+ 
+    "orderId": "2025-04-09T13:20:15.234Z",
+    "date": "2025-04-09T13:20:15.234Z",
+    "projectName": "Example Client-2025-04-09T13:20:15.234Z",
+    "opsStatus": "In Progress",
+    "salesComments": "Sales comments here",
+    "opsleaderComments": "Ops leader comments here",
+    "sheetLink": "http://example.com/sheet",
+    "orderedBy": 1,
+    "deliLastDate": "2025-04-10T00:00:00.000Z",
+    "status": "Active",
+    "orderAmount": 1000,
+    "afterFiverrAmount": 800,
+    "bonus": 200,
+    "afterFiverrBonus": 150,
+    "rating": 4,
+    "departmentId": 2
+}
+        </pre>
+
+        <h3>Error Response</h3>
+        <div class="error">
+            <pre>
+{
+    "error": "clientName, orderedBy, and departmentId are required."
+}
+            </pre>
+        </div>
+        <div class="error">
+            <pre>
+{
+    "error": "Invalid department name."
+}
+            </pre>
+        </div>
+    </div>
+
+    <div class="endpoint">
+        <h2>2. Get All Projects</h2>
+        <p><span class="method">POST</span>  http://192.168.10.40:3000/api/project</p>
+        
+        <h3>Request</h3>
+        <p>Body (JSON):</p>
+        <pre>
+{
+    "page": 1,
+    "limit": 10
+}
+        </pre>
+
+        <h3>Response</h3>
+        <pre>
+{
+    "totalProjects": 100,
+    "projects": [
+        {
+            "orderId": "2025-04-09T13:20:15.234Z",
+            "projectName": "Example Client-2025-04-09T13:20:15.234Z",
+            "opsStatus": "In Progress",
+            "salesComments": "Sales comments here",
+            "opsleaderComments": "Ops leader comments here",
+            "sheetLink": "http://example.com/sheet",
+            "orderedBy": 1,
+            "status": "Active",
+            "orderAmount": 1000,
+            "afterFiverrAmount": 800,
+            "bonus": 200,
+            "afterFiverrBonus": 150,
+            "rating": 4,
+            "department": {
+                "name": "Sales"
+            }
+        }
+    ],
+    "pagination": {
+        "page": 1,
+        "limit": 10,
+        "total": 100,
+        "totalPages": 10
+    }
+}
+        </pre>
+
+        <h3>Error Response</h3>
+        <div class="error">
+            <pre>
+{
+    "error": "An error occurred while fetching projects."
+}
+            </pre>
+        </div>
+    </div>
+
+    <div class="endpoint">
+        <h2>3. Update a Project by ID</h2>
+        <p><span class="method">PUT</span> http://192.168.10.40:3000/api/project/:id</p>
+        
+        <h3>Request</h3>
+        <p>Body (JSON):</p>
+        <pre>
+{
+    "opsStatus": "Completed",
+    "salesComments": "Updated sales comments",
+    "opsleaderComments": "Updated ops leader comments"
+}
+        </pre>
+
+        <h3>Response</h3>
+        <pre>
+{
+    "orderId": "2025-04-09T13:20:15.234Z",
+    "date": "2025-04-09T13:20:15.234Z",
+    "projectName": "Example Client-2025-04-09T13:20:15.234Z",
+    "opsStatus": "Completed",
+    "salesComments": "Updated sales comments",
+    "opsleaderComments": "Updated ops leader comments",
+    "sheetLink": "http://example.com/sheet",
+    "orderedBy": 1,
+    "status": "Active",
+    "orderAmount": 1000,
+    "afterFiverrAmount": 800,
+    "bonus": 200,
+    "afterFiverrBonus": 150,
+    "rating": 4,
+    "departmentId": 2
+}
+        </pre>
+
+        <h3>Error Response</h3>
+        <div class="error">
+            <pre>
+{
+    "error": "Project not found"
+}
+            </pre>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2025 Project API Documentation</p>
+    </footer>
+
+</body>
+</html>
