@@ -7,10 +7,10 @@ const { isNull } = require('util');
 
 // Create a new team member
 exports.createTeamMember = async (req, res) => {
-    const { first_name, last_name, email, number, permanent_address, present_address, gender, blood_group, relationship, guardian_relation, guardian_number, guardian_address, religion, education, designation, role, target, rewards, rating } = req.body;
+    const { first_name, last_name, email, number, permanent_address, present_address, gender, blood_group, relationship, guardian_relation, guardian_number, guardian_address, religion, education, designation } = req.body;
     
     try {
-        if (!first_name || !last_name || !email || !number || !permanent_address || !present_address || !gender || !blood_group || !relationship || !guardian_relation || !guardian_number || !guardian_address || !religion || !education || !designation || !role || !target || !rewards || !rating) {
+        if (!first_name || !last_name || !email || !number || !permanent_address || !present_address || !gender || !blood_group || !relationship || !guardian_relation || !guardian_number || !guardian_address || !religion || !education || !designation) {
             // handle the case where any field is missing
             return res.status(400).json({ message: 'All fields are required.' });
         }
@@ -58,10 +58,11 @@ exports.createTeamMember = async (req, res) => {
                 education,
                 dp: dpPath,  // Store the image path
                 designation,
-                role,
-                target: parseInt(target, 10),
-                rewards: parseInt(rewards, 10),
-                rating: parseInt(rating, 10)
+                role: 'null', // Default role, can be updated later
+                target:0,
+                rewards: 0,
+                rating: 0,
+                account_status: 'active', // Default account status
             }
         });
 

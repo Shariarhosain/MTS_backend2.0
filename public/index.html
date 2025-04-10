@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Documentation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background-color: #4CAF50;
+            color: white;
+            text-align: center;
+            padding: 10px 0;
+        }
+        .container {
+            padding: 20px;
+        }
+        .link-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .link-list li {
+            margin: 10px 0;
+        }
+        .link-list a {
+            text-decoration: none;
+            color: #007BFF;
+        }
+        .link-list a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>API Documentation</h1>
+    </header>
+
+    <div class="container">
+        <h2>Welcome to the API Documentation</h2>
+        <p>This documentation provides detailed information about the API endpoints available for use in our project. Below, you will find links to other pages for team members and project details:</p>
+
+        <ul class="link-list">
+            <li><a href="team-member.html" target="_blank">Team Members</a></li>
+            <li><a href="project.html" target="_blank">Project Overview</a></li>
+        </ul>
+    </div>
+
+
+    <h1>Project Notifications</h1>
+    <ul id="notifications"></ul>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();  // Connect to the Socket.io server
+        const notificationsList = document.getElementById('notifications');
+
+        // Listen for 'projectData' event to get all projects on page load (reload)
+        socket.on('projectData', function(projects) {
+            console.log('Received project data:', projects);
+            projects.forEach(project => {
+                const li = document.createElement('li');
+                li.textContent = `New Project: ${project.project_name}`; // Display project name or any other property
+                notificationsList.appendChild(li);
+            });
+        });
+
+        // Listen for 'projectCreated' event to handle a new project creation
+        socket.on('projectCreated', function(project) {
+            const li = document.createElement('li');
+            li.textContent = `New Project Created: ${project.project_name}`;
+            notificationsList.appendChild(li);
+        });
+    </script>
+</body>
+</html>

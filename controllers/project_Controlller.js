@@ -1,38 +1,19 @@
+
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const express = require('express');
+const http = require('http');
+const socketIo = require('socket.io');
+const { Socket } = require('socket.io-client');
 
-
-/*
-model project {
-  id                 Int       @id @default(autoincrement())
-  order_id           String?    
-  date               DateTime? 
-  project_name       String?   @db.VarChar(200) @unique
-  ops_status         String?
-  sales_comments     String?
-  opsleader_comments String?
-  sheet_link         String?
-  team_member        team_member? @relation(fields: [ordered_by], references: [id]) 
-  ordered_by         Int
-  deli_last_date     DateTime?
-  status             String?
-  order_amount       Decimal?  @db.Decimal(65,0)  
-  after_fiverr_amount Decimal?   
-  bonus              Decimal?  @db.Decimal(65,0)    
-  after_Fiverr_bonus Decimal? @db.Decimal(65,0) 
-  rating             Int?
- department         department? @relation(fields: [department_id], references: [id], onDelete: Cascade) // One project belongs to one department
-  department_id      Int      
-  project_requirements String? @db.Text
- // Relation with task assignments
-  task_assign_team   task_assign_team[] // one team can have many task assignments
-
-
-}*/
-
+// Create an instance of express app
+const app = express();
+const server = http.createServer(app); // assuming you are using express
+const io = socketIo(server);  // Create a new instance of Socket.IO
 
 //curd operations for project table
-    exports.createProject = async (req, res) => { 
+    exports.createProject = async (req, res,io) => { 
+        
         try {
            
             // Destructure the variables from the request body
@@ -48,6 +29,9 @@ model project {
             // Check all data is present in the request body
             if (!clientName || !ops_status || !sales_comments || !opsleader_comments || !sheet_link || !ordered_by || !deli_last_date || !status || !orderAmount || !bonus || !rating || !department) {
                 return res.status(400).json({ error: 'All fields are required.' });
+
+
+                
             }
             
 
@@ -102,14 +86,21 @@ model project {
                     project_requirements
                 }
             });
-    
-            res.status(201).json({ message: "Project created successfully.", project });
+           
+             
+            io.emit('projectCreated', project);  
+            res.status(201).json({ message: 'Project created successfully.', project });
+       
         } catch (error) {
             res.status(500).json({ error: 'An error occurred while creating the project.' });
     
         }
+            
+           
+
+
     }
-    
+
 
 
 
@@ -152,7 +143,7 @@ exports.getAllProjects = async (req, res) => {
 
 
 
-exports.updateProject = async (req, res) => {
+exports.updateProject = async (req, res,io) => {
     const { id } = req.params;
     try {
 
@@ -199,6 +190,8 @@ exports.updateProject = async (req, res) => {
           
         }
     });
+    // Emit the updated project data to all connected clients
+    io.emit('projectUpdated', project); // Real-time update to the front end
     res.status(200).json({ message: "Project updated successfully.", project });
 
 
@@ -210,4 +203,18 @@ exports.updateProject = async (req, res) => {
     }
 }
 
+// Function to send all project data to the connected client
+exports.sendProjectData = async (socket) => {
+    try {
+        const projects = await prisma.project.findMany({
+            include: {
+                department: true,  // Include department information, adjust based on your needs
+            }
+        });
 
+        console.log('Projects fetched from the database:', projects);  // Log to check the data
+        socket.emit('projectData', projects); // Emit the project data to the connected client
+    } catch (error) {
+        console.error('Error sending project data:', error);
+    }
+};

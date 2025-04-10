@@ -1,19 +1,24 @@
 const express = require('express');
-const router = require('./routes/index'); // Import the main router from routes/index.js
+const router = require('./routes/ProjectRoute'); // Import the main router from routes/index.js
+const http = require('http');
+const { Server } = require('socket.io');
+const host ='192.168.10.40';
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
 
 
-const app = express(); // Create an instance of express
- const  host= '192.168.10.40'
-// Middleware to parse JSON request bodies  
 app.use(express.json()); // Parse JSON request bodies
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded request bodies
 
 app.use(express.static('public')); // Serve static files from the 'public' directory
 
-app.use(router); // Use the router for handling routes
+app.use('/api/project', router(io)); // Use the main router for API routes
+const cors = require('cors');
 
-const PORT = process.env.PORT || 3000; // Set the port to listen on
-
+app.use(cors()); // Enable CORS for all routes
+// On client connection, send message history
 
 // Global error handler for uncaught errors
 app.use((err, req, res, next) => {
@@ -22,8 +27,17 @@ app.use((err, req, res, next) => {
 });
 
 
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
+  // Send all project data when a client connects
+  require('./controllers/project_Controlller.js').sendProjectData(socket);
 
-//only localhost
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+  // Listen for other events if needed (e.g., 'projectCreated', 'projectUpdated')
+});
+
+
+server.listen(3000, () => {
+  console.log(`Server running at http://localhost:3000`);
+  
+
 });
