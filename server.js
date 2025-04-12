@@ -16,6 +16,7 @@ app.use(express.static('public'));
 
 // Pass the getIO function to your router
 app.use('/api/project', router(getIO));
+app.use('/api/teamMember', require('./routes/team_memberRoute'));
 
 app.use((err, req, res, next) => {
   console.error('Error:', err);

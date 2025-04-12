@@ -6,10 +6,10 @@ const path = require('path');
 
 // Create a new team member
 exports.createTeamMember = async (req, res) => {
-    const { first_name, last_name, email, number, permanent_address, present_address, gender, blood_group, relationship, guardian_relation, guardian_number, guardian_address, religion, education, designation } = req.body;
+    const { first_name, last_name, email, number, permanent_address, present_address, gender, blood_group, relationship, guardian_relation, guardian_number, guardian_address, religion, education, password } = req.body;
     
     try {
-        if (!first_name || !last_name || !email || !number || !permanent_address || !present_address || !gender || !blood_group || !relationship || !guardian_relation || !guardian_number || !guardian_address || !religion || !education || !designation) {
+        if (!first_name || !last_name || !email || !number || !permanent_address || !present_address || !gender || !blood_group || !relationship || !guardian_relation || !guardian_number || !guardian_address || !religion || !education || !password) {
             // handle the case where any field is missing
             return res.status(400).json({ message: 'All fields are required.' });
         }
@@ -53,22 +53,22 @@ exports.createTeamMember = async (req, res) => {
                 religion,
                 education,
                 dp: dpPath,  // Store the image path
-                designation,
                 role: 'null', // Default role, can be updated later
                 target:0,
                 rewards: 0,
                 rating: 0,
                 account_status: 'active', // Default account status
+                password: password || null, // Optional password field
             }
         });
 
-        return res.status(201).json({ message: 'Team member created successfully', teamMember });
+        const { password, ...teamMemberWithoutPassword } = teamMember;
+        return res.status(201).json({ message: 'Team member created successfully', teamMember: teamMemberWithoutPassword });
     } catch (error) {
         console.error('Error during team member creation:', error);
         return res.status(500).json({ message: 'An error occurred', error: error.message });
     }
 };
-
 exports.getAllTeamMembers = async (req, res) => {
     try {
         // Check if req.body is empty or contains invalid data
@@ -98,9 +98,12 @@ exports.getAllTeamMembers = async (req, res) => {
 
         const totalTeamMembers = await prisma.team_member.count();
 
+        // Remove password field from each team member
+        const teamMembersWithoutPassword = teamMembers.map(({ password, ...rest }) => rest);
+
         return res.status(200).json({
             message: 'All team members retrieved successfully',
-            teamMembers,
+            teamMembers: teamMembersWithoutPassword,
             pagination: {
                 page: pageNumber,
                 limit: limitNumber,

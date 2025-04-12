@@ -78,41 +78,40 @@
     "guardian_address": "123 Main St",
     "religion": "Christianity",
     "education": "Bachelor's",
-    "designation": "Developer",
-    "dp": [file]  <!-- Profile Image -->
+    "dp": [file],  <!-- Profile Image -->
+    "password": "yourPassword123"  <!-- Password (required) -->
 }
         </pre>
 
         <h3>Response</h3>
         <pre>
-            {
-                "message": "Team member created successfully",
-                "teamMember": {
-                    "id": 53,
-                    "first_name": "John",
-                    "last_name": "man",
-                    "email": "rssssh@example.com",
-                    "number": "12345678901",
-                    "permanent_address": "1234 Main St, City, Country\n",
-                    "present_address": "5678 Secondary St, City, Country\n",
-                    "gender": "Male",
-                    "blood_group": "o+",
-                    "relationship": "Single",
-                    "guardian_relation": "Father",
-                    "guardian_number": "0987654321",
-                    "guardian_address": "1234 Main St, City, Country\n",
-                    "team_id": null,
-                    "religion": "Christianity",
-                    "education": "Bachelor's in Computer Science\n",
-                    "dp": "/uploads/dp-1744172658207-431042347.png",
-                    "designation": "Software Developer",
-                    "role": "null",
-                    "target": "0",
-                    "rewards": "0",
-                    "rating": "0",
-                    "account_status": "Active",
-                }
-            }
+{
+    "message": "Team member created successfully",
+    "teamMember": {
+        "id": 69,
+        "first_name": "John",
+        "last_name": "Doe",
+        "email": "john.doe@example.com",
+        "number": "12345678901",
+        "permanent_address": "123 Main St",
+        "present_address": "456 Elm St",
+        "gender": "Male",
+        "blood_group": "O+",
+        "relationship": "Single",
+        "guardian_relation": "Father",
+        "guardian_number": "9876543210",
+        "guardian_address": "123 Main St",
+        "religion": "Christianity",
+        "education": "Bachelor's",
+        "dp": "/uploads/dp-1744172658207-431042347.png",
+        "password": "yourPassword123",  <!-- Response includes password -->
+        "role": "null",
+        "target": "0",
+        "rewards": "0",
+        "rating": "0",
+        "account_status": "active"
+    }
+}
         </pre>
 
         <h3>Error Response</h3>
@@ -142,7 +141,7 @@
 
     <div class="endpoint">
         <h2>2. Get All Team Members (with Pagination)</h2>
-        <p><span class="method">POST</span>http://192.168.10.40:3000/api/teamMember</p>
+        <p><span class="method">POST</span> http://192.168.10.40:3000/api/teamMember</p>
         
         <h3>Request</h3>
         <p>Body (JSON):</p>
@@ -155,35 +154,33 @@
 
         <h3>Response</h3>
         <pre>
-{
-    "message": "All team members retrieved successfully",
-    "teamMembers": [
-        {
-            "id": 11,
-            "first_name": "FirstName 11",
-            "last_name": "LastName 11",
-            "email": "email11@example.com",
-            "number": "1234511",
-            "permanent_address": "Address 11",
-            "present_address": "Present Address 11",
-            "gender": "Male",
-            "blood_group": "O+",
-            "relationship": "Single",
-            "guardian_relation": "Father",
-            "guardian_number": "1234567890",
-            "guardian_address": "Guardian Address 11",
-            "team_id": 12,
-            "religion": "Religion",
-            "education": "Bachelors",
-            "dp": "dp11.jpg",
-            "designation": "Developer",
-            "role": "Junior Developer",
-            "target": "4594",
-            "rewards": "41",
-            "rating": "1",
-            "account_status": "Active"
-        },
-    ],
+            {
+                "message": "All team members retrieved successfully",
+                "teamMembers": [
+                    {
+                        "id": 11,
+                        "first_name": "FirstName 11",
+                        "last_name": "LastName 11",
+                        "email": "email11@example.com",
+                        "number": "1234511",
+                        "permanent_address": "Address 11",
+                        "present_address": "Present Address 11",
+                        "gender": "Male",
+                        "blood_group": "O+",
+                        "relationship": "Single",
+                        "guardian_relation": "Father",
+                        "guardian_number": "1234567890",
+                        "guardian_address": "Guardian Address 11",
+                        "team_id": 12,
+                        "religion": "Religion",
+                        "education": "Bachelors",
+                        "dp": "dp11.jpg",
+                        "role": "Junior Developer",
+                        "target": "4594",
+                        "rewards": "41",
+                        "rating": "1",
+                        "account_status": "Active"
+                    },
     "pagination": {
         "page": 1,
         "limit": 10,
@@ -203,7 +200,6 @@
         </div>
     </div>
 
- 
     <div class="endpoint">
         <h2>3. Update a Team Member by ID</h2>
         <p><span class="method">PUT</span> http://localhost:3000/api/teamMember/:id</p>
