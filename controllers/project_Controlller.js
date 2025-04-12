@@ -1,12 +1,13 @@
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { Socket } = require('socket.io-client');
+const socketIo = require('socket.io');
 const express = require('express');
 const http = require('http');
-const socketIo = require('socket.io');
-const { Socket } = require('socket.io-client');
 
+const prisma = new PrismaClient();
 // Create an instance of express app
 const app = express();
+
 const server = http.createServer(app); // assuming you are using express
 const io = socketIo(server); // Create a new instance of Socket.IO
 
@@ -56,11 +57,9 @@ exports.createProject = async (req, res, io) => {
 
     //projectName and orderId are not allowed in the request body
     if (req.body.projectName || req.body.orderId) {
-      return res
-        .status(400)
-        .json({
-          error: 'projectName and orderId are not allowed in the request body.',
-        });
+      return res.status(400).json({
+        error: 'projectName and orderId are not allowed in the request body.',
+      });
     }
 
     // Get departmentId from department name

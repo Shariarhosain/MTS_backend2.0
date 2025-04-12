@@ -25,7 +25,7 @@ app.use((err, req, res, next) => {
     .json({ message: err.message || 'Something went wrong.' });
 });
 
-const host = '192.168.10.40';
+const host = '192.168.10.10';
 
 server.listen(3000, host, () => {
   console.log(`Server is running on http://${host}:3000`);
