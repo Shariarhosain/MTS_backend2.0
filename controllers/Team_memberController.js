@@ -3,7 +3,6 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const fs = require('fs');
 const path = require('path');
-const { isNull } = require('util');
 
 // Create a new team member
 exports.createTeamMember = async (req, res) => {
@@ -14,9 +13,6 @@ exports.createTeamMember = async (req, res) => {
             // handle the case where any field is missing
             return res.status(400).json({ message: 'All fields are required.' });
         }
-        
-
-        
         const dpPath = req.file ? `/uploads/${req.file.filename}` : null;
 
         // Check for existing email

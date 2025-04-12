@@ -1,4 +1,3 @@
-
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const express = require('express');
@@ -88,11 +87,19 @@ const io = socketIo(server);  // Create a new instance of Socket.IO
             });
            
              
-            io.emit('projectCreated', project);  
+              // ✅ Refetch the created project with department relation
+        const fullProject = await prisma.project.findUnique({
+            where: { id: project.id },
+            include: { department: true }
+        });
+
+        io.emit('projectCreated', fullProject); // ✅ Send full project with department name
+
             res.status(201).json({ message: 'Project created successfully.', project });
        
         } catch (error) {
             res.status(500).json({ error: 'An error occurred while creating the project.' });
+            console.error('Error creating project:', error);
     
         }
             
@@ -203,18 +210,35 @@ exports.updateProject = async (req, res,io) => {
     }
 }
 
-// Function to send all project data to the connected client
-exports.sendProjectData = async (socket) => {
+// Function to send paginated project data to the connected client in real-time
+exports.sendPaginatedProjectData = async (socket, page = 1, limit = 10) => {
     try {
+        const pageNumber = parseInt(page, 10) || 1;
+        const limitNumber = parseInt(limit, 10) || 10;
+        const skip = (pageNumber - 1) * limitNumber;
+
         const projects = await prisma.project.findMany({
+            skip,
+            take: limitNumber,
             include: {
-                department: true,  // Include department information, adjust based on your needs
+                department: true,  // Include department information
             }
         });
 
-        console.log('Projects fetched from the database:', projects);  // Log to check the data
-        socket.emit('projectData', projects); // Emit the project data to the connected client
+        const totalProjects = await prisma.project.count();
+
+        // Emit paginated project data to the connected client
+        socket.emit('projectData', {
+            projects,
+            pagination: {
+                page: pageNumber,
+                limit: limitNumber,
+                total: totalProjects,
+                totalPages: Math.ceil(totalProjects / limitNumber),
+            }
+        });
+
     } catch (error) {
-        console.error('Error sending project data:', error);
+        console.error('Error sending paginated project data:', error);
     }
 };
