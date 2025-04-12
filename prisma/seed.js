@@ -73,7 +73,7 @@ const seed = async () => {
         target: Math.random() * 5000,
         rewards: Math.random() * 2000,
         rating: Math.floor(Math.random() * 5),
-        account_status : 'Active',
+        account_status: 'Active',
       },
     });
     teamMembers.push(teamMember);

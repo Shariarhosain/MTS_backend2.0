@@ -5,8 +5,8 @@ const initSocket = (server) => {
   io = new Server(server, {
     cors: {
       origin: '*',
-      methods: ['GET', 'POST']
-    }
+      methods: ['GET', 'POST'],
+    },
   });
 
   io.on('connection', (socket) => {
@@ -16,7 +16,11 @@ const initSocket = (server) => {
     socket.on('requestPaginatedProjects', async (data) => {
       const { page, limit } = data;
       try {
-        await require('./controllers/project_Controlller').sendPaginatedProjectData(socket, page, limit);
+        await require('./controllers/project_Controlller').sendPaginatedProjectData(
+          socket,
+          page,
+          limit
+        );
       } catch (error) {
         console.error('Error sending paginated project data:', error);
       }
@@ -37,7 +41,7 @@ const initSocket = (server) => {
 
 const getIO = () => {
   if (!io) {
-    throw new Error("Socket.io not initialized!");
+    throw new Error('Socket.io not initialized!');
   }
   return io;
 };
