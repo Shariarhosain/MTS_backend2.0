@@ -1,24 +1,31 @@
-const express = require("express"); // Import express
-const router = require("./routes/index.js"); // Import the router from routes/index.js
+const express = require('express');
+const http = require('http');
+const cors = require('cors');
+const router = require('./routes/ProjectRoute');
+const { initSocket, getIO } = require('./socket');
 
-const app = express(); // Create an instance of express
+const app = express();
+const server = http.createServer(app);
 
-app.use(express.json()); // Middleware to parse JSON bodies
-app.use(express.urlencoded({ extended: true })); // Middleware to parse URL-encoded bodies
+initSocket(server); // ✅ Initialize Socket.IO here
 
-app.use(router); // Use the router for handling routes
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static('public'));
 
+// Pass the getIO function to your router
+app.use('/api/project', router(getIO));
+app.use('/api/teamMember', require('./routes/team_memberRoute'));
 
-const PORT = process.env.PORT || 3000; // Set the port to listen on
-
-app.listen(PORT, () => { // Start the server
-    
-
-    console.log(`http://localhost:${PORT}`); // Log the URL to access the server
-}
-); // End of the app.listen function
-
-
-
-
-
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(err.status || 500).json({ message: err.message || 'Something went wrong.' });
+});
+const host ="192.168.10.40";
+server.listen(3000, host , () => {
+  
+  console.log(`Server is running on http://${host}:3000`);
+  console.log('Socket.IO server is running');
+  
+});

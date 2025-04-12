@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Management</title>
+    <style>
+        /* Styling (optional) */
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .project-list {
+            margin-top: 20px;
+        }
+        .project {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+        }
+        .pagination {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .page-button {
+            padding: 10px;
+            margin: 0 5px;
+            cursor: pointer;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+        }
+        .page-button:disabled {
+            background-color: #d3d3d3;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+   <!-- api link project.html and team-member.html  -->
+    
+  <!-- Link to the Project Page -->
+  <a href="project.html" title="View Projects">Go to Projects APl documantation</a>
+
+  <br>
+
+  <!-- Link to the Team Members Page -->
+  <a href="team-member.html" title="Meet the Team">Go to Team Members Apl documantation</a>
+
+
+
+
+
+
+    <h1>Projects</h1>
+    <div id="projectsContainer" class="project-list"></div>
+    <div id="pagination" class="pagination">
+        <button id="previousPage" class="page-button" disabled>Previous</button>
+        <button id="nextPage" class="page-button">Next</button>
+    </div>
+    <div id="loading" class="loading">Loading...</div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // Connect to Socket.IO
+        const socket = io(); 
+
+        // Get the elements
+        const projectsContainer = document.getElementById('projectsContainer');
+        const previousPageButton = document.getElementById('previousPage');
+        const nextPageButton = document.getElementById('nextPage');
+        const loadingIndicator = document.getElementById('loading');
+
+        let page = 1;
+        const limit = 10;
+        let totalPages = 1; // To keep track of total pages
+
+        // Listen for paginated project data from server in real-time
+        socket.on('projectData', (data) => {
+            const { projects, pagination } = data;
+
+            if (projects) {
+                // Clear previous projects to avoid duplication
+                projectsContainer.innerHTML = '';
+
+                // Render projects
+                projects.forEach(project => {
+                    const projectDiv = document.createElement('div');
+                    projectDiv.classList.add('project');
+                    projectDiv.innerHTML = `
+                        <strong>${project.project_name}</strong><br>
+                        Status: ${project.status}<br>
+                        Department: ${project.department ? project.department.department_name : 'N/A'}<br>
+                        Sales Comments: ${project.sales_comments}<br>
+                        Ops Leader Comments: ${project.opsleader_comments}<br>
+                        <a href="${project.sheet_link}" target="_blank">Project Sheet</a><br>
+                        Order Amount: $${project.order_amount}<br>
+                        Rating: ${project.rating}/5<br>
+                    `;
+                    projectsContainer.appendChild(projectDiv);
+                });
+
+                totalPages = pagination.totalPages;
+
+                // Enable or disable pagination buttons
+                previousPageButton.disabled = page <= 1;
+                nextPageButton.disabled = page >= totalPages;
+            }
+        });
+
+        // Listen for real-time updates on project creation
+        socket.on('projectCreated', (project) => {
+            const projectDiv = document.createElement('div');
+            projectDiv.classList.add('project');
+            projectDiv.innerHTML = `
+                <strong>${project.project_name}</strong><br>
+                Status: ${project.status}<br>
+                Department: ${project.department ? project.department.department_name : 'N/A'}<br>
+                Sales Comments: ${project.sales_comments}<br>
+                Ops Leader Comments: ${project.opsleader_comments}<br>
+                <a href="${project.sheet_link}" target="_blank">Project Sheet</a><br>
+                Order Amount: $${project.order_amount}<br>
+                Rating: ${project.rating}/5<br>
+            `;
+            projectsContainer.prepend(projectDiv); // Add it to the top
+        });
+// Listen for real-time updates on project update
+socket.on('projectUpdated', (project) => {
+    const existingProjectDiv = [...projectsContainer.children].find(child => child.textContent.includes(project.project_name));
+    if (existingProjectDiv) {
+        // Change the background color when an update comes in
+        existingProjectDiv.style.backgroundColor = 'lightyellow';  // Example color for updated project
+
+        existingProjectDiv.innerHTML = `
+            <strong>${project.project_name}</strong><br>
+            Status: ${project.status}<br>
+            Department: ${project.department ? project.department.department_name : 'N/A'}<br>
+            Sales Comments: ${project.sales_comments}<br>
+            Ops Leader Comments: ${project.opsleader_comments}<br>
+            <a href="${project.sheet_link}" target="_blank">Project Sheet</a><br>
+            Order Amount: $${project.order_amount}<br>
+            Rating: ${project.rating}/5<br>
+        `;
+
+        // Optionally, you can reset the background color after a short delay
+        setTimeout(() => {
+            existingProjectDiv.style.backgroundColor = '';  // Reset to original color after update
+        }, 2000);  // 2 seconds delay
+    }
+});
+
+
+        // Load more projects when the "Next" button is clicked
+        nextPageButton.addEventListener('click', () => {
+            if (page < totalPages) {
+                page++;
+                socket.emit('requestPaginatedProjects', { page, limit });
+            }
+        });
+
+        // Go back to the previous page when the "Previous" button is clicked
+        previousPageButton.addEventListener('click', () => {
+            if (page > 1) {
+                page--;
+                socket.emit('requestPaginatedProjects', { page, limit });
+            }
+        });
+
+        // Initial request for paginated projects
+        socket.emit('requestPaginatedProjects', { page, limit });
+    </script>
+</body>
+</html>
