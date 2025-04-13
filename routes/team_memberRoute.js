@@ -1,16 +1,18 @@
 const express = require('express');
 const router = express.Router();
-const uploadMiddleware = require('../middlewares/uploadMiddleware');
 const asyncHandler = require('../middlewares/asyncHandler');
+const uploadMulterMiddleware = require('../config/multer'); // Import the multer middleware for file uploads
+
+const verifyToken = require('../middlewares/jwt'); // Import the JWT verification middleware
 
 // Import the functions from the controller
 const { createTeamMember, getAllTeamMembers, updateTeamMember, deactivateTeamMember } = require('../controllers/Team_memberController');
 
 // Define route for creating a team member
-router.post('/create', uploadMiddleware,createTeamMember);
+router.post('/create', uploadMulterMiddleware, createTeamMember);
 
 // Define route for getting all team members
-router.post('/', asyncHandler(getAllTeamMembers));  // Make sure this is a POST for pagination
+router.post('/', getAllTeamMembers);  // Make sure this is a POST for pagination
 // Define route for updating a team member by ID
 router.put('/:id', asyncHandler(updateTeamMember));
 

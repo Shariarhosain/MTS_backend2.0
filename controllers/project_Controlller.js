@@ -25,13 +25,7 @@ const io = socketIo(server);  // Create a new instance of Socket.IO
             // Create the project name by combining clientName and orderId
             const projectName = `${clientName}-${order_id}`;
     
-            // Check all data is present in the request body
-            if (!clientName || !ops_status || !sales_comments || !opsleader_comments || !sheet_link || !ordered_by || !deli_last_date || !status || !orderAmount || !bonus || !rating || !department) {
-                return res.status(400).json({ error: 'All fields are required.' });
-
-
-                
-            }
+    
             
 
             //projectName and orderId are not allowed in the request body
@@ -114,32 +108,49 @@ const io = socketIo(server);  // Create a new instance of Socket.IO
 // Get all projects with pagination post method
 
 exports.getAllProjects = async (req, res) => {
-
+ console.log("cookies",req.cookies); // Log the cookies to see if they are being sent correctly
+    console.log("headers",req.headers); // Log the headers to see if they are being sent correctly
     try {
         const { page = 1, limit = 10 } = req.body;
 
         const pageNumber = parseInt(page, 10) || 1;
         const limitNumber = parseInt(limit, 10) || 10;
         const skip = (pageNumber - 1) * limitNumber;
-    
+
         const projects = await prisma.project.findMany({
             skip,
             take: limitNumber,
             include: {
-                department: true,
-            }
-        });
+              department: true,
+              team_member: {
+                include: {
+                  profile: true,
+                },
+              },
+            },
+          });
 
+        // Extract client names from project_name and join them with their respective projects
+        const projectsWithClientNames = projects.map((project) => {
+            const parts = project.project_name.split('-');
+            const clientName = parts[0]; // Extract client name from project_name
+            return {
+            ...project,
+            clientName, // Add clientName to the project object
+            };
+        });
+        
+     
         const totalProjects = await prisma.project.count();
 
         return res.status(200).json({
             message: 'All projects retrieved successfully',
-            projects,
+            projects: projectsWithClientNames, // Include projects with client names
             pagination: {
-                page: pageNumber,
-                limit: limitNumber,
-                total: totalProjects,
-                totalPages: Math.ceil(totalProjects / limitNumber),
+            page: pageNumber,
+            limit: limitNumber,
+            total: totalProjects,
+            totalPages: Math.ceil(totalProjects / limitNumber),
             }
         });
     } catch (error) {

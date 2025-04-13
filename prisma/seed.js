@@ -47,7 +47,6 @@ const seed = async () => {
     teams.push(team);
   }
 
-  // Create 50 team members and link to teams
   const teamMembers = [];
   for (let i = 1; i <= 50; i++) {
     const teamMember = await prisma.team_member.create({
@@ -64,7 +63,9 @@ const seed = async () => {
         guardian_relation: 'Father',
         guardian_number: '1234567890',
         guardian_address: `Guardian Address ${i}`,
-        team_id: teams[i % teams.length].id, // Assign to a team
+        team: {
+          connect: { id: teams[i % teams.length].id },
+        },
         religion: 'Religion',
         education: 'Bachelors',
         dp: `dp${i}.jpg`,
@@ -73,20 +74,21 @@ const seed = async () => {
         target: Math.random() * 5000,
         rewards: Math.random() * 2000,
         rating: Math.floor(Math.random() * 5),
-        account_status : 'Active',
+        account_status: 'Active',
       },
     });
     teamMembers.push(teamMember);
   }
 
-  // Create 50 profiles and link to team members and departments
   const profiles = [];
   for (let i = 1; i <= 50; i++) {
     const profile = await prisma.profile.create({
       data: {
-        created_date: new Date(),
+        created_date: new Date("2025-04-13T06:51:34.753Z"),
         profile_name: `Profile ${i}`,
-        profile_person_name_id: teamMembers[i - 1].id,
+        team_members: {
+          connect: { id: teamMembers[i - 1].id },
+        },
         order_amount: Math.random() * 5000,
         bonus_amount: Math.random() * 2000,
         order_count: Math.floor(Math.random() * 50),
@@ -103,18 +105,39 @@ const seed = async () => {
     });
     profiles.push(profile);
   }
-
-  // Create 50 projects and link to departments, team members
+  console.log('Profiles created:', profiles);
+  const currentDate = new Date();
+  console.log('Current Date:', currentDate);
+  
+  // Current month (April)
+  const startOfCurrentMonth = new Date(currentDate.getFullYear(), 3, 1); // Month 3 = April, 1st day
+  startOfCurrentMonth.setHours(0, 0, 0, 0);  // Set time to midnight (00:00:00) in local time
+  
+  const endOfCurrentMonth = new Date(currentDate.getFullYear(), 4, 0); // Last day of April
+  endOfCurrentMonth.setHours(23, 59, 59, 999);  // Set time to the end of the day (23:59:59.999) in local time
+  console.log('Start of Current Month (Local):', startOfCurrentMonth.toLocaleString()); // Convert to local string
+  console.log('End of Current Month (Local):', endOfCurrentMonth.toLocaleString()); // Convert to local string
+  
+  // Previous month (March)
+  const startOfLastMonth = new Date(currentDate.getFullYear(), 2, 1); // Month 2 = March, 1st day
+  startOfLastMonth.setHours(0, 0, 0, 0); // Set time to midnight (00:00:00) in local time
+  
+  const endOfLastMonth = new Date(currentDate.getFullYear(), 3, 0); // Last day of March
+  endOfLastMonth.setHours(23, 59, 59, 999); // Set time to the end of the day (23:59:59.999) in local time
+  console.log('Start of Last Month (Local):', startOfLastMonth.toLocaleString()); // Convert to local string
+  console.log('End of Last Month (Local):', endOfLastMonth.toLocaleString()); // Convert to local string
+  
+  // Create 25 projects for the current month (April)
   const projects = [];
-  for (let i = 1; i <= 50; i++) {
+  for (let i = 1; i <= 25; i++) {
     const project = await prisma.project.create({
       data: {
-        order_id: `Order${i}`,
-        date: new Date(),
-        project_name: `Project ${i}`,
+        order_id: `OrderThisMonth${i}`,
+        date: startOfCurrentMonth, // Set project date to current month start
+        project_name: `Project This Month ${i}`,
         ops_status: 'Pending',
-        sales_comments: `Sales Comment ${i}`,
-        opsleader_comments: `Ops Leader Comment ${i}`,
+        sales_comments: `Sales Comment for This Month ${i}`,
+        opsleader_comments: `Ops Leader Comment for This Month ${i}`,
         sheet_link: `http://link-to-sheet-${i}.com`,
         ordered_by: teamMembers[i % teamMembers.length].id,
         deli_last_date: new Date(),
@@ -126,12 +149,40 @@ const seed = async () => {
         rating: Math.floor(Math.random() * 5),
         department_id: departments[i % departments.length].id,
         project_requirements: `Requirements for project ${i}`,
+        profile_id: profiles[i % profiles.length].id, // Link to profile
       },
     });
     projects.push(project);
   }
 
-  // Create 50 task assignments and link to departments, teams, and projects
+  // Create 25 projects for the previous month (March)
+  for (let i = 26; i <= 50; i++) {
+    const project = await prisma.project.create({
+      data: {
+        order_id: `OrderLastMonth${i}`,
+        date: startOfLastMonth, // Set project date to previous month start
+        project_name: `Project Last Month ${i}`,
+        ops_status: 'Pending',
+        sales_comments: `Sales Comment for Last Month ${i}`,
+        opsleader_comments: `Ops Leader Comment for Last Month ${i}`,
+        sheet_link: `http://link-to-sheet-${i}.com`,
+        ordered_by: teamMembers[i % teamMembers.length].id,
+        deli_last_date: new Date(),
+        status: 'Active',
+        order_amount: Math.random() * 10000,
+        after_fiverr_amount: Math.random() * 8000,
+        bonus: Math.random() * 1000,
+        after_Fiverr_bonus: Math.random() * 800,
+        rating: Math.floor(Math.random() * 5),
+        department_id: departments[i % departments.length].id,
+        project_requirements: `Requirements for project ${i}`,
+        profile_id: profiles[i % profiles.length].id, // Link to profile
+      },
+    });
+    projects.push(project);
+  }
+
+  // Create task assignments for teams and projects
   for (let i = 1; i <= 50; i++) {
     await prisma.task_assign_team.create({
       data: {

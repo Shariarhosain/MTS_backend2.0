@@ -1,39 +1,89 @@
 // controllers/teamMemberController.js
 const { PrismaClient } = require('@prisma/client');
+const generateToken = require('../config/generateToken');  // Adjust path to your token generator
+
 const prisma = new PrismaClient();
 const fs = require('fs');
 const path = require('path');
 
-// Create a new team member
-exports.createTeamMember = async (req, res) => {
-    const { first_name, last_name, email, number, permanent_address, present_address, gender, blood_group, relationship, guardian_relation, guardian_number, guardian_address, religion, education, password } = req.body;
+
+
+// // Create a new team member
+// exports.createTeamMember = async (req, res) => {
+
+
+//     const { first_name, last_name, email, number, permanent_address, present_address, gender, blood_group, relationship, guardian_relation, guardian_number, guardian_address, religion, education } = req.body;
     
+//     try {
+//            console.log("📦 Fields:", req.body); // All form fields
+//         console.log("🖼️ Files:", req.files); // All files    
+
+//  // Access the first file in the array path
+//         const file = req.files.dp[0].path; // Assuming 'dp' is the field name for the image upload
+//         console.log("🖼️ File Path:", file); // Log the file path
+
+//         // Create team member in database
+//         const teamMember = await prisma.team_member.create({
+//             data: {
+//                 first_name,
+//                 last_name,
+//                 email,
+//                 number,
+//                 permanent_address,
+//                 present_address,
+//                 gender,
+//                 blood_group,
+//                 relationship,
+//                 guardian_relation,
+//                 guardian_number,
+//                 guardian_address,
+//                 religion,
+//                 education,
+//                 dp: file,  // Store the image path
+//                 role: 'null', // Default role, can be updated later
+//                 target:0,
+//                 rewards: 0,
+//                 rating: 0,
+//                 account_status: 'active', // Default account status
+              
+//             }
+//         });
+
+//         console.log('Team member created:', teamMember);
+//         return res.status(201).json({ message: 'Team member created successfully' });
+//     } catch (error) {
+//         console.error('Error during team member creation:', error);
+//         return res.status(500).json({ message: 'An error occurred', error: error.message });
+//     }
+// };
+
+
+// Create a new team member and generate a JWT token
+exports.createTeamMember = async (req, res) => {
+    const { 
+        first_name, 
+        last_name, 
+        email, 
+        number, 
+        permanent_address, 
+        present_address, 
+        gender, 
+        blood_group, 
+        relationship, 
+        guardian_relation, 
+        guardian_number, 
+        guardian_address, 
+        religion, 
+        education 
+    } = req.body;
+
     try {
-        if (!first_name || !last_name || !email || !number || !permanent_address || !present_address || !gender || !blood_group || !relationship || !guardian_relation || !guardian_number || !guardian_address || !religion || !education || !password) {
-            // handle the case where any field is missing
-            return res.status(400).json({ message: 'All fields are required.' });
-        }
-        const dpPath = req.file ? `/uploads/${req.file.filename}` : null;
+        console.log("📦 Fields:", req.body); // All form fields
+        console.log("🖼️ Files:", req.files); // All files    
 
-        // Check for existing email
-        const existingEmail = await prisma.team_member.findUnique({
-            where: { email }
-        });
-        if (existingEmail) {
-            return res.status(400).json({ message: 'Email already exists' });
-        }
-
-
-        // Email and phone validation regex
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            return res.status(400).json({ message: 'Invalid email format' });
-        }
-
-        const phoneRegex = /^\d{11}$/;
-        if (!phoneRegex.test(number)) {
-            return res.status(400).json({ message: 'Invalid phone number format. It should be 11 digits.' });
-        }
+        // Access the first file in the array path
+        const file = req.files.dp[0].path; // Assuming 'dp' is the field name for the image upload
+        console.log("🖼️ File Path:", file); // Log the file path
 
         // Create team member in database
         const teamMember = await prisma.team_member.create({
@@ -52,23 +102,47 @@ exports.createTeamMember = async (req, res) => {
                 guardian_address,
                 religion,
                 education,
-                dp: dpPath,  // Store the image path
+                dp: file,  // Store the image path
                 role: 'null', // Default role, can be updated later
-                target:0,
+                target: 0,
                 rewards: 0,
                 rating: 0,
                 account_status: 'active', // Default account status
-                password: password || null, // Optional password field
             }
         });
 
-        const { password, ...teamMemberWithoutPassword } = teamMember;
-        return res.status(201).json({ message: 'Team member created successfully', teamMember: teamMemberWithoutPassword });
+        console.log('Team member created:', teamMember);
+
+        // Generate JWT Token
+        const uid= req.body.uid; // Assuming uid is passed in the request body
+        if (!uid) { 
+            return res.status(400).json({ message: 'UID is required to generate token.' });
+        }
+        console.log("UID:", uid); // Log the UID
+        const token = generateToken(uid);
+         // Set the token in an HTTP-only cookie
+         const isProduction = process.env.NODE_ENV === 'production';
+
+         res.cookie('auth_token', token, {
+             httpOnly: true,  // Prevents client-side JavaScript from accessing the cookie
+             secure: isProduction,  // Set to true only for production (HTTPS)
+             maxAge: 60 * 60 * 1000,  // 1 hour expiry
+             sameSite: 'Strict',  // Ensures the cookie is sent only with requests to the same origin
+         });
+         
+        // Send response with token
+        return res.status(201).json({ 
+            message: 'Team member created successfully',
+            token: token  // Send JWT token to frontend
+        });
+
     } catch (error) {
         console.error('Error during team member creation:', error);
         return res.status(500).json({ message: 'An error occurred', error: error.message });
     }
 };
+
+
 exports.getAllTeamMembers = async (req, res) => {
     try {
         // Check if req.body is empty or contains invalid data

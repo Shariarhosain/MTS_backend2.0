@@ -29,6 +29,8 @@ model project {
  department         department? @relation(fields: [department_id], references: [id], onDelete: Cascade) // One project belongs to one department
   department_id      Int      
   project_requirements String? @db.Text
+  profile             profile? @relation(fields: [profile_id], references: [id]) // One project belongs to one profile
+  profile_id         Int?
  // Relation with task assignments
   task_assign_team   task_assign_team[] // one team can have many task assignments
 
@@ -72,8 +74,6 @@ model profile {
   id                    Int       @id @default(autoincrement())
   created_date          DateTime?
   profile_name          String?  
-  team_member           team_member? @relation(fields: [profile_person_name_id], references: [id])  
-  profile_person_name_id Int
   order_amount          Decimal?  @db.Decimal(65,0) 
   bonus_amount          Decimal?  @db.Decimal(65,0)   
   order_count           Int?
@@ -87,6 +87,9 @@ model profile {
   repeat_order          Decimal?  @db.Decimal(65,0)
   keywords              String?
   total_rating          Decimal?  @db.Decimal(65,0)
+  projects              project[]
+  team_members          team_member[]
+  
 }
 
 model team_member {
@@ -103,7 +106,7 @@ model team_member {
   guardian_relation    String?
   guardian_number      String?
   guardian_address     String?
-  team                 team?    @relation(fields: [team_id], references: [id],onDelete: Cascade)
+  team                 team?    @relation(fields: [team_id], references: [id], onDelete: Cascade)
   team_id              Int?
   religion             String?
   education            String?
@@ -116,7 +119,9 @@ model team_member {
   password             String?   @db.VarChar(400)
   project              project[]  // one team_member can have many projects
   profile              profile[]  // one team_member can have many profiles
+  designation          String? // Add this field
 }
+
 
 
 model task_assign_team {
