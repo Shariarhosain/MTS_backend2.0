@@ -11,7 +11,7 @@ module.exports = (getIO) => {
 
     // Get all projects route, wrapped with asyncHandler to catch errors
     
-    router.post('/', verifyToken, asyncHandler(async (req, res) => {
+    router.post('/', asyncHandler(async (req, res) => {
         await getAllProjects(req, res); // Ensure this is asynchronous
     }));
 

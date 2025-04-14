@@ -51,9 +51,10 @@ exports.selesView_recent_month = async (req, res) => {
                     select: { profile_name: true }
                 });
                 return {
-                    profile_name: profile?.profile_name || 'Unknown',  // Handle missing profile
-                    total_sales: data._sum.after_fiverr_amount + data._sum.after_Fiverr_bonus
+                    profile_name: profile?.profile_name || 'Unknown',
+                    total_sales: Number(data._sum.after_fiverr_amount || 0) + Number(data._sum.after_Fiverr_bonus || 0),
                 };
+                
             } else {
                 // If profile_id is null, return a default profile_name
                 return {

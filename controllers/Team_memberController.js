@@ -145,7 +145,6 @@ exports.createTeamMember = async (req, res) => {
 
 exports.getAllTeamMembers = async (req, res) => {
     try {
-        // Check if req.body is empty or contains invalid data
         if (!req.body || Object.keys(req.body).length === 0) {
             return res.status(200).json({
                 message: 'No pagination data provided, returning empty result.',
@@ -164,15 +163,23 @@ exports.getAllTeamMembers = async (req, res) => {
         const pageNumber = parseInt(page, 10) || 1;
         const limitNumber = parseInt(limit, 10) || 10;
         const skip = (pageNumber - 1) * limitNumber;
-
         const teamMembers = await prisma.team_member.findMany({
+            include: {
+              team: {
+                include: {
+                  department: true, // this is nested via team
+                },
+              },
+              project: true, // directly related
+              profile: true, // directly related
+            },
             skip,
             take: limitNumber,
-        });
+          });
+          
 
         const totalTeamMembers = await prisma.team_member.count();
 
-        // Remove password field from each team member
         const teamMembersWithoutPassword = teamMembers.map(({ password, ...rest }) => rest);
 
         return res.status(200).json({
@@ -189,7 +196,6 @@ exports.getAllTeamMembers = async (req, res) => {
         return res.status(500).json({ message: 'An error occurred while retrieving team members', error: error.message });
     }
 };
-
 
 // Update a team member by ID
 exports.updateTeamMember = async (req, res) => {

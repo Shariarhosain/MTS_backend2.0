@@ -7,7 +7,7 @@ const router = express.Router();
 
 // Define your routes here
 
-router.get('/', verifyToken, selesView_recent_month);
+router.get('/', selesView_recent_month);
 
 
 module.exports = router; // Export the router for use in other files

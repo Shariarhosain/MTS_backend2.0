@@ -106,26 +106,28 @@ const seed = async () => {
     profiles.push(profile);
   }
   console.log('Profiles created:', profiles);
-  const currentDate = new Date();
-  console.log('Current Date:', currentDate);
+  const currentDateStr = new Date().toLocaleDateString('en-CA'); // "2025-04-13"
+  console.log('Current Date:', currentDateStr);
   
-  // Current month (April)
-  const startOfCurrentMonth = new Date(currentDate.getFullYear(), 3, 1); // Month 3 = April, 1st day
-  startOfCurrentMonth.setHours(0, 0, 0, 0);  // Set time to midnight (00:00:00) in local time
+  // Convert string back to Date object
+  const current = new Date(currentDateStr);
   
-  const endOfCurrentMonth = new Date(currentDate.getFullYear(), 4, 0); // Last day of April
-  endOfCurrentMonth.setHours(23, 59, 59, 999);  // Set time to the end of the day (23:59:59.999) in local time
-  console.log('Start of Current Month (Local):', startOfCurrentMonth.toLocaleString()); // Convert to local string
-  console.log('End of Current Month (Local):', endOfCurrentMonth.toLocaleString()); // Convert to local string
+  // Format function to return YYYY-MM-DD
+  const formatDate = (date) => date.toLocaleDateString('en-CA');
   
-  // Previous month (March)
-  const startOfLastMonth = new Date(currentDate.getFullYear(), 2, 1); // Month 2 = March, 1st day
-  startOfLastMonth.setHours(0, 0, 0, 0); // Set time to midnight (00:00:00) in local time
+  // Current month
+  const startOfCurrentMonth = new Date(current.getFullYear(), current.getMonth(), 1);
+  const endOfCurrentMonth = new Date(current.getFullYear(), current.getMonth() + 1, 0);
   
-  const endOfLastMonth = new Date(currentDate.getFullYear(), 3, 0); // Last day of March
-  endOfLastMonth.setHours(23, 59, 59, 999); // Set time to the end of the day (23:59:59.999) in local time
-  console.log('Start of Last Month (Local):', startOfLastMonth.toLocaleString()); // Convert to local string
-  console.log('End of Last Month (Local):', endOfLastMonth.toLocaleString()); // Convert to local string
+  // Previous month
+  const startOfLastMonth = new Date(current.getFullYear(), current.getMonth() - 1, 1);
+  const endOfLastMonth = new Date(current.getFullYear(), current.getMonth(), 0);
+  
+  // Log all formatted
+  console.log('Start of Current Month:', formatDate(startOfCurrentMonth));
+  console.log('End of Current Month:', formatDate(endOfCurrentMonth));
+  console.log('Start of Last Month:', formatDate(startOfLastMonth));
+  console.log('End of Last Month:', formatDate(endOfLastMonth));
   
   // Create 25 projects for the current month (April)
   const projects = [];
