@@ -4,6 +4,8 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const { Socket } = require('socket.io-client');
+const { selesView_recent_month } = require('./profile_Conrroller'); // Import the sales view function
+const emitSalesData = require('../middlewares/salesEmitter'); // Import the sales emitter function
 
 // Create an instance of express app
 const app = express();
@@ -76,9 +78,9 @@ const io = socketIo(server);  // Create a new instance of Socket.IO
                     deli_last_date: deliLastDate,
                     status,
                     order_amount,
-                    after_fiverr_amount,
+                    after_fiverr_amount:after_fiverr_amount,
                     bonus,
-                    after_Fiverr_bonus,
+                    after_Fiverr_bonus:after_Fiverr_bonus,
                     rating,
                     department: {
                         connect: { id: departmentId }
@@ -97,11 +99,15 @@ const io = socketIo(server);  // Create a new instance of Socket.IO
             where: { id: project.id },
             include: { department: true }
         });
+      
+// Trigger the `selesView_recent_month` after the project is created
 
-        io.emit('projectCreated', fullProject); // ✅ Send full project with department name
-
-            res.status(201).json({ message: 'Project created successfully.', project });
        
+            res.status(201).json({ message: 'Project created successfully.', project });
+            
+            io.emit('projectCreated', fullProject); // ✅ Send full project with department name
+            await emitSalesData(io); // <-- call the helper that only emits via socket
+
         } catch (error) {
             res.status(500).json({ error: 'An error occurred while creating the project.' });
             console.error('Error creating project:', error);
@@ -218,16 +224,34 @@ exports.getAllProjects = async (req, res) => {
         req.body.department_id = departmentData.id;
         delete req.body.department; // remove name to prevent Prisma error
       }
-  
+   // if req.body.order_amount is present then calculate after_fiverr_amount
+   if (req.body.order_amount) {
+    const after_fiverr_amount = req.body.order_amount * 0.8;
+    req.body.after_fiverr_amount = after_fiverr_amount;
+  }
+
+  //if req.body.bonus is present then calculate after_fiverr_bonus
+  if (req.body.bonus) {
+    const after_Fiverr_bonus = req.body.bonus * 0.8;
+    req.body.after_Fiverr_bonus = after_Fiverr_bonus;
+  }
       // Update the project
       const project = await prisma.project.update({
         where: { id: Number(id) },
         data: req.body
       });
-  
-      // Real-time update to front end
-      io.emit('projectUpdated', project);
-  
+     
+   //send project data date in the proper format like yyyy-mm-dd
+      const formatDate = (date) => date ? new Date(date).toISOString().split('T')[0] : null;
+      const updatedProject = {
+        ...project,
+        date: formatDate(project.date),
+        deli_last_date: formatDate(project.deli_last_date),
+      };
+
+console.log("updatedProject",updatedProject);      // Real-time update to front end
+      io.emit('projectUpdated', updatedProject);
+      await emitSalesData(io);
       res.status(200).json({ message: 'Project updated successfully.', project });
   
     } catch (error) {

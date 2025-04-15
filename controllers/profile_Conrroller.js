@@ -5,6 +5,11 @@ const http = require('http');
 const socketIo = require('socket.io');
 const { Socket } = require('socket.io-client');
 
+// Create an instance of express app
+const app = express();
+const server = http.createServer(app); // assuming you are using express
+const io = socketIo(server);  // Create a new instance of Socket.IO
+
 
 exports.selesView_recent_month = async (req, res) => {
     try {
@@ -41,7 +46,7 @@ exports.selesView_recent_month = async (req, res) => {
                 after_Fiverr_bonus: true
             }
         });
-        console.log(salesData);
+       
         
 
         const salesDataWithProfileName = await Promise.all(salesData.map(async (data) => {
@@ -65,9 +70,7 @@ exports.selesView_recent_month = async (req, res) => {
         }));
         
         console.log(salesDataWithProfileName);
-        
-
-        console.log(salesDataWithProfileName);
+        // Emit the sales data to all connected clients
         return res.status(200).json({
             message: 'Sales data retrieved successfully',
             salesData: salesDataWithProfileName
@@ -77,3 +80,5 @@ exports.selesView_recent_month = async (req, res) => {
         return res.status(500).json({ message: 'An error occurred while retrieving sales data', error: error.message });
     }
 };
+
+

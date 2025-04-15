@@ -31,7 +31,16 @@ const initSocket = (server) => {
     socket.on('projectUpdated', (project) => {
       // Emit project update event
       io.emit('projectUpdated', project);
+ 
+    
+    
     });
+
+    socket.on('salesData', (salesDataWithProfileName) => {
+      io.emit('salesData', salesDataWithProfileName);
+    });
+
+
   });
 };
 
