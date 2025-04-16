@@ -103,6 +103,7 @@ const io = socketIo(server);  // Create a new instance of Socket.IO
 // Trigger the `selesView_recent_month` after the project is created
 
        
+console.log("fullProject",fullProject);
             res.status(201).json({ message: 'Project created successfully.', project });
             
             io.emit('projectCreated', fullProject); // ✅ Send full project with department name

@@ -74,7 +74,7 @@ exports.createTeamMember = async (req, res) => {
         guardian_number, 
         guardian_address, 
         religion, 
-        education 
+        education, 
     } = req.body;
 
     try {
@@ -108,6 +108,7 @@ exports.createTeamMember = async (req, res) => {
                 rewards: 0,
                 rating: 0,
                 account_status: 'active', // Default account status
+                uid: req.body.uid, // Assuming uid is passed in the request body
             }
         });
 
@@ -211,40 +212,16 @@ exports.updateTeamMember = async (req, res) => {
         }
 
 
-
-
-        upload.single('dp')(req, res, async (err) => {
-            if (err) {
-                console.error('Error during image upload:', err);
-                return res.status(400).json({ message: 'Error uploading image', error: err.message });
-            }
-
-            const teamMember = await prisma.team_member.findUnique({ where: { id: parseInt(id, 10) } });
-            if (!teamMember) {
-                return res.status(404).json({ message: 'Team member not found' });
-            }
-
             const updateData = { ...req.body };
             
-            if (req.file) {
-                // Delete old image if being updated
-                if (teamMember.dp) {
-                    const oldImagePath = path.join(__dirname, '..', teamMember.dp);
-                    if (fs.existsSync(oldImagePath)) {
-                        fs.unlinkSync(oldImagePath);  // Delete old image file
-                    }
-                }
-
-                updateData.dp = `/uploads/${req.file.filename}`;
-            }
-
+        
             const updatedTeamMember = await prisma.team_member.update({
                 where: { id: parseInt(id, 10) },
                 data: updateData,
             });
 
             return res.status(200).json({ message: 'Team member updated successfully', teamMember: updatedTeamMember });
-        });
+        
     } catch (error) {
         console.error('Error updating team member:', error);
         return res.status(500).json({ message: 'An error occurred while updating the team member', error: error.message });
