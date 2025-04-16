@@ -80,7 +80,7 @@
     updateSalesChart();
 
     // Update chart when new sales data is received via socket
-    socket.on('salesData', (data) => {
+    socket.on('salesDataEachProfile', (data) => {
         console.log('New sales data received:', data);
       console.log('Sales data received - refreshing chart');
       updateSalesChart(); // Update chart with latest data

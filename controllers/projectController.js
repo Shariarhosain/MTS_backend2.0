@@ -330,3 +330,51 @@ exports.sendPaginatedProjectData = async (socket, page = 1, limit = 10) => {
         console.error('Error sending paginated project data:', error);
     }
 };
+
+
+exports.getClientSuggestionsFromProjects = async (req, res) => {
+  const query = req.query.query; // Get the query from the request query string
+  console.log("Query:", query); // Debugging the query for testing
+
+  if (!query || query.trim().length < 1) {
+    return res.status(400).json({ error: 'Query parameter is required.' });
+  }
+
+  try {
+    // Fetch project names and filter by query
+    const projects = await prisma.project.findMany({
+      where: {
+        project_name: {
+          contains: query,  // Filter project names that contain the query
+          mode: 'insensitive',  // Case-insensitive search
+        },
+      },
+      select: {
+        project_name: true,  // Only fetch the project_name field
+      },
+      take: 100,  // Limit to 100 suggestions
+    });
+
+    // Extract client names from project names (assuming format is "clientName-orderId")
+    const clientNames = projects.map(project => {
+      const [clientName] = project.project_name.split('-'); // Extract the client name before the hyphen
+      return clientName;
+    });
+
+
+    // This will include any client name that contains the query string "c"
+    // Filter client names based on the query
+    const filteredClientNames = clientNames.filter(clientName =>
+      clientName.toLowerCase().startsWith(query.toLowerCase()) // Check if client name starts with the query
+    );
+
+    // Remove duplicates by converting to a Set
+    const uniqueClientNames = [...new Set(filteredClientNames)];
+
+    console.log("Filtered Client Names:", uniqueClientNames); // Debugging the result
+    return res.status(200).json(uniqueClientNames);  // Return filtered and unique client names
+  } catch (error) {
+    console.error('Error fetching client suggestions:', error);
+    return res.status(500).json({ error: 'An error occurred while fetching client suggestions.' });
+  }
+};

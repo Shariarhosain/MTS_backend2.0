@@ -42,7 +42,7 @@ async function emitSalesData(io) {
             }
         }));
 
-        io.emit('salesData', salesDataWithProfileName);
+        io.emit('salesDataEachProfile', salesDataWithProfileName);
         console.log('[Socket] salesData emitted:', salesDataWithProfileName);
     } catch (err) {
         console.error('[Socket] Failed to emit salesData:', err);

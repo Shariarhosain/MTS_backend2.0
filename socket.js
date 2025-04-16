@@ -36,8 +36,8 @@ const initSocket = (server) => {
     
     });
 
-    socket.on('salesData', (salesDataWithProfileName) => {
-      io.emit('salesData', salesDataWithProfileName);
+    socket.on('salesDataEachProfile', (salesDataWithProfileName) => {
+      io.emit('salesDataEachProfile', salesDataWithProfileName);
     });
 
 

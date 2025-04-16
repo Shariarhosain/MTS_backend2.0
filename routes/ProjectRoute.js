@@ -1,7 +1,7 @@
 const express = require('express');
 const asyncHandler = require('../middlewares/asyncHandler');
-const verifyToken = require('../middlewares/jwt'); // Import the JWT verification middleware
-const { createProject, getAllProjects, updateProject } = require('../controllers/profileController');
+//const verifyToken = require('../middlewares/jwt'); // Import the JWT verification middleware
+const { createProject, getAllProjects, updateProject,getClientSuggestionsFromProjects} = require('../controllers/projectController'); // Import the controller functions
 
 
 module.exports = (getIO) => {
@@ -15,8 +15,12 @@ module.exports = (getIO) => {
         await getAllProjects(req, res); // Ensure this is asynchronous
     }));
 
+    router.get('/clientSuggestions', getClientSuggestionsFromProjects);
+
+
     // Update project route, using getIO() for socket functionality
     router.put('/:id', (req, res) => updateProject(req, res, getIO()));
+
 
     return router;
 };
