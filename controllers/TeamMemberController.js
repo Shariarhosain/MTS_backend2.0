@@ -228,6 +228,27 @@ exports.updateTeamMember = async (req, res) => {
     }
 };
 
+
+exports.getTeamMemberById = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const teamMember = await prisma.team_member.findUnique({
+            where: { id: parseInt(id, 10) },
+            include: {
+                team: true,
+                project: true,
+                profile: true,
+            }
+        });
+        if (!teamMember) {
+            return res.status(404).json({ message: 'Team member not found' });
+        }
+        return res.status(200).json({ message: 'Team member retrieved successfully', teamMember });
+    } catch (error) {
+        console.error('Error retrieving team member:', error);
+        return res.status(500).json({ message: 'An error occurred while retrieving the team member', error: error.message });
+    }
+}
 // Deactivate a team member by ID (soft delete)
 exports.deactivateTeamMember = async (req, res) => {
     const { id } = req.params;

@@ -6,13 +6,14 @@ const uploadMulterMiddleware = require('../config/multer'); // Import the multer
 const verifyToken = require('../middlewares/jwt'); // Import the JWT verification middleware
 
 // Import the functions from the controller
-const { createTeamMember, getAllTeamMembers, updateTeamMember, deactivateTeamMember } = require('../controllers/Team_memberController');
+const { createTeamMember, getAllTeamMembers, updateTeamMember, deactivateTeamMember, getTeamMemberById} = require('../controllers/TeamMemberController');
 
 // Define route for creating a team member
 router.post('/create', uploadMulterMiddleware, createTeamMember);
 
 // Define route for getting all team members
 router.post('/', getAllTeamMembers);  // Make sure this is a POST for pagination
+router.get('/:id', asyncHandler(getTeamMemberById));
 // Define route for updating a team member by ID
 router.put('/:id', asyncHandler(updateTeamMember));
 

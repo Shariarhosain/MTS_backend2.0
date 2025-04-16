@@ -4,7 +4,6 @@ const cors = require('cors');
 const ProjectRoute = require('./routes/ProjectRoute');
 const ProfileRoute = require('./routes/profileRoute');
 const { initSocket, getIO } = require('./socket');
-const{getAllProjects} = require('./controllers/project_Controlller');
 
 const app = express();
 const server = http.createServer(app);
@@ -28,7 +27,7 @@ app.use(express.static('public'));
 // Pass the getIO function to your router
 app.use(cookieParser());  // This should be before your routes
 app.use('/api/project', ProjectRoute(getIO)); // Ensure ProjectRoute is returning a function
-app.use('/api/teamMember', require('./routes/team_memberRoute'));
+app.use('/api/teamMember', require('./routes/teamMemberRoute'));
 app.use('/api/profile', ProfileRoute);
 
 // Error handling middleware
@@ -37,7 +36,7 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ message: err.message || 'Something went wrong.' });
 });
 
-const host = "192.168.10.47";
+const host = "192.168.10.40";
 server.listen(3000, host, () => {
   console.log(`Server is running on http://${host}:3000`);
   console.log('Socket.IO server is running');

@@ -4,7 +4,7 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const { Socket } = require('socket.io-client');
-const { selesView_recent_month } = require('./profile_Conrroller'); // Import the sales view function
+const { selesView_recent_month } = require('./profileController'); // Import the sales view function
 const emitSalesData = require('../middlewares/salesEmitter'); // Import the sales emitter function
 
 // Create an instance of express app
@@ -181,8 +181,44 @@ exports.getAllProjects = async (req, res) => {
     }
   };
   
+  
+  exports.getProjectById = async (req, res) => {
+    const { id } = req.params;
+    
+    try {
+      const project = await prisma.project.findUnique({
+        where: { id: Number(id) },
+        include: {
+          department: true,
+          team_member: {
+            include: {
+              profile: true,
+            },
+          },
+        },
+      });
+
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found.' });
+      }
 
 
+      const formatDate = (date) => date ? new Date(date).toISOString().split('T')[0] : null;
+      const formattedProject = {
+        ...project,
+        date: formatDate(project.date),
+        deli_last_date: formatDate(project.deli_last_date),
+      };
+
+      return res.status(200).json({
+        message: 'Project retrieved successfully.',
+        project: formattedProject,
+      });
+    } catch (error) {
+      console.error('Error fetching project:', error);
+      res.status(500).json({ error: 'An error occurred while fetching the project.' });
+    }
+  };
 
   exports.updateProject = async (req, res, io) => {
     const { id } = req.params;

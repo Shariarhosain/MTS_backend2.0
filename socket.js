@@ -16,7 +16,7 @@ const initSocket = (server) => {
     socket.on('requestPaginatedProjects', async (data) => {
       const { page, limit } = data;
       try {
-        await require('./controllers/project_Controlller').sendPaginatedProjectData(socket, page, limit);
+        await require('./controllers/projectController').sendPaginatedProjectData(socket, page, limit);
       } catch (error) {
         console.error('Error sending paginated project data:', error);
       }

@@ -1,5 +1,5 @@
 const express = require('express');
-const {selesView_recent_month} = require('../controllers/profile_Conrroller');
+const {selesView_recent_month} = require('../controllers/profileController'); // Import the controller functions
 const verifyToken = require('../middlewares/jwt'); // Import the JWT verification middleware
 
 
