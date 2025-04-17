@@ -331,7 +331,6 @@ exports.sendPaginatedProjectData = async (socket, page = 1, limit = 10) => {
     }
 };
 
-
 exports.getClientSuggestionsFromProjects = async (req, res) => {
   const query = req.query.query; // Get the query from the request query string
   console.log("Query:", query); // Debugging the query for testing
@@ -355,26 +354,114 @@ exports.getClientSuggestionsFromProjects = async (req, res) => {
       take: 100,  // Limit to 100 suggestions
     });
 
+    console.log("Fetched Projects:", projects); // Debugging the raw fetched data
+
     // Extract client names from project names (assuming format is "clientName-orderId")
     const clientNames = projects.map(project => {
       const [clientName] = project.project_name.split('-'); // Extract the client name before the hyphen
       return clientName;
     });
 
+    console.log("Client Names from Projects:", clientNames); // Debugging the client names extracted
 
-    // This will include any client name that contains the query string "c"
     // Filter client names based on the query
     const filteredClientNames = clientNames.filter(clientName =>
       clientName.toLowerCase().startsWith(query.toLowerCase()) // Check if client name starts with the query
     );
 
+    console.log("Filtered Client Names:", filteredClientNames); // Debugging the filtered client names
+
     // Remove duplicates by converting to a Set
     const uniqueClientNames = [...new Set(filteredClientNames)];
 
-    console.log("Filtered Client Names:", uniqueClientNames); // Debugging the result
-    return res.status(200).json(uniqueClientNames);  // Return filtered and unique client names
+    // Fetch projects related to the filtered client names
+    const filteredProjects = await prisma.project.findMany({
+      where: {
+        project_name: {
+          startsWith: uniqueClientNames.join('-'),  // Fetch projects for the filtered clients by matching the prefix
+          mode: 'insensitive',
+        },
+      },
+  
+      take: 100,  // Limit to 100 results
+    });
+
+    console.log("Filtered Projects by Client:", filteredProjects); // Debugging the result
+    return res.status(200).json({ filteredProjects, filteredClientNames });  // Return filtered projects and client names
+
   } catch (error) {
     console.error('Error fetching client suggestions:', error);
     return res.status(500).json({ error: 'An error occurred while fetching client suggestions.' });
   }
 };
+
+
+exports.new_revision = async (req, res) => {
+  const { revision_comments, delivery_date } = req.body;
+  const { id: project_id } = req.params;
+
+  try {
+    const project = await prisma.project.findUnique({
+      where: { id: Number(project_id) },
+      include: { team: true }, // ✅ include the related team
+    });
+
+    if (!project) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+
+    if (!project.team) {
+      return res.status(400).json({ error: "This project has no team assigned." });
+    }
+
+    // Update the project status to "revision"
+    const updatedProject = await prisma.project.update({
+      where: { id: Number(project_id) },
+      data: { status: 'revision' },
+    });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (req.body.delivery_date) {
+      const deliveryDate = new Date(req.body.delivery_date);
+      deliveryDate.setHours(0, 0, 0, 0);
+      req.body.delivery_date = deliveryDate;
+    } else {
+      return res.status(400).json({ error: 'Delivery date is required.' });
+    }
+
+    if (req.body.metting_date) {
+      const meetingDate = new Date(req.body.metting_date);
+      meetingDate.setHours(0, 0, 0, 0);
+      req.body.metting_date = meetingDate;
+    }
+
+    const newRevision = await prisma.revision.create({
+      data: {
+        project_id: Number(project_id),
+        revision_date: today,
+        revision_comments,
+        delivery_date: req.body.delivery_date,
+        metting_link: req.body.metting_link || null,
+        metting_date: req.body.metting_date || null,
+        team: {
+          connect: [{ id: project.team.id }], // ✅ Correct way to connect the team
+        },
+      },
+    });
+
+    res.status(200).json({
+      message: 'Project status updated to revision and revision record created successfully.',
+      updatedProject,
+      newRevision,
+    });
+
+  } catch (error) {
+    console.error('Error updating project status to revision:', error);
+    res.status(500).json({ error: 'An error occurred while updating the project status.' });
+  }
+};
+
+
+

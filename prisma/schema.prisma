@@ -31,7 +31,8 @@ model project {
   project_requirements String? @db.Text
   profile             profile? @relation(fields: [profile_id], references: [id])
   profile_id         Int?
-  task_assign_team   task_assign_team[] // one team can have many task assignments
+  team                team?    @relation(fields: [team_id], references: [id])
+  team_id            Int?
 }
 
 
@@ -44,8 +45,11 @@ model team {
   team_achieve       Decimal?  @db.Decimal(65,0) 
   team_cancel        Int?
   total_carry        Decimal?  @db.Decimal(65,0)
-  task_assign_team task_assign_team[] // one team can have many task_assign_team
+  project            project[] // one team can have many projects
   // Relation with task assignments
+ revision revision[] 
+  
+
 
 }
 
@@ -63,8 +67,7 @@ model department {
   assign_project      project[]  // many department can have many projects
   total_carry          Decimal?  @db.Decimal(65,0)
   
-  // Relation with task assignments
-  task_assign_team    task_assign_team[] // one department can assign many projects to teams
+  
 
 }
 
@@ -123,15 +126,27 @@ model team_member {
 
 
 
-model task_assign_team {
-  id                 Int       @id @default(autoincrement())
-  task_assign_id     Int       @unique
-  department_id      Int
-  team_id            Int
-  project_id         Int
+// model task_assign_team {
+//   id                 Int       @id @default(autoincrement())
+//   task_assign_id     Int       @unique
+//   department_id      Int
+//   team_id            Int
+//   department         department @relation(fields: [department_id], references: [id],onDelete: Cascade)
+//   team               team       @relation(fields: [team_id], references: [id],onDelete: Cascade)
+//   project            project []
+//   revision           revision[]
+// }
 
-  // Relations
-  department         department @relation(fields: [department_id], references: [id],onDelete: Cascade)
-  team               team       @relation(fields: [team_id], references: [id],onDelete: Cascade)
-  project            project []
+
+
+model revision {
+  id                 Int       @id @default(autoincrement())
+  project_id         Int
+  revision_date      DateTime? @db.Date
+  revision_comments   String?  @db.Text
+  delivery_date    DateTime? @db.Date
+  metting_link       String?  @db.Text
+  metting_date       DateTime? @db.Date
+  team                    team[]
+
 }
