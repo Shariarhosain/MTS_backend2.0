@@ -14,9 +14,6 @@ const storage = new CloudinaryStorage({
 // ✅ Multer Upload Middleware
 const upload = multer({ storage });
 
-const uploadMulterMiddleware = upload.fields([
-  { name: 'profileImage', maxCount: 1 },
-  { name: 'gallery', maxCount: 10 },
-]);
+const uploadMulterMiddleware = upload.fields([{ name: 'dp', maxCount: 1 }]);
 
 module.exports = uploadMulterMiddleware;
