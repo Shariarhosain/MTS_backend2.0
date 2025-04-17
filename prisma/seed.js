@@ -84,7 +84,7 @@ const seed = async () => {
   for (let i = 1; i <= 50; i++) {
     const profile = await prisma.profile.create({
       data: {
-        created_date: new Date("2025-04-13T06:51:34.753Z"),
+        created_date: new Date('2025-04-13T06:51:34.753Z'),
         profile_name: `Profile ${i}`,
         team_members: {
           connect: { id: teamMembers[i - 1].id },
@@ -108,27 +108,39 @@ const seed = async () => {
   console.log('Profiles created:', profiles);
   const currentDateStr = new Date().toLocaleDateString('en-CA'); // "2025-04-13"
   console.log('Current Date:', currentDateStr);
-  
+
   // Convert string back to Date object
   const current = new Date(currentDateStr);
-  
+
   // Format function to return YYYY-MM-DD
   const formatDate = (date) => date.toLocaleDateString('en-CA');
-  
+
   // Current month
-  const startOfCurrentMonth = new Date(current.getFullYear(), current.getMonth(), 1);
-  const endOfCurrentMonth = new Date(current.getFullYear(), current.getMonth() + 1, 0);
-  
+  const startOfCurrentMonth = new Date(
+    current.getFullYear(),
+    current.getMonth(),
+    1
+  );
+  const endOfCurrentMonth = new Date(
+    current.getFullYear(),
+    current.getMonth() + 1,
+    0
+  );
+
   // Previous month
-  const startOfLastMonth = new Date(current.getFullYear(), current.getMonth() - 1, 1);
+  const startOfLastMonth = new Date(
+    current.getFullYear(),
+    current.getMonth() - 1,
+    1
+  );
   const endOfLastMonth = new Date(current.getFullYear(), current.getMonth(), 0);
-  
+
   // Log all formatted
   console.log('Start of Current Month:', formatDate(startOfCurrentMonth));
   console.log('End of Current Month:', formatDate(endOfCurrentMonth));
   console.log('Start of Last Month:', formatDate(startOfLastMonth));
   console.log('End of Last Month:', formatDate(endOfLastMonth));
-  
+
   // Create 25 projects for the current month (April)
   const projects = [];
   for (let i = 1; i <= 25; i++) {

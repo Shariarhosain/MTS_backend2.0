@@ -12,7 +12,14 @@ initSocket(server); // ✅ Initialize Socket.IO here
 const cookieParser = require('cookie-parser');
 const verifyToken = require('./middlewares/jwt');
 
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static('public'));
 
+// Pass the getIO function to your router
+app.use('/api/project', router(getIO));
+app.use('/api/teamMember', require('./routes/team_memberRoute'));
 
 app.use(cors({
   origin: '*', // or use '*' to allow all origins (not recommended in production)
