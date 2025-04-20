@@ -1,7 +1,7 @@
 const express = require('express');
 const asyncHandler = require('../middlewares/asyncHandler');
 //const verifyToken = require('../middlewares/jwt'); // Import the JWT verification middleware
-const { createProject, getAllProjects, updateProject,getClientSuggestionsFromProjects,new_revision} = require('../controllers/projectController'); // Import the controller functions
+const { createProject, getAllProjects, updateProject,getClientSuggestionsFromProjects,new_revision,projectDistribution} = require('../controllers/projectController'); // Import the controller functions
 
 
 module.exports = (getIO) => {
@@ -22,6 +22,9 @@ module.exports = (getIO) => {
     router.put('/:id', (req, res) => updateProject(req, res, getIO()));
     
     router.put('/updateRevision/:id', new_revision);
+
+    // Get project distribution for the current month, using getIO() for socket functionality
+    router.get('/monthWise', projectDistribution);
 
     return router;
 };

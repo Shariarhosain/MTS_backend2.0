@@ -195,18 +195,32 @@ const seed = async () => {
     });
     projects.push(project);
   }
+// Create 10 revisions (assuming projects and teams already exist)
+for (let i = 0; i < 10; i++) {
+  const revision = await prisma.revision.create({
+    data: {
+      project_id: projects[i % projects.length].id,
+      revision_date: new Date(),
+      revision_comments: `Revision comment ${i + 1}`,
+      delivery_date: new Date(new Date().setDate(new Date().getDate() + 7)), // delivery in 7 days
+      metting_link: `https://meeting-link-${i + 1}.com`,
+      metting_date: new Date(new Date().setDate(new Date().getDate() + 2)), // meeting in 2 days
+    },
+  });
 
-  // Create task assignments for teams and projects
-  for (let i = 1; i <= 50; i++) {
-    await prisma.task_assign_team.create({
+  // Connect 1-2 teams to this revision
+  const numTeams = Math.floor(Math.random() * 2) + 1;
+  for (let j = 0; j < numTeams; j++) {
+    await prisma.revision_team.create({
       data: {
-        task_assign_id: i,
-        department_id: departments[i % departments.length].id,
-        team_id: teams[i % teams.length].id,
-        project_id: projects[i % projects.length].id,
+        revision_id: revision.id,
+        team_id: teams[(i + j) % teams.length].id,
       },
     });
   }
+}
+
+
 
   console.log('Seed data inserted successfully!');
 };

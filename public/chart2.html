@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Projects Distributions</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background-color: #0e1a2b;
+      font-family: Arial, sans-serif;
+      color: white;
+      padding: 20px;
+    }
+    h2 {
+      color: white;
+    }
+    #chart-container {
+      background-color: #112345;
+      border-radius: 15px;
+      padding: 30px;
+    }
+    canvas {
+      width: 100% !important;
+      height: auto !important;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background: #0077B6;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #005f8a;
+    }
+  </style>
+</head>
+<body>
+  <h2>Project Distributions (Current Month)</h2>
+  <canvas id="projectChart" width="800" height="400"></canvas>
+
+  <!-- Socket.IO client -->
+  <script src="https://cdn.jsdelivr.net/npm/socket.io-client/dist/socket.io.min.js"></script>
+  <script>
+    const socket = io(); // Connect to your server
+    const ctx = document.getElementById('projectChart').getContext('2d');
+    let chart;
+
+    // Function to fetch and update the chart with data from API
+    const updateProjectChart = async () => {
+      try {
+        const response = await fetch('http://192.168.10.40:3000/api/project/monthWise');
+        const result = await response.json();
+        const data = result.projectCurrent;
+
+        const labels = data.map(item => item.project_name);
+        const fiverrAmount = data.map(item => parseFloat(item.after_fiverr_amount) || 0);
+        const bonus = data.map(item => parseFloat(item.after_Fiverr_bonus) || 0);
+
+        if (chart) {
+          chart.data.labels = labels;
+          chart.data.datasets[0].data = fiverrAmount;
+          chart.data.datasets[1].data = bonus;
+          chart.update();
+        } else {
+          chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: labels,
+              datasets: [{
+                label: 'After Fiverr Amount',
+                data: fiverrAmount,
+                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+              },
+              {
+                label: 'Bonus',
+                data: bonus,
+                backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderWidth: 1
+              }]
+            },
+            options: {
+              responsive: true,
+              scales: {
+                y: {
+                  beginAtZero: true
+                }
+              }
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching project data:', error);
+      }
+    };
+
+    // Fetch project data on page load
+    updateProjectChart();
+
+    // Update chart when new project data is received via socket
+    socket.on('projectUpdated', (updatedProject) => {
+      console.log('Project updated:', updatedProject);
+      updateProjectChart(); // Refresh chart with latest data
+    });
+  </script>
+</body>
+</html>

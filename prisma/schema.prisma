@@ -126,17 +126,6 @@ model team_member {
 
 
 
-// model task_assign_team {
-//   id                 Int       @id @default(autoincrement())
-//   task_assign_id     Int       @unique
-//   department_id      Int
-//   team_id            Int
-//   department         department @relation(fields: [department_id], references: [id],onDelete: Cascade)
-//   team               team       @relation(fields: [team_id], references: [id],onDelete: Cascade)
-//   project            project []
-//   revision           revision[]
-// }
-
 
 
 model revision {

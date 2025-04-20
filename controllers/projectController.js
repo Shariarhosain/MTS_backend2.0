@@ -4,8 +4,9 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const { Socket } = require('socket.io-client');
-const { selesView_recent_month } = require('./profileController'); // Import the sales view function
+//const { selesView_recent_month } = require('./profileController'); // Import the sales view function
 const emitSalesData = require('../middlewares/salesEmitter'); // Import the sales emitter function
+const emitProjectDistributionCurrentMonth = require('../middlewares/projectEmitter'); // Import the project emitter function
 
 // Create an instance of express app
 const app = express();
@@ -107,6 +108,7 @@ console.log("fullProject",fullProject);
             res.status(201).json({ message: 'Project created successfully.', project });
             
             io.emit('projectCreated', fullProject); // ✅ Send full project with department name
+            await emitProjectDistributionCurrentMonth(io); // <-- call the helper that only emits via socket
             await emitSalesData(io); // <-- call the helper that only emits via socket
 
         } catch (error) {
@@ -464,4 +466,52 @@ exports.new_revision = async (req, res) => {
 };
 
 
+exports.getRecentMonthProjects = async (req, res) => {
+  try {
+    const currentDate = new Date();
+    const startOfCurrentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const endOfCurrentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    endOfCurrentMonth.setHours(23, 59, 59, 999); // Set time to the end of the day (23:59:59.999) in local time
+    
 
+  }catch (error) {
+    console.error('Error fetching recent month projects:', error);
+    return res.status(500).json({ error: 'An error occurred while fetching recent month projects.' });
+  }
+};
+
+
+exports.projectDistribution = async (req, res) => {
+  try {
+
+
+    const currentDate = new Date();
+    const startOfCurrentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const endOfCurrentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    endOfCurrentMonth.setHours(23, 59, 59, 999);
+
+    const projectCurrent = await prisma.project.findMany({
+        where: {
+            date: {
+                gte: startOfCurrentMonth,
+                lte: endOfCurrentMonth
+            }
+        },
+        select: {
+            project_name: true,
+            after_fiverr_amount: true,
+            after_Fiverr_bonus: true            
+        }
+      
+        
+    });
+    console.log('Current Projects:', projectCurrent);
+
+  
+    res.status(200).json({ message: 'Project distribution data emitted successfully.', projectCurrent }); // <-- send a response after emitting data
+  }catch (err) {
+   res.status(500).json({ error: 'An error occurred while emitting project distribution data.' });
+    console.error('[Socket] Failed to emit project distribution data:', err);
+  }
+
+}
