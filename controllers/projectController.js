@@ -95,19 +95,41 @@ const io = socketIo(server);  // Create a new instance of Socket.IO
             });
            
              
-              // ✅ Refetch the created project with department relation
-        const fullProject = await prisma.project.findUnique({
+            // Fetch all projects to emit the updated list
+            const projects = await prisma.project.findFirst({
             where: { id: project.id },
-            include: { department: true }
-        });
+            include: {
+                department: true,
+                team_member: {
+                    include: {
+                        profile: true,
+                    },
+                },
+            },
+
+            });
+            const formatDate = (date) =>
+              date ? new Date(date).toISOString().split('T')[0] : null;
+        
+            // Extract client name and format date fields
+            const projectsWithClientNames = [projects].map((project) => { // Changed from projects.map to [projects].map
+              const [clientName] = project.project_name.split('-');
+        
+              return {
+                ...project,
+                clientName,
+                date: formatDate(project.date),
+                deli_last_date: formatDate(project.deli_last_date),
+              };
+            });
       
 // Trigger the `selesView_recent_month` after the project is created
 
        
-console.log("fullProject",fullProject);
+console.log("fullProject",projectsWithClientNames);
             res.status(201).json({ message: 'Project created successfully.', project });
             
-            io.emit('projectCreated', fullProject); // ✅ Send full project with department name
+            io.emit('projectCreated', projectsWithClientNames); // ✅ Send full project with department name
             await emitProjectDistributionCurrentMonth(io); // <-- call the helper that only emits via socket
             await emitSalesData(io); // <-- call the helper that only emits via socket
 
@@ -333,69 +355,102 @@ exports.sendPaginatedProjectData = async (socket, page = 1, limit = 10) => {
     }
 };
 
+// exports.getClientSuggestionsFromProjects = async (req, res) => {
+//   const query = req.query.query; // Get the query from the request query string
+//   console.log("Query:", query); // Debugging the query for testing
+
+//   if (!query || query.trim().length < 1) {
+//     return res.status(400).json({ error: 'Query parameter is required.' });
+//   }
+
+//   try {
+//     // Fetch project names and filter by query
+//     const projects = await prisma.project.findMany({
+//       where: {
+//         project_name: {
+//           startsWith: query, // Assuming "clientName-orderId"
+//           mode: 'insensitive',
+//         },
+
+//       },
+//    take: 100
+//     })
+
+//     //console.log("Fetched Projects:", projects); // Debugging the raw fetched data
+
+//     // Extract client names from project names (assuming format is "clientName-orderId")
+//     const clientNames = projects.map(project => {
+//       const [clientName] = project.project_name.split('-'); // Extract the client name before the hyphen
+//       return clientName;
+//     });
+
+//     console.log("Client Names from Projects:", clientNames); // Debugging the client names extracted
+
+//     // // Filter client names based on the query
+//     // const filteredClientNames = clientNames.filter(clientName =>
+//     //   clientName.toLowerCase().startsWith(query.toLowerCase()) // Check if client name starts with the query
+//     // );
+
+//     // console.log("Filtered Client Names:", filteredClientNames); // Debugging the filtered client names
+
+//     // Remove duplicates by converting to a Set
+//     const uniqueClientNames = [...new Set(clientNames)];
+
+//     // // Fetch projects related to the filtered client names
+//     // const filteredProjects = await prisma.project.findMany({
+//     //   where: {
+//     //     project_name: {
+//     //       startsWith: uniqueClientNames.join('-'),  // Fetch projects for the filtered clients by matching the prefix
+//     //       mode: 'insensitive',
+//     //     },
+//     //   },
+  
+//     //   take: 100,  // Limit to 100 results
+//     // });
+
+//     //console.log("Unique Client Names:", uniqueClientNames); // Debugging the unique client names
+//     console.log("Filtered Projects:", uniqueClientNames); // Debugging the filtered projects
+//     return res.status(200).json( uniqueClientNames );  // Return filtered projects and client names
+
+//   } catch (error) {
+//     console.error('Error fetching client suggestions:', error);
+//     return res.status(500).json({ error: 'An error occurred while fetching client suggestions.' });
+//   }
+// };
+
 exports.getClientSuggestionsFromProjects = async (req, res) => {
-  const query = req.query.query; // Get the query from the request query string
-  console.log("Query:", query); // Debugging the query for testing
+  const query = req.query.query;
 
   if (!query || query.trim().length < 1) {
     return res.status(400).json({ error: 'Query parameter is required.' });
   }
 
   try {
-    // Fetch project names and filter by query
     const projects = await prisma.project.findMany({
       where: {
         project_name: {
-          contains: query,  // Filter project names that contain the query
-          mode: 'insensitive',  // Case-insensitive search
-        },
+          startsWith: query, // Or use `contains` for more flexible search
+          mode: 'insensitive',
+        }
       },
-      select: {
-        project_name: true,  // Only fetch the project_name field
-      },
-      take: 100,  // Limit to 100 suggestions
+      take: 100
     });
 
-    console.log("Fetched Projects:", projects); // Debugging the raw fetched data
-
-    // Extract client names from project names (assuming format is "clientName-orderId")
     const clientNames = projects.map(project => {
-      const [clientName] = project.project_name.split('-'); // Extract the client name before the hyphen
+      const [clientName] = project.project_name.split('-');
       return clientName;
     });
 
-    console.log("Client Names from Projects:", clientNames); // Debugging the client names extracted
+    const uniqueClientNames = [...new Set(clientNames)];
 
-    // Filter client names based on the query
-    const filteredClientNames = clientNames.filter(clientName =>
-      clientName.toLowerCase().startsWith(query.toLowerCase()) // Check if client name starts with the query
-    );
-
-    console.log("Filtered Client Names:", filteredClientNames); // Debugging the filtered client names
-
-    // Remove duplicates by converting to a Set
-    const uniqueClientNames = [...new Set(filteredClientNames)];
-
-    // Fetch projects related to the filtered client names
-    const filteredProjects = await prisma.project.findMany({
-      where: {
-        project_name: {
-          startsWith: uniqueClientNames.join('-'),  // Fetch projects for the filtered clients by matching the prefix
-          mode: 'insensitive',
-        },
-      },
-  
-      take: 100,  // Limit to 100 results
-    });
-
-    console.log("Filtered Projects by Client:", filteredProjects); // Debugging the result
-    return res.status(200).json({ filteredProjects, filteredClientNames });  // Return filtered projects and client names
+    return res.status(200).json({ uniqueClientNames });
 
   } catch (error) {
     console.error('Error fetching client suggestions:', error);
     return res.status(500).json({ error: 'An error occurred while fetching client suggestions.' });
   }
 };
+
 
 
 exports.new_revision = async (req, res) => {
@@ -515,3 +570,29 @@ exports.projectDistribution = async (req, res) => {
   }
 
 }
+
+
+exports.getProjectsByClientName = async (req, res) => {
+  const clientName = req.query.clientName;
+
+  if (!clientName) {
+    return res.status(400).json({ error: 'Client name is required' });
+  }
+
+  try {
+    const projects = await prisma.project.findMany({
+      where: {
+        project_name: {
+          startsWith: clientName,
+          mode: 'insensitive'
+        }
+      },
+      take: 100
+    });
+
+    return res.json({ projects });
+  } catch (err) {
+    console.error('Error fetching projects:', err);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};

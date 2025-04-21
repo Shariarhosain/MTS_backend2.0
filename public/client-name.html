@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Client Suggestions</title>
+  <title>Client Projects & Revisions</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -66,7 +66,6 @@
       background-color: #0b7dda;
     }
 
-    /* Modal styles */
     .modal {
       display: none;
       position: fixed;
@@ -103,7 +102,6 @@
 <div class="container">
   <h2>Client Name Search</h2>
   <input type="text" id="query" placeholder="Search for a client..." oninput="fetchClientSuggestions()">
-  <button onclick="searchProjects()">Search</button>
   <ul class="result" id="result-list"></ul>
   <div class="project-list" id="project-list"></div>
 </div>
@@ -122,97 +120,123 @@
 </div>
 
 <script>
-  let allProjects = [];
   let currentProjectId = null;
 
+  // Function to fetch client suggestions
   async function fetchClientSuggestions() {
-    const query = document.getElementById('query').value;
+  const query = document.getElementById('query').value.trim();
+  const projectList = document.getElementById('project-list');
+  projectList.innerHTML = '';
+  // If input is empty, clear the previous suggestions, but keep the projects visible if previously fetched
+  if (!query) {
+    document.getElementById('result-list').innerHTML = ''; // Clear client suggestions
+    return;
+  }
 
-    if (!query.trim()) {
-      document.getElementById('result-list').innerHTML = '';
-      document.getElementById('project-list').innerHTML = '';
-      return;
+  try {
+    const response = await fetch(`/api/project/clientSuggestions/?query=${query}`);
+    const data = await response.json();
+
+    // If client names are found, show them
+    if (data.uniqueClientNames && data.uniqueClientNames.length > 0) {
+      displayClientSuggestions(data.uniqueClientNames);
+    } else {
+      document.getElementById('result-list').innerHTML = '<li>No matching clients found.</li>';
     }
+  } catch (error) {
+    console.error('Error fetching suggestions:', error);
+  }
+}
 
-    try {
-      const response = await fetch(`/api/project/clientSuggestions/?query=${query}`);
-      const data = await response.json();
+// Function to display client suggestions
+function displayClientSuggestions(clients) {
+  const resultList = document.getElementById('result-list');
+  resultList.innerHTML = ''; // Clear previous suggestions
 
-      if (data.filteredClientNames && data.filteredClientNames.length > 0) {
-        displayResults(data.filteredClientNames);
-        allProjects = data.filteredProjects;
-      } else {
-        document.getElementById('result-list').innerHTML = '<li>No matching clients found.</li>';
-        document.getElementById('project-list').innerHTML = '';
-      }
-    } catch (error) {
-      console.error('Error fetching client suggestions:', error);
-    }
+  if (clients.length === 0) {
+    resultList.innerHTML = '<li>No matching clients found.</li>';
+    return;
   }
 
-  function displayResults(clientNames) {
-    const resultList = document.getElementById('result-list');
-    resultList.innerHTML = '';
-    clientNames.forEach(client => {
-      const li = document.createElement('li');
-      li.textContent = client;
-      li.onclick = () => selectClient(client);
-      resultList.appendChild(li);
-    });
+  clients.forEach(client => {
+    const li = document.createElement('li');
+    li.textContent = client;
+    li.onclick = () => {
+      document.getElementById('query').value = client; // Set the client name in the search box
+      resultList.innerHTML = ''; // Clear suggestions after selection
+      fetchProjectsByClient(client); // Fetch and display projects for the selected client
+    };
+    resultList.appendChild(li);
+  });
+}
+
+// Function to fetch and display projects based on selected client name
+async function fetchProjectsByClient(clientName) {
+  const projectList = document.getElementById('project-list');
+  projectList.innerHTML = ''; // Clear previous project list
+
+  if (!clientName) {
+    alert('Please enter a valid client name.');
+    return;
   }
 
-  function selectClient(clientName) {
-    document.getElementById('query').value = clientName;
-    document.getElementById('result-list').innerHTML = '';
-  }
+  try {
+    const response = await fetch(`/api/project/byClient?clientName=${clientName}`);
+    const data = await response.json();
 
-  function searchProjects() {
-    const clientName = document.getElementById('query').value;
-    if (clientName) {
-      displayProjects(clientName);
-    }
-  }
-
-  function displayProjects(clientName) {
-    const projectList = document.getElementById('project-list');
-    projectList.innerHTML = '';
-
-    const clientProjects = allProjects.filter(project =>
-      project.project_name.toLowerCase().includes(clientName.toLowerCase())
-    );
-
-    if (clientProjects.length > 0) {
-      const ul = document.createElement('ul');
-      clientProjects.forEach(project => {
-        const li = document.createElement('li');
-        li.innerHTML = `
-          <strong>Project Name:</strong> ${project.project_name}<br>
-          <strong>Order ID:</strong> ${project.order_id}<br>
-          <strong>Status:</strong> ${project.status}<br>
-          <strong>Sales Comments:</strong> ${project.sales_comments}<br>
-          <strong>Operations Leader Comments:</strong> ${project.opsleader_comments}<br>
-          <strong>Order Amount:</strong> $${project.order_amount}<br>
-          <a href="${project.sheet_link}" target="_blank">View Sheet</a><br>
-          <button class="add-revision-btn" onclick="openModal('${project.id}')">Add Revision</button>
-        `;
-        ul.appendChild(li);
-      });
-      projectList.appendChild(ul);
+    if (data.projects && data.projects.length > 0) {
+      displayProjects(data.projects); // Display the list of projects
     } else {
       projectList.innerHTML = '<p>No projects found for this client.</p>';
     }
+  } catch (error) {
+    console.error('Error fetching projects:', error);
   }
+}
 
+// Function to display projects
+function displayProjects(projects) {
+  const projectList = document.getElementById('project-list');
+  projectList.innerHTML = ''; // Clear previous projects before displaying new ones
+
+  const ul = document.createElement('ul');
+  projects.forEach(project => {
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <strong>Project Name:</strong> ${project.project_name}<br>
+      <strong>Order ID:</strong> ${project.order_id}<br>
+      <strong>Status:</strong> ${project.status}<br>
+      <strong>Sales Comments:</strong> ${project.sales_comments || '—'}<br>
+      <strong>Ops Leader Comments:</strong> ${project.opsleader_comments || '—'}<br>
+      <strong>Order Amount:</strong> $${project.order_amount || 0}<br>
+      <a href="${project.sheet_link}" target="_blank">View Sheet</a><br>
+      <button class="add-revision-btn" onclick="openModal('${project.id}')">Add Revision</button>
+    `;
+    ul.appendChild(li);
+  });
+
+  projectList.appendChild(ul);
+}
+
+
+  // Open the revision modal
   function openModal(projectId) {
     currentProjectId = projectId;
     document.getElementById('revisionModal').style.display = 'block';
   }
 
+  // Close the revision modal
   function closeModal() {
     document.getElementById('revisionModal').style.display = 'none';
     clearModalInputs();
+    const projectList = document.getElementById('project-list');
+    projectList.innerHTML = '';
+
+    document.getElementById('query').value = ''; // Clear the search input
+    document.getElementById('result-list').innerHTML = ''; // Clear client suggestions
   }
 
+  // Clear the modal input fields
   function clearModalInputs() {
     document.getElementById('revision_comments').value = '';
     document.getElementById('delivery_date').value = '';
@@ -220,6 +244,7 @@
     document.getElementById('metting_date').value = '';
   }
 
+  // Submit revision for the selected project
   async function submitRevision() {
     const revision_comments = document.getElementById('revision_comments').value;
     const delivery_date = document.getElementById('delivery_date').value;
@@ -239,15 +264,11 @@
     };
 
     try {
-      const response = await fetch(`http://192.168.10.40:3000/api/project/updateRevision/${currentProjectId}`, {
+      const response = await fetch(`/api/project/updateRevision/${currentProjectId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      console.log("Response:", response);
-      console.log("Payload:", payload);
 
       const result = await response.json();
       if (response.ok) {
@@ -262,7 +283,7 @@
     }
   }
 
-  // Close modal when clicking outside
+  // Close modal if clicked outside
   window.onclick = function(event) {
     const modal = document.getElementById('revisionModal');
     if (event.target == modal) {
