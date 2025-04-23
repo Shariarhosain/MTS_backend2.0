@@ -115,6 +115,7 @@
 
         // Listen for real-time updates on project creation
         socket.on('projectCreated', (project) => {
+            console.log('New project created:', project);
             const projectDiv = document.createElement('div');
             projectDiv.classList.add('project');
             projectDiv.innerHTML = `

@@ -9,6 +9,7 @@ datasource db {
 }
 
 model project {
+
   id                 Int       @id @default(autoincrement())
   order_id           String?    
   date               DateTime? @db.Date // This stores only the date (no time) in PostgreSQL
@@ -17,6 +18,7 @@ model project {
   sales_comments     String?
   opsleader_comments String?
   sheet_link         String?
+  Assigned_date      DateTime? @db.Date
   team_member        team_member? @relation(fields: [ordered_by], references: [id]) 
   ordered_by         Int
   deli_last_date     DateTime?  @db.Date
