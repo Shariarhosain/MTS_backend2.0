@@ -292,6 +292,7 @@ exports.getAllProjects = async (req, res, io) => {
       },
     });
 
+
     // Sort projects by the delivery date (those with earlier dates first)
     projects.sort((a, b) => {
       const dateA = new Date(a.deli_last_date);
@@ -301,10 +302,19 @@ exports.getAllProjects = async (req, res, io) => {
       return dateA - dateB; 
     });
 
+    //extract client name from project name
+    const projectsWithClientNames = projects.map((project) => {
+      const clientName = project.project_name.split("-")[0]; // Extract client name from project name
+      return {
+        ...project,
+        clientName, // Add client name to the project object
+      };
+    });
+
 
     return res.status(200).json({
       message: "Projects retrieved successfully.",
-      projects: projects.map((project) => ({
+      projects: projectsWithClientNames.map((project) => ({
         ...project,
         daysLeft: daysLeft(project.deli_last_date), // Calculate and add daysLeft
       })),
