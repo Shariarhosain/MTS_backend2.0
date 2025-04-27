@@ -30,7 +30,7 @@ module.exports = (getIO) => {
   router.get("/clientSuggestions", getClientSuggestionsFromProjects);
   
 
-  router.get("/:id", getProjectById);
+  router.get("/getall/:id", getProjectById);
 
 
   // Update project route, using getIO() for socket functionality

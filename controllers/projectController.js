@@ -26,12 +26,12 @@ exports.createProject = async (req, res, io) => {
       sales_comments,
       opsleader_comments,
       sheet_link,
-      ordered_by,
       deli_last_date,
       status,
       orderAmount,
       bonus,
       rating,
+      ordered_by,
       department,
       project_requirements,
       profile,
@@ -51,6 +51,8 @@ exports.createProject = async (req, res, io) => {
       where: { profile_name: profile },
     });
     console.log("profileData", profileData);
+
+
 
     //projectName and orderId are not allowed in the request body
     if (req.body.projectName) {
@@ -91,7 +93,7 @@ exports.createProject = async (req, res, io) => {
         opsleader_comments,
         sheet_link,
         team_member: {
-          connect: { id: ordered_by }, // Assuming the team member with ID 6 exists
+          connect: { id: ordered_by }, // Connect using the team member's ID
         },
         deli_last_date: deliLastDate,
         status,
@@ -466,6 +468,8 @@ exports.updateProject = async (req, res, io) => {
       req.body.department_id = departmentData.id;
       delete req.body.department; // remove name to prevent Prisma error
     }
+
+
     // if req.body.order_amount is present then calculate after_fiverr_amount
     if (req.body.order_amount) {
       const after_fiverr_amount = req.body.order_amount * 0.8;
@@ -494,6 +498,8 @@ exports.updateProject = async (req, res, io) => {
       where: { id: Number(id) },
       data: req.body,
     });
+
+
 
     //send project data date in the proper format like yyyy-mm-dd
     const formatDate = (date) =>
@@ -831,3 +837,5 @@ exports.getAllDepartmentNames = async (req, res) => {
   
   }
 };
+
+
