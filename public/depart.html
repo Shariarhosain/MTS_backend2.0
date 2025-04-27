@@ -28,6 +28,7 @@
 
     // Fetch department names when the page loads
     socket.emit('getDepartmentNames');  
+    //console.log(socket.emit('getDepartmentNames')); // Debugging log
 
     socket.on('getDepartmentName', function(departments) {
       const departmentSelect = document.getElementById('departmentSelect');
@@ -38,7 +39,7 @@
         departmentSelect.appendChild(option);
       });
     });
-    // When a department is selected, fetch corresponding team members
+   // When a department is selected, fetch corresponding team members
     document.getElementById('departmentSelect').addEventListener('change', function() {
       const departmentId = this.value;
       const teamSelect = document.getElementById('teamSelect');

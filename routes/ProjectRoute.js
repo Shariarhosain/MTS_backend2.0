@@ -9,7 +9,8 @@ const {
   new_revision,
   projectDistribution,
   getProjectsByClientName,
-  getAllDepartmentNames
+  getAllDepartmentNames,
+  getProjectById
 } = require("../controllers/projectController"); // Import the controller functions
 
 module.exports = (getIO) => {
@@ -27,6 +28,10 @@ module.exports = (getIO) => {
   );
 
   router.get("/clientSuggestions", getClientSuggestionsFromProjects);
+  
+
+  router.get("/:id", getProjectById);
+
 
   // Update project route, using getIO() for socket functionality
   router.put("/:id", (req, res) => updateProject(req, res, getIO()));
