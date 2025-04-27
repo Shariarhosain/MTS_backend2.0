@@ -109,6 +109,11 @@
       console.log('Project updated:', updatedProject);
       updateProjectChart(); // Refresh chart with latest data
     });
+
+    socket.on("projectCreated", (project) => {
+      console.log("New project created:", project);
+      updateProjectChart(); // Refresh chart with latest data
+    });
   </script>
 </body>
 </html>

@@ -1,5 +1,12 @@
 let io;
 
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+const { getDepartmentName } = require('./middlewares/TeamName');
+const { getTeamName } = require('./middlewares/TeamName');
+const { getTeamMember } = require('./middlewares/TeamName');
+
+const totalOrdersCardData  = require('./middlewares/projectCardEmitter');
 const initSocket = (server) => {
   const { Server } = require('socket.io');
   io = new Server(server, {
@@ -40,7 +47,55 @@ const initSocket = (server) => {
       io.emit('salesDataEachProfile', salesDataWithProfileName);
     });
 
+    // io.emit("allProjects", projects); 
+    socket.on('allProjects',async () => {
+     try{
+       
+       await totalOrdersCardData(io);
 
+     }
+      catch (error) {
+        console.error("Error fetching all projects:", error);
+      }
+   
+    });
+
+    socket.on('getTeamMemberByDepartment', async (departmentName) => {
+      try {
+        await getTeamMember(departmentName, io);  // Fetch and emit team members for the selected department
+      } catch (error) {
+        console.error("Error fetching team members:", error);
+        
+      }
+    });
+
+  
+
+  
+
+    // socket.emit('totalOrdersCardData', (totalOrdersAmount) => {
+    //   io.emit('totalOrdersCardData', totalOrdersAmount);
+    // });
+
+  
+    // Handle 'getTeamsForDepartment' socket event
+    socket.on('getTeamsForDepartment', async (departmentId) => {
+      try {
+        await getTeamName(departmentId, io);  // Fetch and emit teams for the selected department
+      } catch (error) {
+        console.error("Error fetching teams:", error);
+      }
+    });
+
+    // Emit department names when a user connects or triggers the relevant event
+    socket.on('getDepartmentNames', async () => {
+      try {
+        await getDepartmentName(io);  // Emit department names to the client
+      } catch (error) {
+        console.error("Error fetching departments:", error);
+      }
+    });
+     
   });
 };
 

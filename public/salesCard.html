@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Total Orders Dashboard</title>
+  <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #f4f7f9;
+    }
+    .card {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      width: 300px;
+    }
+    .card h1 {
+      font-size: 2rem;
+      margin-bottom: 20px;
+    }
+    .card .value {
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+    .error-message {
+      color: red;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h1>Total Orders</h1>
+    <div id="totalOrdersAmount" class="value">Loading...</div>
+    <div id="errorMessage" class="error-message"></div>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io(); // Replace with your server address
+
+    socket.emit('allProjects'); // Emit the event to request all projects
+    
+    socket.on('totalOrdersCardData', (response) => { // Move the socket.on here to listen for the data immediately
+      if (response.error) {
+        document.getElementById('errorMessage').innerText = response.error;
+      } else {
+          console.log(response);
+        document.getElementById('totalOrdersAmount').innerText = response; // Assuming response has totalAmount
+      }
+    });
+
+    socket.on('error', (error) => {
+      document.getElementById('errorMessage').innerText = error;
+    });
+
+    // Function to get total orders
+    function getTotalOrders() {
+      socket.emit('allProjects'); // Emit the event to request all projects
+    }
+
+    socket.on('projectsUpdated', () => {
+      getTotalOrders(); // Call the function to update the total orders when projects are updated
+    });
+   //projectsCreated
+    socket.on('projectsCreated', () => {
+      getTotalOrders(); // Call the function to update the total orders when projects are created
+    });
+
+    socket.on
+    
+
+  
+  </script>
+
+</body>
+</html>
