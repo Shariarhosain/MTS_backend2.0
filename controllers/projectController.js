@@ -301,7 +301,11 @@ exports.getAllProjects = async (req, res, io) => {
       // Sort by delivery date (earliest first)
       return dateA - dateB; 
     });
-
+    const formatDate = (date) =>
+      date ? new Date(date).toISOString().split("T")[0] : null;
+    
+  
+  
     //extract client name from project name
     const projectsWithClientNames = projects.map((project) => {
       const clientName = project.project_name.split("-")[0]; // Extract client name from project name
@@ -310,11 +314,16 @@ exports.getAllProjects = async (req, res, io) => {
         clientName, // Add client name to the project object
       };
     });
-
-
+  //deli_last_date without iso format
+  const projectsWithFormattedDates = projectsWithClientNames.map((project) => ({
+    ...project,
+    date: formatDate(project.date),
+    deli_last_date: formatDate(project.deli_last_date),
+  }));
+ 
     return res.status(200).json({
       message: "Projects retrieved successfully.",
-      projects: projectsWithClientNames.map((project) => ({
+      projects: projectsWithFormattedDates.map((project) => ({
         ...project,
         daysLeft: daysLeft(project.deli_last_date), // Calculate and add daysLeft
       })),
