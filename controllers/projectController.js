@@ -273,11 +273,6 @@ exports.getAllProjects = async (req, res, io) => {
             },
           },
           {
-            ops_status: {
-              in: ["revision", "in progress", "pending"],
-            },
-          },
-          {
             status: {
               in: ["revision", "in progress", "pending"],
             },
@@ -307,7 +302,13 @@ exports.getAllProjects = async (req, res, io) => {
       date ? new Date(date).toISOString().split("T")[0] : null;
     
   
-  
+  console.log("projects", projects); // Debugging the fetched projects
+
+
+ 
+
+
+
     //extract client name from project name
     const projectsWithClientNames = projects.map((project) => {
       const clientName = project.project_name.split("-")[0]; // Extract client name from project name
@@ -455,19 +456,19 @@ exports.updateProject = async (req, res, io) => {
     }
 
     // Handle department name → department_id conversion
-    if (req.body.department) {
-      const departmentData = await prisma.department.findUnique({
-        where: { department_name: req.body.department },
-      });
+    // if (req.body.department) {
+    //   const departmentData = await prisma.department.findUnique({
+    //     where: { department_name: req.body.department },
+    //   });
 
-      if (!departmentData) {
-        return res.status(400).json({ error: "Invalid department name." });
-      }
+    //   if (!departmentData) {
+    //     return res.status(400).json({ error: "Invalid department name." });
+    //   }
 
-      // Replace department name with ID
-      req.body.department_id = departmentData.id;
-      delete req.body.department; // remove name to prevent Prisma error
-    }
+    //   // Replace department name with ID
+    //   req.body.department_id = departmentData.id;
+    //   delete req.body.department; // remove name to prevent Prisma error
+    // }
 
 
     // if req.body.order_amount is present then calculate after_fiverr_amount
@@ -482,23 +483,25 @@ exports.updateProject = async (req, res, io) => {
       req.body.after_Fiverr_bonus = after_Fiverr_bonus;
     }
 
-    if (req.body.team_name) {
-      // Find the team ID based on the team name
-      const teamData = await prisma.team.findUnique({
-        where: { team_name: req.body.team_name },
-      });
-      if (!teamData) {
-        return res.status(400).json({ error: "Invalid team name." });
-      }
-      req.body.team_id = teamData.id; // Set the team ID in the request body
-      delete req.body.team_name; // Remove the team name to prevent Prisma error
-    }
+    // if (req.body.team_name) {
+    //   // Find the team ID based on the team name
+    //   const teamData = await prisma.team.findUnique({
+    //     where: { team_name: req.body.team_name },
+    //   });
+    //   if (!teamData) {
+    //     return res.status(400).json({ error: "Invalid team name." });
+    //   }
+    //   req.body.team_id = teamData.id; // Set the team ID in the request body
+    //   delete req.body.team_name; // Remove the team name to prevent Prisma error
+    // }
     // Update the project
     const project = await prisma.project.update({
       where: { id: Number(id) },
       data: req.body,
     });
 
+console.log("req.body", req.body.team_id); // Debugging the updated project data
+    console.log("project", project); // Debugging the updated project data
 
 
     //send project data date in the proper format like yyyy-mm-dd
@@ -839,3 +842,47 @@ exports.getAllDepartmentNames = async (req, res) => {
 };
 
 
+
+
+
+exports.showallStatusRevisionProjects = async (req, res) => {
+  try {
+
+    //search by team member id and find her team details whixh project have status revision
+
+    //first seach whuch team he belong to
+
+    const teamMember = await prisma.team_member.findUnique({
+      where: { id: Number(req.params.id) },
+      include: {
+        team: true,
+      },
+    });
+
+    if (!teamMember) {
+      return res.status(404).json({ error: "Team member not found" });
+    }
+
+
+    const projects = await prisma.project.findMany({
+      where: {
+        team_id: teamMember.team.id,
+        status: "revision",
+      },
+    });
+    //extract client name from project name
+    const projectsWithClientNames = projects.map((project) => {
+      const clientName = project.project_name.split("-")[0]; // Extract client name from project name
+      return {
+        ...project,
+        clientName, // Add client name to the project object
+      };
+    });
+
+    return res.status(200).json({ projects: projectsWithClientNames });
+  } catch (err) {
+    console.error("Error fetching status revision projects:", err);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+    
+};

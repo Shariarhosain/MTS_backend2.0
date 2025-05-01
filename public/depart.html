@@ -34,6 +34,7 @@
       const departmentSelect = document.getElementById('departmentSelect');
       departments.forEach(department => {
         const option = document.createElement('option');
+        console.log(department.id); // Debugging log
         option.value = department.id;
         option.textContent = department.department_name;
         departmentSelect.appendChild(option);
@@ -42,6 +43,8 @@
    // When a department is selected, fetch corresponding team members
     document.getElementById('departmentSelect').addEventListener('change', function() {
       const departmentId = this.value;
+      console.log('Selected Department ID:', departmentId); // Debugging log
+    
       const teamSelect = document.getElementById('teamSelect');
       
       if (departmentId) {

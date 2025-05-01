@@ -10,7 +10,8 @@ const {
   projectDistribution,
   getProjectsByClientName,
   getAllDepartmentNames,
-  getProjectById
+  getProjectById,
+  showallStatusRevisionProjects
 } = require("../controllers/projectController"); // Import the controller functions
 
 module.exports = (getIO) => {
@@ -42,6 +43,10 @@ module.exports = (getIO) => {
   router.get("/monthWise", projectDistribution);
   router.get("/byClient", getProjectsByClientName);
   router.get("/departmentNames", getAllDepartmentNames); // Corrected to use getIO()
+
+  //showallStatusRevisionProjects
+  router.get("/showallStatusRevisionProjects/:id", showallStatusRevisionProjects);
+
 
   return router;
 };

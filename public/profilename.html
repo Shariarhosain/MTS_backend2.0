@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile</title>
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <h1>Profile</h1>
+
+  
+
+  <script>
+    const socket = io();
+
+    // Fetch department names when the page loads
+    socket.emit('getProfilename');  
+socket.on('getProfilename', function(profilename) {
+  console.log(profilename); // Debugging log
+      const profileSelect = document.getElementById('profileSelect');
+      profilename.forEach(profile => {
+        const option = document.createElement('option');
+        option.value = profile.id;
+        option.textContent = profile.profile_name;
+        profileSelect.appendChild(option);
+      });
+    });
+
+    
+  </script>
+</body>
+</html>

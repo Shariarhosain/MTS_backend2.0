@@ -5,6 +5,7 @@ const prisma = new PrismaClient();
 const { getDepartmentName } = require('./middlewares/TeamName');
 const { getTeamName } = require('./middlewares/TeamName');
 const { getTeamMember } = require('./middlewares/TeamName');
+const emitProfilename = require('./middlewares/showProfilename');
 
 const totalOrdersCardData  = require('./middlewares/projectCardEmitter');
 const initSocket = (server) => {
@@ -62,6 +63,7 @@ const initSocket = (server) => {
 
     socket.on('getTeamMemberByDepartment', async (departmentName) => {
       try {
+        console.log('Fetching team members for department:', departmentName);
         await getTeamMember(departmentName, io);  // Fetch and emit team members for the selected department
       } catch (error) {
         console.error("Error fetching team members:", error);
@@ -70,8 +72,17 @@ const initSocket = (server) => {
     });
 
   
+//   io.emit('getProfilename', profiles);
+socket.on('getProfilename', async () => {
 
+try{
+  await emitProfilename(io);  // Emit profile names to the client
+
+} catch (error) {
+  console.error("Error emitting profile names:", error);
+}
   
+});
 
     // socket.emit('totalOrdersCardData', (totalOrdersAmount) => {
     //   io.emit('totalOrdersCardData', totalOrdersAmount);
@@ -81,7 +92,8 @@ const initSocket = (server) => {
     // Handle 'getTeamsForDepartment' socket event
     socket.on('getTeamsForDepartment', async (departmentId) => {
       try {
-        await getTeamName(departmentId, io);  // Fetch and emit teams for the selected department
+        console.log('Fetching teams for department ID:', departmentId);
+        await getTeamName(departmentId, io);  // Fetch and emit teams for the selected department      sssssssssssssssssssssss
       } catch (error) {
         console.error("Error fetching teams:", error);
       }

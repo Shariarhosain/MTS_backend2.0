@@ -28,6 +28,9 @@ model project {
   bonus              Decimal?  @db.Decimal(65,0)    
   after_Fiverr_bonus Decimal? @db.Decimal(65,0) 
   rating             Int?
+  is_delivered       Boolean? @default(false)
+  revision           Int?
+  extension          Int?
   department         department? @relation(fields: [department_id], references: [id], onDelete: Cascade)
   department_id      Int      
   project_requirements String? @db.Text
