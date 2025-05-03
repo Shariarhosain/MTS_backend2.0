@@ -15,12 +15,23 @@
     const socket = io();
 
     // Fetch department names when the page loads
-    socket.emit('getProfilename');  
-socket.on('getProfilename', function(profilename) {
-  console.log(profilename); // Debugging log
+    socket.emit('recentProjects');  
+socket.on('recentProjectsData', function(recentProjects) {
+  console.log(recentProjects); // Debugging log
   
    
     });
+
+
+
+    socket.emit('ProjectPageCardDetails');
+socket.on('projectMoneyMetrics', function(ProjectPageCardDetails) {
+  console.log(ProjectPageCardDetails); // Debugging log
+  
+   
+    });
+
+
 
     
   </script>

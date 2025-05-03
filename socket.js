@@ -6,6 +6,8 @@ const { getDepartmentName } = require('./middlewares/TeamName');
 const { getTeamName } = require('./middlewares/TeamName');
 const { getTeamMember } = require('./middlewares/TeamName');
 const emitProfilename = require('./middlewares/showProfilename');
+const emitRecentProject = require('./middlewares/recentProjectdetails');
+const  emitProjectMetrics = require('./middlewares/carddetailsForoperation');
 
 const totalOrdersCardData  = require('./middlewares/projectCardEmitter');
 const initSocket = (server) => {
@@ -87,6 +89,29 @@ try{
     // socket.emit('totalOrdersCardData', (totalOrdersAmount) => {
     //   io.emit('totalOrdersCardData', totalOrdersAmount);
     // });
+
+
+    socket.on('ProjectPageCardDetails', async () => {
+      try {
+        await emitProjectMetrics(io);  // Emit project metrics to the client
+      } catch (error) {
+        console.error("Error emitting project metrics:", error);
+      }
+    }
+    );
+
+    
+
+    //io.emit('recentProjects', recentProjects);
+
+    socket.on('recentProjects', async () => {
+      try {
+        await emitRecentProject(io);  // Emit recent project details to the client
+      } catch (error) {
+        console.error("Error emitting recent projects:", error);
+      }
+    }
+    );
 
   
     // Handle 'getTeamsForDepartment' socket event

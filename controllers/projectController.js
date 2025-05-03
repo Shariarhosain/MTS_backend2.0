@@ -273,14 +273,22 @@ exports.getAllProjects = async (req, res, io) => {
             },
           },
           {
+            delivery_date: {
+              gte: startOfCurrentMonth,
+              lte: endOfCurrentMonth,
+            },
+          },
+          {
             status: {
-              in: ["revision", "in progress", "pending"],
+              in: ["revision", "realrevision"],
             },
           },
         ],
       },
       include: {
+        profile: true,
         department: true,
+        team:true,
         team_member: {
           include: {
             profile: true,
@@ -288,6 +296,7 @@ exports.getAllProjects = async (req, res, io) => {
         },
       },
     });
+    
 
 
     // Sort projects by the delivery date (those with earlier dates first)
@@ -426,6 +435,7 @@ exports.getProjectById = async (req, res) => {
 
 exports.updateProject = async (req, res, io) => {
   const { id } = req.params;
+  console.log("req.hyvbbvhbv", req.body); // Debugging the request body
 
   try {
     // Check if project exists
@@ -443,6 +453,23 @@ exports.updateProject = async (req, res, io) => {
         .status(400)
         .json({ error: "Updating projectName is not allowed." });
     }
+
+    if(req.body.status=="delivered"){
+      req.body.ops_status = "delivered"; // Update ops_status to "delivered"
+     //check delivery date is present or not in project table.if present then not let user to update delivery date. delivery date will be same as previous one.
+      const delivery_date = new Date(req.body.delivery_date);
+
+      if (!existingProject.delivery_date) {
+       
+        req.body.delivery_date = delivery_date;
+      } else {
+        req.body.delivery_date = existingProject.delivery_date;
+      }
+    }
+
+    console.log("req.body", req.body); // Debugging the request body
+   
+      
 
     // Handle deli_last_date
     if (req.body.deli_last_date) {
@@ -483,18 +510,19 @@ exports.updateProject = async (req, res, io) => {
       req.body.after_Fiverr_bonus = after_Fiverr_bonus;
     }
 
-    // if (req.body.team_name) {
-    //   // Find the team ID based on the team name
-    //   const teamData = await prisma.team.findUnique({
-    //     where: { team_name: req.body.team_name },
-    //   });
-    //   if (!teamData) {
-    //     return res.status(400).json({ error: "Invalid team name." });
-    //   }
-    //   req.body.team_id = teamData.id; // Set the team ID in the request body
-    //   delete req.body.team_name; // Remove the team name to prevent Prisma error
-    // }
-    // Update the project
+
+
+
+    if (req.body.team_id) {
+     //if team id send then also update assigned date
+      const assignedDate = new Date();
+      assignedDate.setHours(0, 0, 0, 0); // Set time to the start of the day (00:00:00)
+      req.body.Assigned_date = assignedDate; // Set the assigned date to today
+    }
+
+
+   
+
     const project = await prisma.project.update({
       where: { id: Number(id) },
       data: req.body,
@@ -867,7 +895,9 @@ exports.showallStatusRevisionProjects = async (req, res) => {
     const projects = await prisma.project.findMany({
       where: {
         team_id: teamMember.team.id,
-        status: "revision",
+        status: {
+          in: ["revision", "realrevision"],
+        }
       },
     });
     //extract client name from project name

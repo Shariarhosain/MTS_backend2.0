@@ -58,17 +58,17 @@
       }
     });
 
-    // Listen for team names and update team dropdown
-    socket.on('getTeamName', function(teams) {
-      const teamSelect = document.getElementById('teamSelect');
-      teamSelect.innerHTML = '<option value="">Select a Team</option>'; // Reset
-      teams.forEach(team => {
-        const option = document.createElement('option');
-        option.value = team.id;
-        option.textContent = team.team_name;
-        teamSelect.appendChild(option);
-      });
-    });
+    // // Listen for team names and update team dropdown
+    // socket.on('getTeamName', function(teams) {
+    //   const teamSelect = document.getElementById('teamSelect');
+    //   teamSelect.innerHTML = '<option value="">Select a Team</option>'; // Reset
+    //   teams.forEach(team => {
+    //     const option = document.createElement('option');
+    //     option.value = team.id;
+    //     option.textContent = team.team_name;
+    //     teamSelect.appendChild(option);
+    //   });
+    // });
 
     // Listen for team members and handle accordingly
     socket.on('getTeamMember', function(teamMembers) { // Updated event name to match emitted event
