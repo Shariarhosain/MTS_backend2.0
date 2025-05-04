@@ -39,8 +39,9 @@ app.use((err, req, res, next) => {
   console.error('Error:', err);
   res.status(err.status || 500).json({ message: err.message || 'Something went wrong.' });
 });
-app.listen(3500, '0.0.0.0', () => {
-  console.log(`Server is running on port`);
+const PORT = process.env.PORT || 3500;
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server is running on port ${PORT}`);
+  console.log('Socket.IO server is running');
 });
-
 
