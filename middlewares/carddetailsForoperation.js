@@ -26,7 +26,7 @@ async function emitProjectMoneyMetrics(io) {
     let carry_pm = 0;
 
     projects.forEach(p => {
-      const amt = Number(p.after_fiverr_amount ?? 0);
+      const amt = parseInt(p.order_amount) || 0; // Ensure amount is a number
       const isThisMonthDelivery = p.delivery_date && p.delivery_date >= startOfCurrentMonth && p.delivery_date <= endOfCurrentMonth;
       const isThisMonthProject = p.date && p.date >= startOfCurrentMonth && p.date <= endOfCurrentMonth;
       const isPastProject = p.date && p.date < startOfCurrentMonth;
