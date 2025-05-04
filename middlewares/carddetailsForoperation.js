@@ -40,7 +40,7 @@ async function emitProjectMoneyMetrics(io) {
       // total_assign: assigned, not delivered, delivery set this month
       if (p.Assigned_date && !p.is_delivered && isThisMonthDelivery) total_assign += amt;
 
-      // need_to_assign: status === 'nra'
+      // need_to_assign: status === 'nra'+
       if (p.status === 'nra') need_to_assign += amt;
 
       // carry_operation: project is from this or earlier month AND status = revision/realrevision
