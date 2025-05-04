@@ -1,0 +1,147 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model project {
+
+  id                 Int       @id @default(autoincrement())
+  order_id           String?    
+  date               DateTime? @db.Date // This stores only the date (no time) in PostgreSQL
+  project_name       String?   @db.VarChar(200) @unique
+  ops_status         String?
+  sales_comments     String?
+  opsleader_comments String?
+  sheet_link         String?
+  Assigned_date      DateTime? @db.Date
+  team_member        team_member? @relation(fields: [ordered_by], references: [id]) 
+  ordered_by         Int
+  deli_last_date     DateTime?  @db.Date
+  status             String?
+  order_amount       Decimal?  @db.Decimal(65,0)  
+  after_fiverr_amount Decimal?   
+  bonus              Decimal?  @db.Decimal(65,0)    
+  after_Fiverr_bonus Decimal? @db.Decimal(65,0) 
+  rating             Int?
+  is_delivered       Boolean? @default(false)
+  delivery_date      DateTime? @db.Date
+  revision           Int?
+  extension          Int?
+  department         department? @relation(fields: [department_id], references: [id], onDelete: Cascade)
+  department_id      Int      
+  project_requirements String? @db.Text
+  profile             profile? @relation(fields: [profile_id], references: [id])
+  profile_id         Int?
+  team                team?    @relation(fields: [team_id], references: [id])
+  team_id            Int?
+}
+
+
+model team {
+  id                 Int       @id @default(autoincrement())
+  team_name          String?   @db.VarChar(250) @unique
+  department         department? @relation(fields: [department_id], references: [id],onDelete: Cascade)
+  department_id      Int
+  team_member        team_member[]
+  team_achieve       Decimal?  @db.Decimal(65,0) 
+  team_cancel        Int?
+  total_carry        Decimal?  @db.Decimal(65,0)
+  project            project[] // one team can have many projects
+  // Relation with task assignments
+ revision revision[] 
+  
+
+
+}
+
+model department {
+  id                   Int       @id @default(autoincrement())
+  department_name      String?   @db.VarChar(200) @unique
+  department_target    Decimal?  @db.Decimal(65,0)
+  department_teams     team[]    // one department can have many teams
+  department_profile   profile[] // one department can have many profiles
+  department_achieve   Decimal?  @db.Decimal(65,0)
+  department_cancel    Decimal?  @db.Decimal(65,0)
+  department_special_order Decimal? @db.Decimal(65,0)
+  department_designation String?
+  project_requirements String?
+  assign_project      project[]  // many department can have many projects
+  total_carry          Decimal?  @db.Decimal(65,0)
+  
+  
+
+}
+
+model profile {
+  id                    Int       @id @default(autoincrement())
+  created_date          DateTime?
+  profile_name          String?   @unique
+  order_amount          Decimal?  @db.Decimal(65,0) 
+  bonus_amount          Decimal?  @db.Decimal(65,0)   
+  order_count           Int?
+  rank                  Decimal?  @db.Decimal(65,0)
+  cancel_count          Int?
+  complete_count        Int?
+  no_rating             Int?
+  profile_target        Decimal?  @db.Decimal(65,0)
+  department            department[]
+  department_id         Int 
+  repeat_order          Decimal?  @db.Decimal(65,0)
+  keywords              String?
+  total_rating          Decimal?  @db.Decimal(65,0)
+  projects              project[]
+  team_members          team_member[]
+  
+}
+
+model team_member {
+  id                   Int       @id @default(autoincrement())
+  first_name           String?
+  last_name            String?
+  email                String?   @db.VarChar(200) @unique
+  number               String?   @db.VarChar(50) 
+  permanent_address    String?
+  present_address      String?
+  gender               String?
+  blood_group          String?
+  relationship         String?
+  guardian_relation    String?
+  guardian_number      String?
+  guardian_address     String?
+  team                 team?    @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  team_id              Int?
+  religion             String?
+  education            String?
+  dp                   String? 
+  role                 String?
+  target               Decimal?  @db.Decimal(65,0)
+  rewards              Decimal?  @db.Decimal(65,0)
+  rating               Decimal?  @db.Decimal(65,0) 
+  account_status       String?   @db.VarChar(50)
+  password             String?   @db.VarChar(400)
+  project              project[]  // one team_member can have many projects
+  profile              profile[]  // one team_member can have many profiles
+  designation          String? // Add this field
+  uid                 String? @unique
+}
+
+
+
+
+
+model revision {
+  id                 Int       @id @default(autoincrement())
+  project_id         Int
+  revision_date      DateTime? @db.Date
+  revision_comments   String?  @db.Text
+  delivery_date    DateTime? @db.Date
+  metting_link       String?  @db.Text
+  metting_date       DateTime? @db.Date
+  team                    team[]
+
+}

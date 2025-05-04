@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Department and Team Selector</title>
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <h1>Department and Team Selector</h1>
+
+  <div>
+    <label for="departmentSelect">Select Department:</label>
+    <select id="departmentSelect">
+      <option value="">Select a Department</option>
+    </select>
+  </div>
+
+  <div>
+    <label for="teamSelect">Select Team:</label>
+    <select id="teamSelect" disabled>
+      <option value="">Select a Team</option>
+    </select>
+  </div>
+
+  <script>
+    const socket = io();
+
+    // Fetch department names when the page loads
+    socket.emit('getDepartmentNames');  
+    //console.log(socket.emit('getDepartmentNames')); // Debugging log
+
+    socket.on('getDepartmentName', function(departments) {
+      const departmentSelect = document.getElementById('departmentSelect');
+      departments.forEach(department => {
+        const option = document.createElement('option');
+        console.log(department.id); // Debugging log
+        option.value = department.id;
+        option.textContent = department.department_name;
+        departmentSelect.appendChild(option);
+      });
+    });
+   // When a department is selected, fetch corresponding team members
+    document.getElementById('departmentSelect').addEventListener('change', function() {
+      const departmentId = this.value;
+      console.log('Selected Department ID:', departmentId); // Debugging log
+    
+      const teamSelect = document.getElementById('teamSelect');
+      
+      if (departmentId) {
+        teamSelect.disabled = false; // Enable team dropdown
+        socket.emit('getTeamsForDepartment', departmentId); // Fetch teams
+        socket.emit('getTeamMemberByDepartment', parseInt(departmentId)); // Fetch team members
+       
+      } else {
+        teamSelect.disabled = true; // Disable team dropdown
+        teamSelect.innerHTML = '<option value="">Select a Team</option>'; // Reset
+      }
+    });
+
+    // // Listen for team names and update team dropdown
+    // socket.on('getTeamName', function(teams) {
+    //   const teamSelect = document.getElementById('teamSelect');
+    //   teamSelect.innerHTML = '<option value="">Select a Team</option>'; // Reset
+    //   teams.forEach(team => {
+    //     const option = document.createElement('option');
+    //     option.value = team.id;
+    //     option.textContent = team.team_name;
+    //     teamSelect.appendChild(option);
+    //   });
+    // });
+
+    // Listen for team members and handle accordingly
+    socket.on('getTeamMember', function(teamMembers) { // Updated event name to match emitted event
+      console.log('Team Members:', teamMembers); // Handle team members here
+    });
+  </script>
+</body>
+</html>

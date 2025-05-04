@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Team Member</title>
+</head>
+<body>
+
+    <h2>Create Team Member</h2>
+
+    <form id="teamMemberForm" enctype="multipart/form-data">
+        <label for="first_name">First Name:</label>
+        <input type="text" id="first_name" name="first_name" required><br><br>
+
+        <label for="last_name">Last Name:</label>
+        <input type="text" id="last_name" name="last_name" required><br><br>
+
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" required><br><br>
+
+        <label for="number">Phone Number:</label>
+        <input type="text" id="number" name="number" pattern="\d{11}" required><br><br>
+
+        <label for="permanent_address">Permanent Address:</label>
+        <input type="text" id="permanent_address" name="permanent_address" required><br><br>
+
+        <label for="present_address">Present Address:</label>
+        <input type="text" id="present_address" name="present_address" required><br><br>
+
+        <label for="gender">Gender:</label>
+        <select id="gender" name="gender" required>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+        </select><br><br>
+
+        <label for="blood_group">Blood Group:</label>
+        <input type="text" id="blood_group" name="blood_group" required><br><br>
+
+        <label for="relationship">Relationship Status:</label>
+        <input type="text" id="relationship" name="relationship" required><br><br>
+
+        <label for="guardian_relation">Guardian Relation:</label>
+        <input type="text" id="guardian_relation" name="guardian_relation" required><br><br>
+
+        <label for="guardian_number">Guardian Phone Number:</label>
+        <input type="text" id="guardian_number" name="guardian_number" pattern="\d{11}" required><br><br>
+
+        <label for="guardian_address">Guardian Address:</label>
+        <input type="text" id="guardian_address" name="guardian_address" required><br><br>
+
+        <label for="religion">Religion:</label>
+        <input type="text" id="religion" name="religion" required><br><br>
+
+        <label for="education">Education:</label>
+        <input type="text" id="education" name="education" required><br><br>
+        
+        <label for="dp">Profile Picture:</label>
+        <input type="file" id="dp" name="dp"><br><br>
+
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password"><br><br>
+
+        <button type="submit">Create Team Member</button>
+    </form>
+
+    <script>
+        document.getElementById('teamMemberForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const formData = new FormData(this);
+            
+            fetch('http://192.168.10.40:3000/api/teamMember/create', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    alert(data.message);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        });
+    </script>
+
+</body>
+</html>

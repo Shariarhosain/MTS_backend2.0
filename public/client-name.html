@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Client Projects & Revisions</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f4f4f4;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 5px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    input[type="text"], input[type="date"] {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    button {
+      padding: 10px 15px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    .result, .project-list ul {
+      list-style: none;
+      padding: 0;
+      margin-top: 10px;
+    }
+
+    .result li, .project-list li {
+      padding: 8px;
+      background-color: #f9f9f9;
+      margin-bottom: 5px;
+      border: 1px solid #ddd;
+      cursor: pointer;
+    }
+
+    .add-revision-btn {
+      background-color: #2196F3;
+      margin-top: 5px;
+    }
+
+    .add-revision-btn:hover {
+      background-color: #0b7dda;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 999;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.4);
+    }
+
+    .modal-content {
+      background-color: #fff;
+      margin: 10% auto;
+      padding: 20px;
+      border-radius: 5px;
+      width: 90%;
+      max-width: 400px;
+    }
+
+    .close {
+      float: right;
+      font-size: 24px;
+      cursor: pointer;
+    }
+
+    .close:hover {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h2>Client Name Search</h2>
+  <input type="text" id="query" placeholder="Search for a client..." oninput="fetchClientSuggestions()">
+  <ul class="result" id="result-list"></ul>
+  <div class="project-list" id="project-list"></div>
+</div>
+
+<!-- Modal for Add Revision -->
+<div id="revisionModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <h3>Add Revision</h3>
+    <input type="text" id="revision_comments" placeholder="Revision Comments" required>
+    <input type="date" id="delivery_date" required>
+    <input type="text" id="metting_link" placeholder="Meeting Link (optional)">
+    <input type="date" id="metting_date" placeholder="Meeting Date (optional)">
+    <button onclick="submitRevision()">Submit</button>
+  </div>
+</div>
+
+<script>
+  let currentProjectId = null;
+
+  // Function to fetch client suggestions
+  async function fetchClientSuggestions() {
+  const query = document.getElementById('query').value.trim();
+  const projectList = document.getElementById('project-list');
+  projectList.innerHTML = '';
+  // If input is empty, clear the previous suggestions, but keep the projects visible if previously fetched
+  if (!query) {
+    document.getElementById('result-list').innerHTML = ''; // Clear client suggestions
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/project/clientSuggestions/?query=${query}`);
+    const data = await response.json();
+
+    // If client names are found, show them
+    if (data.uniqueClientNames && data.uniqueClientNames.length > 0) {
+      displayClientSuggestions(data.uniqueClientNames);
+    } else {
+      document.getElementById('result-list').innerHTML = '<li>No matching clients found.</li>';
+    }
+  } catch (error) {
+    console.error('Error fetching suggestions:', error);
+  }
+}
+
+// Function to display client suggestions
+function displayClientSuggestions(clients) {
+  const resultList = document.getElementById('result-list');
+  resultList.innerHTML = ''; // Clear previous suggestions
+
+  if (clients.length === 0) {
+    resultList.innerHTML = '<li>No matching clients found.</li>';
+    return;
+  }
+
+  clients.forEach(client => {
+    const li = document.createElement('li');
+    li.textContent = client;
+    li.onclick = () => {
+      document.getElementById('query').value = client; // Set the client name in the search box
+      resultList.innerHTML = ''; // Clear suggestions after selection
+      fetchProjectsByClient(client); // Fetch and display projects for the selected client
+    };
+    resultList.appendChild(li);
+  });
+}
+
+// Function to fetch and display projects based on selected client name
+async function fetchProjectsByClient(clientName) {
+  const projectList = document.getElementById('project-list');
+  projectList.innerHTML = ''; // Clear previous project list
+
+  if (!clientName) {
+    alert('Please enter a valid client name.');
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/project/byClient?clientName=${clientName}`);
+    const data = await response.json();
+
+    if (data.projects && data.projects.length > 0) {
+      displayProjects(data.projects); // Display the list of projects
+    } else {
+      projectList.innerHTML = '<p>No projects found for this client.</p>';
+    }
+  } catch (error) {
+    console.error('Error fetching projects:', error);
+  }
+}
+
+// Function to display projects
+function displayProjects(projects) {
+  const projectList = document.getElementById('project-list');
+  projectList.innerHTML = ''; // Clear previous projects before displaying new ones
+
+  const ul = document.createElement('ul');
+  projects.forEach(project => {
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <strong>Project Name:</strong> ${project.project_name}<br>
+      <strong>Order ID:</strong> ${project.order_id}<br>
+      <strong>Status:</strong> ${project.status}<br>
+      <strong>Sales Comments:</strong> ${project.sales_comments || '—'}<br>
+      <strong>Ops Leader Comments:</strong> ${project.opsleader_comments || '—'}<br>
+      <strong>Order Amount:</strong> $${project.order_amount || 0}<br>
+      <a href="${project.sheet_link}" target="_blank">View Sheet</a><br>
+      <button class="add-revision-btn" onclick="openModal('${project.id}')">Add Revision</button>
+    `;
+    ul.appendChild(li);
+  });
+
+  projectList.appendChild(ul);
+}
+
+
+  // Open the revision modal
+  function openModal(projectId) {
+    currentProjectId = projectId;
+    document.getElementById('revisionModal').style.display = 'block';
+  }
+
+  // Close the revision modal
+  function closeModal() {
+    document.getElementById('revisionModal').style.display = 'none';
+    clearModalInputs();
+    const projectList = document.getElementById('project-list');
+    projectList.innerHTML = '';
+
+    document.getElementById('query').value = ''; // Clear the search input
+    document.getElementById('result-list').innerHTML = ''; // Clear client suggestions
+  }
+
+  // Clear the modal input fields
+  function clearModalInputs() {
+    document.getElementById('revision_comments').value = '';
+    document.getElementById('delivery_date').value = '';
+    document.getElementById('metting_link').value = '';
+    document.getElementById('metting_date').value = '';
+  }
+
+  // Submit revision for the selected project
+  async function submitRevision() {
+    const revision_comments = document.getElementById('revision_comments').value;
+    const delivery_date = document.getElementById('delivery_date').value;
+    const metting_link = document.getElementById('metting_link').value;
+    const metting_date = document.getElementById('metting_date').value;
+
+    if (!revision_comments || !delivery_date) {
+      alert("Please fill in both Revision Comments and Delivery Date.");
+      return;
+    }
+
+    const payload = {
+      revision_comments,
+      delivery_date,
+      metting_link: metting_link || null,
+      metting_date: metting_date || null
+    };
+
+    try {
+      const response = await fetch(`/api/project/updateRevision/${currentProjectId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+      if (response.ok) {
+        alert("Revision added successfully.");
+        closeModal();
+      } else {
+        alert("Error: " + result.error);
+      }
+    } catch (error) {
+      console.error("Error submitting revision:", error);
+      alert("Failed to add revision.");
+    }
+  }
+
+  // Close modal if clicked outside
+  window.onclick = function(event) {
+    const modal = document.getElementById('revisionModal');
+    if (event.target == modal) {
+      closeModal();
+    }
+  };
+</script>
+</body>
+</html>

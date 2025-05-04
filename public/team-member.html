@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Member API Documentation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        pre {
+            background-color: #333;
+            color: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 1rem;
+            margin: 10px 0;
+        }
+        code {
+            color: #f1c40f;
+        }
+        .endpoint {
+            margin-bottom: 30px;
+        }
+        .method {
+            font-weight: bold;
+            color: #2980b9;
+        }
+        .response {
+            background-color: #eafaf1;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .request {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Team Member API Documentation</h1>
+    <p>Welcome to the API documentation for managing team members. Below are the details for each endpoint.</p>
+
+    <div class="endpoint">
+        <h2>1. Create a Team Member</h2>
+        <p><span class="method">POST</span> http://192.168.10.40:3000/api/teamMember/create</p>
+        
+        <h3>Request</h3>
+        <p>Body (Form-data):</p>
+        <pre>
+{
+    "first_name": "John",
+    "last_name": "Doe",
+    "email": "john.doe@example.com",
+    "number": "12345678901",
+    "permanent_address": "123 Main St",
+    "present_address": "456 Elm St",
+    "gender": "Male",
+    "blood_group": "O+",
+    "relationship": "Single",
+    "guardian_relation": "Father",
+    "guardian_number": "9876543210",
+    "guardian_address": "123 Main St",
+    "religion": "Christianity",
+    "education": "Bachelor's",
+    "dp": [file],  <!-- Profile Image -->
+    "password": "yourPassword123"  <!-- Password (required) -->
+}
+        </pre>
+
+        <h3>Response</h3>
+        <pre>
+{
+    "message": "Team member created successfully",
+    "teamMember": {
+        "id": 69,
+        "first_name": "John",
+        "last_name": "Doe",
+        "email": "john.doe@example.com",
+        "number": "12345678901",
+        "permanent_address": "123 Main St",
+        "present_address": "456 Elm St",
+        "gender": "Male",
+        "blood_group": "O+",
+        "relationship": "Single",
+        "guardian_relation": "Father",
+        "guardian_number": "9876543210",
+        "guardian_address": "123 Main St",
+        "religion": "Christianity",
+        "education": "Bachelor's",
+        "dp": "/uploads/dp-1744172658207-431042347.png",
+        "password": "yourPassword123",  <!-- Response includes password -->
+        "role": "null",
+        "target": "0",
+        "rewards": "0",
+        "rating": "0",
+        "account_status": "active"
+    }
+}
+        </pre>
+
+        <h3>Error Response</h3>
+        <p>Possible error responses:</p>
+        <div class="error">
+            <pre>
+{
+    "message": "Email already exists"
+}
+            </pre>
+        </div>
+        <div class="error">
+            <pre>
+{
+    "message": "Invalid email format"
+}
+            </pre>
+        </div>
+        <div class="error">
+            <pre>
+{
+    "message": "Invalid phone number format. It should be 11 digits."
+}
+            </pre>
+        </div>
+    </div>
+
+    <div class="endpoint">
+        <h2>2. Get All Team Members (with Pagination)</h2>
+        <p><span class="method">POST</span> http://192.168.10.40:3000/api/teamMember</p>
+        
+        <h3>Request</h3>
+        <p>Body (JSON):</p>
+        <pre>
+{
+    "page": 1,
+    "limit": 10
+}
+        </pre>
+
+        <h3>Response</h3>
+        <pre>
+            {
+                "message": "All team members retrieved successfully",
+                "teamMembers": [
+                    {
+                        "id": 11,
+                        "first_name": "FirstName 11",
+                        "last_name": "LastName 11",
+                        "email": "email11@example.com",
+                        "number": "1234511",
+                        "permanent_address": "Address 11",
+                        "present_address": "Present Address 11",
+                        "gender": "Male",
+                        "blood_group": "O+",
+                        "relationship": "Single",
+                        "guardian_relation": "Father",
+                        "guardian_number": "1234567890",
+                        "guardian_address": "Guardian Address 11",
+                        "team_id": 12,
+                        "religion": "Religion",
+                        "education": "Bachelors",
+                        "dp": "dp11.jpg",
+                        "role": "Junior Developer",
+                        "target": "4594",
+                        "rewards": "41",
+                        "rating": "1",
+                        "account_status": "Active"
+                    },
+    "pagination": {
+        "page": 1,
+        "limit": 10,
+        "total": 100,
+        "totalPages": 10
+    }
+}
+        </pre>
+
+        <h3>Error Response</h3>
+        <div class="error">
+            <pre>
+{
+    "message": "Method Not Allowed. Please use POST for pagination."
+}
+            </pre>
+        </div>
+    </div>
+
+    <div class="endpoint">
+        <h2>3. Update a Team Member by ID</h2>
+        <p><span class="method">PUT</span> http://localhost:3000/api/teamMember/:id</p>
+        
+        <h3>Request</h3>
+        <p>Body (Form-data or JSON):</p>
+        <pre>
+{
+    "first_name": "John Updated",
+    "last_name": "Doe Updated",
+    "dp": [file] <!-- Profile Image (optional) -->
+}
+        </pre>
+
+        <h3>Response</h3>
+        <pre>
+{
+    "message": "Team member updated successfully",
+    "teamMember": {
+        "id": 1,
+        "first_name": "John Updated",
+        "last_name": "Doe Updated",
+        "dp": "/uploads/john-updated-1234567890.jpg"
+    }
+}
+        </pre>
+
+        <h3>Error Response</h3>
+        <div class="error">
+            <pre>
+{
+    "message": "Team member not found"
+}
+            </pre>
+        </div>
+
+        <div class="error">
+            <pre>
+{
+    message: 'Email cannot be changed'
+}
+            </pre>
+        </div>
+    </div>
+
+    <div class="endpoint">
+        <h2>4. Deactivate a Team Member by ID</h2>
+        <p><span class="method">DELETE</span> http://localhost:3000/api/teamMember/:id</p>
+        
+        <h3>Request</h3>
+        <p>URL Parameters: <code>:id</code> (Team Member ID)</p>
+
+        <h3>Response</h3>
+        <pre>
+{
+    "message": "Team member account set to inactive and image deleted successfully"
+}
+        </pre>
+
+        <h3>Error Response</h3>
+        <div class="error">
+            <pre>
+{
+    "message": "Team member not found"
+}
+            </pre>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2025 Team Member API Documentation</p>
+    </footer>
+
+</body>
+</html>
