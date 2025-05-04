@@ -116,11 +116,7 @@ const seed = async () => {
   const formatDate = (date) => date.toLocaleDateString('en-CA');
 
   // Current month
-  const startOfCurrentMonth = new Date(
-    current.getFullYear(),
-    current.getMonth(),
-    1
-  );
+  const startOfCurrentMonth = new Date();
   const endOfCurrentMonth = new Date(
     current.getFullYear(),
     current.getMonth() + 1,
@@ -155,7 +151,7 @@ const seed = async () => {
         sheet_link: `http://link-to-sheet-${i}.com`,
         ordered_by: teamMembers[i % teamMembers.length].id,
         deli_last_date: new Date(),
-        status: 'Active',
+        status: 'nra',
         order_amount: Math.random() * 10000,
         after_fiverr_amount: Math.random() * 8000,
         bonus: Math.random() * 1000,

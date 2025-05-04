@@ -525,8 +525,23 @@ exports.updateProject = async (req, res, io) => {
 
     const project = await prisma.project.update({
       where: { id: Number(id) },
-      data: req.body,
+      data: {
+        ...req.body,
+        department: req.body.department_id
+          ? { connect: { id: Number(req.body.department_id) } }
+          : undefined,
+        team: req.body.team_id
+          ? { connect: { id: Number(req.body.team_id) } }
+          : undefined,
+        profile: req.body.profile_id
+          ? { connect: { id: Number(req.body.profile_id) } }
+          : undefined,
+        team_member: req.body.ordered_by
+          ? { connect: { id: Number(req.body.ordered_by) } }
+          : undefined,
+      },
     });
+    
 
 console.log("req.body", req.body.team_id); // Debugging the updated project data
     console.log("project", project); // Debugging the updated project data
