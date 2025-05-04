@@ -435,10 +435,10 @@ exports.getProjectById = async (req, res) => {
 
 exports.updateProject = async (req, res, io) => {
   const { id } = req.params;
-  console.log("req.hyvbbvhbv", req.body); // Debugging the request body
+  console.log("Incoming update body:", req.body);
 
   try {
-    // Check if project exists
+    // 1. Check if project exists
     const existingProject = await prisma.project.findUnique({
       where: { id: Number(id) },
     });
@@ -447,128 +447,91 @@ exports.updateProject = async (req, res, io) => {
       return res.status(404).json({ error: "Project not found." });
     }
 
-    // Prevent updating projectName
+    // 2. Prevent updating projectName
     if (req.body.projectName) {
-      return res
-        .status(400)
-        .json({ error: "Updating projectName is not allowed." });
+      return res.status(400).json({ error: "Updating projectName is not allowed." });
     }
 
-    if(req.body.status=="delivered"){
-      req.body.ops_status = "delivered"; // Update ops_status to "delivered"
-     //check delivery date is present or not in project table.if present then not let user to update delivery date. delivery date will be same as previous one.
+    // 3. Handle delivered status
+    if (req.body.status === "delivered") {
+      req.body.ops_status = "delivered";
       const delivery_date = new Date(req.body.delivery_date);
-
       if (!existingProject.delivery_date) {
-       
         req.body.delivery_date = delivery_date;
       } else {
         req.body.delivery_date = existingProject.delivery_date;
       }
     }
 
-    console.log("req.body", req.body); // Debugging the request body
-   
-      
-
-    // Handle deli_last_date
+    // 4. Parse deli_last_date if needed
     if (req.body.deli_last_date) {
       const parsedDate = new Date(req.body.deli_last_date);
       if (isNaN(parsedDate)) {
-        return res
-          .status(400)
-          .json({ error: "Invalid deli_last_date format." });
+        return res.status(400).json({ error: "Invalid deli_last_date format." });
       }
       req.body.deli_last_date = parsedDate;
     }
 
-    // Handle department name → department_id conversion
-    // if (req.body.department) {
-    //   const departmentData = await prisma.department.findUnique({
-    //     where: { department_name: req.body.department },
-    //   });
-
-    //   if (!departmentData) {
-    //     return res.status(400).json({ error: "Invalid department name." });
-    //   }
-
-    //   // Replace department name with ID
-    //   req.body.department_id = departmentData.id;
-    //   delete req.body.department; // remove name to prevent Prisma error
-    // }
-
-
-    // if req.body.order_amount is present then calculate after_fiverr_amount
+    // 5. Calculate after_fiverr_amount if order_amount is present
     if (req.body.order_amount) {
-      const after_fiverr_amount = req.body.order_amount * 0.8;
-      req.body.after_fiverr_amount = after_fiverr_amount;
+      req.body.after_fiverr_amount = req.body.order_amount * 0.8;
     }
 
-    //if req.body.bonus is present then calculate after_fiverr_bonus
+    // 6. Calculate after_Fiverr_bonus if bonus is present
     if (req.body.bonus) {
-      const after_Fiverr_bonus = req.body.bonus * 0.8;
-      req.body.after_Fiverr_bonus = after_Fiverr_bonus;
+      req.body.after_Fiverr_bonus = req.body.bonus * 0.8;
     }
 
-
-
-
+    // 7. If team_id present, set assigned date
     if (req.body.team_id) {
-     //if team id send then also update assigned date
       const assignedDate = new Date();
-      assignedDate.setHours(0, 0, 0, 0); // Set time to the start of the day (00:00:00)
-      req.body.Assigned_date = assignedDate; // Set the assigned date to today
+      assignedDate.setHours(0, 0, 0, 0);
+      req.body.Assigned_date = assignedDate;
     }
 
+    // 8. Destructure relation IDs
+    const {
+      department_id,
+      team_id,
+      profile_id,
+      ordered_by,
+      ...filteredBody
+    } = req.body;
 
-   
-
+    // 9. Update project
     const project = await prisma.project.update({
       where: { id: Number(id) },
       data: {
-        ...req.body,
-        department: req.body.department_id
-          ? { connect: { id: Number(req.body.department_id) } }
-          : undefined,
-        team: req.body.team_id
-          ? { connect: { id: Number(req.body.team_id) } }
-          : undefined,
-        profile: req.body.profile_id
-          ? { connect: { id: Number(req.body.profile_id) } }
-          : undefined,
-        team_member: req.body.ordered_by
-          ? { connect: { id: Number(req.body.ordered_by) } }
-          : undefined,
+        ...filteredBody,
+        department: department_id ? { connect: { id: Number(department_id) } } : undefined,
+        team: team_id ? { connect: { id: Number(team_id) } } : undefined,
+        profile: profile_id ? { connect: { id: Number(profile_id) } } : undefined,
+        team_member: ordered_by ? { connect: { id: Number(ordered_by) } } : undefined,
       },
     });
-    
 
-console.log("req.body", req.body.team_id); // Debugging the updated project data
-    console.log("project", project); // Debugging the updated project data
-
-
-    //send project data date in the proper format like yyyy-mm-dd
+    // 10. Format date fields
     const formatDate = (date) =>
       date ? new Date(date).toISOString().split("T")[0] : null;
+
     const updatedProject = {
       ...project,
       date: formatDate(project.date),
       deli_last_date: formatDate(project.deli_last_date),
+      delivery_date: formatDate(project.delivery_date),
     };
 
-    console.log("updatedProject", updatedProject); // Real-time update to front end
+    // 11. Emit update
     io.emit("projectUpdated", updatedProject);
     await emitSalesData(io);
-    await totalOrdersCardData(io); // Emit the total order card data
+    await totalOrdersCardData(io);
+
     res.status(200).json({ message: "Project updated successfully.", project });
   } catch (error) {
     console.error("Error updating project:", error);
-    res
-      .status(500)
-      .json({ error: "An error occurred while updating the project." });
+    res.status(500).json({ error: "An error occurred while updating the project." });
   }
 };
-
 // Function to send paginated project data to the connected client in real-time
 exports.sendPaginatedProjectData = async (socket, page = 1, limit = 10) => {
   try {
