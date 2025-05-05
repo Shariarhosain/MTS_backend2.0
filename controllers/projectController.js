@@ -46,13 +46,7 @@ exports.createProject = async (req, res, io) => {
     // Create the project name by combining clientName and orderId
     const projectName = `${clientName}-${order_id}`;
 
-    //get profile id by using profile name
-    const profileData = await prisma.profile.findUnique({
-      where: { profile_name: profile },
-    });
-    console.log("profileData", profileData);
-
-
+    
 
     //projectName and orderId are not allowed in the request body
     if (req.body.projectName) {
@@ -107,7 +101,7 @@ exports.createProject = async (req, res, io) => {
         },
         project_requirements,
         profile: {
-          connect: { id: profileData.id }, // Connect the profile by its ID
+          connect: { id: profile }, // Connect the profile by its ID
         },
       },
     });
