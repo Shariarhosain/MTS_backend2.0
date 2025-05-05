@@ -14,7 +14,7 @@
   <script>
     const socket = io();
 
-    // Fetch department names when the page loads
+
     socket.emit('getProfilename');  
 socket.on('getProfilename', function(profilename) {
   console.log(profilename); // Debugging log
