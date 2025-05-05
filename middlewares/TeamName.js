@@ -161,7 +161,6 @@ async function getDepartmentName(socket) {
         console.error('[Socket] Failed to emit department names:', err);
     }
 }
-
 async function getTeamMember(departmentId, socket) {
     try {
         console.log('Fetching team members for department ID:', departmentId);
@@ -179,7 +178,7 @@ async function getTeamMember(departmentId, socket) {
             include: {
                 department_teams: {
                     include: {
-                        team_member: true,
+                        team_member: true, // ⬅️ This returns array of members per team
                     },
                 },
             },
@@ -190,18 +189,19 @@ async function getTeamMember(departmentId, socket) {
             return;
         }
 
-        const teamMembers = departmentWithTeams.department_teams.map(team => ({
-            team_name: team.team_name,
-            members: team.team_member,
-        }));
+        // ✅ Extract only member names from all teams
+        const memberNames = departmentWithTeams.department_teams.flatMap(team =>
+            team.team_member.map(member => member.first_name)  // You can also use `${member.first_name} ${member.last_name}`
+        );
 
-        console.log('Team Members:', teamMembers);
-        socket.emit('getTeamMember', teamMembers);
+        console.log('✅ Member names →', memberNames);
+        socket.emit('getTeamMember', memberNames);
 
     } catch (err) {
         console.error('[Socket] Failed to fetch team members:', err);
         socket.emit('getTeamMember', { error: "Failed to fetch team members" });
     }
 }
+
 
 module.exports = { getTeamName, getDepartmentName, getTeamMember };
