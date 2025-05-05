@@ -32,6 +32,10 @@ const seed = async () => {
 
   console.log('Departments created:', departments);
 
+
+/*
+
+  
   // Create 50 teams and link to departments
   const teams = [];
   for (let i = 1; i <= 50; i++) {
@@ -218,7 +222,11 @@ for (let i = 0; i < 10; i++) {
 
 
 
-  console.log('Seed data inserted successfully!');
+  console.log('Seed data inserted successfully!'); */
+
+
+
+
 };
 
 seed()
