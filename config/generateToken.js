@@ -8,7 +8,7 @@ const generateToken = (user) => {
     return jwt.sign(
         { uid: user },  // Payload
         JWT_SECRET,  // Secret key
-        { expiresIn: '1h' }  // Token expiration time
+        { expiresIn: '12h' }  // Token expiration time
     );
 };
 

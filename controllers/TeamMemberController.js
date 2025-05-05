@@ -121,16 +121,9 @@ exports.createTeamMember = async (req, res) => {
         }
         console.log("UID:", uid); // Log the UID
         const token = generateToken(uid);
-         // Set the token in an HTTP-only cookie
-         const isProduction = process.env.NODE_ENV === 'production';
-
-         res.cookie('auth_token', token, {
-             httpOnly: true,  // Prevents client-side JavaScript from accessing the cookie
-             secure: isProduction,  // Set to true only for production (HTTPS)
-             maxAge: 60 * 60 * 1000,  // 1 hour expiry
-             sameSite: 'Strict',  // Ensures the cookie is sent only with requests to the same origin
-         });
-         
+         // Send this token to the frontend for authentication
+        console.log("Token:", token); // Log the generated token;
+        
         // Send response with token
         return res.status(201).json({ 
             message: 'Team member created successfully',
@@ -277,3 +270,35 @@ exports.deactivateTeamMember = async (req, res) => {
         return res.status(500).json({ message: 'An error occurred while deactivating the team member', error: error.message });
     }
 };
+
+
+exports.login = async (req, res) => {
+    const { email, password } = req.body;
+    try {
+        const teamMember = await prisma.team_member.findUnique({
+            where: { email },
+        });
+        if (!teamMember) {
+            return res.status(404).json({ message: 'Team member not found' });
+        }
+
+        // Compare password (assuming you have a function to compare hashed passwords)
+        const isPasswordValid = await comparePassword(password, teamMember.password); // Implement this function
+
+        if (!isPasswordValid) {
+            return res.status(401).json({ message: 'Invalid password' });
+        }
+
+        // Generate JWT Token
+        const token = generateToken(teamMember.uid); // Assuming you want to use the team member's ID as the UID
+
+        return res.status(200).json({
+            message: 'Login successful',
+            token,
+            teamMember: { ...teamMember, password: undefined }, // Exclude password from response
+        });
+    } catch (error) {
+        console.error('Error during login:', error);
+        return res.status(500).json({ message: 'An error occurred during login', error: error.message });
+    }
+}

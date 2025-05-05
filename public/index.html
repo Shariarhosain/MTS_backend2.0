@@ -132,6 +132,7 @@
         });
 // Listen for real-time updates on project update
 socket.on('projectUpdated', (project) => {
+    console.log('Project updated:', project);
     const existingProjectDiv = [...projectsContainer.children].find(child => child.textContent.includes(project.project_name));
     if (existingProjectDiv) {
         // Change the background color when an update comes in
