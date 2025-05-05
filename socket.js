@@ -6,7 +6,6 @@ const { getDepartmentName } = require('./middlewares/TeamName');
 const { getTeamName } = require('./middlewares/TeamName');
 const { getTeamMember } = require('./middlewares/TeamName');
 const emitProfilename = require('./middlewares/showProfilename');
-const emitRecentProject = require('./middlewares/recentProjectdetails');
 const emitProjectMoneyMetrics = require('./middlewares/carddetailsForoperation');
 
 const totalOrdersCardData  = require('./middlewares/projectCardEmitter');
@@ -86,6 +85,21 @@ try{
   
 });
 
+
+
+
+
+
+    socket.on('ProjectPageCardDetails', async () => {
+      try {
+        console.log('Fetching project page card details...');
+        await emitProjectMoneyMetrics(io);  // Fetch and emit project page card details
+      } catch (error) {
+        console.error("Error fetching project page card details:", error);
+      }
+    }
+    );
+
     // socket.emit('totalOrdersCardData', (totalOrdersAmount) => {
     //   io.emit('totalOrdersCardData', totalOrdersAmount);
     // });
@@ -94,37 +108,19 @@ try{
     // Handle 'getTeamsForDepartment' socket event
     socket.on('getTeamsForDepartment', async (departmentId) => {
       try {
-        console.log('Fetching teams for sanny ID:', departmentId);
+        console.log('Fetching teams for department ID:', departmentId);
         await getTeamName(departmentId, io);  // Fetch and emit teams for the selected department      sssssssssssssssssssssss
       } catch (error) {
         console.error("Error fetching teams:", error);
       }
     });
 
-    // socket.emit('recentProjects');  
-    // socket.on('recentProjectsData', function(recentProjects) {
-    //   console.log(recentProjects); // Debugging log
-      
-       
-    //     });
-
-    socket.on('recentProjects', async () => {
+    // Emit department names when a user connects or triggers the relevant event
+    socket.on('getDepartmentNames', async () => {
       try {
-        await emitRecentProject(io);  // Emit recent project details to the client
+        await getDepartmentName(io);  // Emit department names to the client
       } catch (error) {
-        console.error("Error fetching recent projects:", error);
-      }
-    });
-
-    //projectMoneyMetrics
-
-    socket.on('ProjectPageCardDetails', async (data) => {
-      try {
-        // Handle project money metrics logic here
-      await emitProjectMoneyMetrics(io);  // Emit project money metrics to the client
-        // Emit or process the data as needed
-      } catch (error) {
-        console.error("Error fetching project money metrics:", error);
+        console.error("Error fetching departments:", error);
       }
     });
      
