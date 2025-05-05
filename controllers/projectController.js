@@ -532,7 +532,6 @@ exports.updateProject = async (req, res, io) => {
     res.status(500).json({ error: "An error occurred while updating the project." });
   }
 };
-
 // Function to send paginated project data to the connected client in real-time
 exports.sendPaginatedProjectData = async (socket, page = 1, limit = 10) => {
   try {
