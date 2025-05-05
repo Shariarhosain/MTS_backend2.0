@@ -6,6 +6,8 @@ const { getDepartmentName } = require('./middlewares/TeamName');
 const { getTeamName } = require('./middlewares/TeamName');
 const { getTeamMember } = require('./middlewares/TeamName');
 const emitProfilename = require('./middlewares/showProfilename');
+const emitRecentProject = require('./middlewares/recentProjectdetails');
+const emitProjectMoneyMetrics = require('./middlewares/carddetailsForoperation');
 
 const totalOrdersCardData  = require('./middlewares/projectCardEmitter');
 const initSocket = (server) => {
@@ -99,12 +101,30 @@ try{
       }
     });
 
-    // Emit department names when a user connects or triggers the relevant event
-    socket.on('getDepartmentNames', async () => {
+    // socket.emit('recentProjects');  
+    // socket.on('recentProjectsData', function(recentProjects) {
+    //   console.log(recentProjects); // Debugging log
+      
+       
+    //     });
+
+    socket.on('recentProjects', async () => {
       try {
-        await getDepartmentName(io);  // Emit department names to the client
+        await emitRecentProject(io);  // Emit recent project details to the client
       } catch (error) {
-        console.error("Error fetching departments:", error);
+        console.error("Error fetching recent projects:", error);
+      }
+    });
+
+    //projectMoneyMetrics
+
+    socket.on('ProjectPageCardDetails', async (data) => {
+      try {
+        // Handle project money metrics logic here
+      await emitProjectMoneyMetrics(io);  // Emit project money metrics to the client
+        // Emit or process the data as needed
+      } catch (error) {
+        console.error("Error fetching project money metrics:", error);
       }
     });
      
