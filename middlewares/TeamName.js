@@ -140,8 +140,9 @@ async function getTeamName(departmentId, socket) {
           select: { team_name: true, id: true }
       });
 
+
       // ✅ Dynamically emit event
-      socket.emit(`getTeamName:${departmentId}`, teamNames);
+      socket.emit("getTeamName", teamNames);
 
   } catch (err) {
       console.error('[Socket] Failed to emit team names:', err);
@@ -204,4 +205,3 @@ async function getTeamMember(departmentId, socket) {
 }
 
 module.exports = { getTeamName, getDepartmentName, getTeamMember };
-
