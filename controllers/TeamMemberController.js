@@ -273,7 +273,7 @@ exports.deactivateTeamMember = async (req, res) => {
 
 
 exports.login = async (req, res) => {
-    const { email, password } = req.body;
+    const { email } = req.body;
     try {
         const teamMember = await prisma.team_member.findUnique({
             where: { email },
@@ -281,14 +281,11 @@ exports.login = async (req, res) => {
         if (!teamMember) {
             return res.status(404).json({ message: 'Team member not found' });
         }
-
-        // Compare password (assuming you have a function to compare hashed passwords)
-        const isPasswordValid = await comparePassword(password, teamMember.password); // Implement this function
-
-        if (!isPasswordValid) {
-            return res.status(401).json({ message: 'Invalid password' });
+        // Check if the account is active
+        if (teamMember.account_status !== 'active') {
+            return res.status(403).json({ message: 'Account is inactive' });
         }
-
+    
         // Generate JWT Token
         const token = generateToken(teamMember.uid); // Assuming you want to use the team member's ID as the UID
 

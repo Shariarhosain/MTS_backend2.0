@@ -2,12 +2,12 @@ const jwt = require('jsonwebtoken');
 const JWT_SECRET = 'your_secret_key';  // Store securely in .env
 
 const verifyToken = (req, res, next) => {
-    console.log("Cookies:", req.cookies.auth_token);  // Log cookies to ensure they are set
-    const token = req.cookies.auth_token;  // Token is stored in cookies
+//Bearer token from header Authorization
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];  // Extract token from Bearer scheme
+    if (!token) return res.status(401).json({ message: 'No token provided.' });
 
-    if (!token) {
-        return res.status(403).json({ message: 'No token provided, authorization denied.' });
-    }
+    console.log('Token received:', token);
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
