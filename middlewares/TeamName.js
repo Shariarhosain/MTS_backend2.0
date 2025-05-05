@@ -178,7 +178,7 @@ async function getTeamMember(departmentId, socket) {
             include: {
                 department_teams: {
                     include: {
-                        team_member: true, // ⬅️ This returns array of members per team
+                        team_member: true,
                     },
                 },
             },
@@ -189,19 +189,23 @@ async function getTeamMember(departmentId, socket) {
             return;
         }
 
-        // ✅ Extract only member names from all teams
-        const memberNames = departmentWithTeams.department_teams.flatMap(team =>
-            team.team_member.map(member => member.first_name)  // You can also use `${member.first_name} ${member.last_name}`
+        // 🔁 Return array of objects: { id, name }
+        const memberData = departmentWithTeams.department_teams.flatMap(team =>
+            team.team_member.map(member => ({
+                id: member.id,
+                name: `${member.first_name}`.trim()
+            }))
         );
 
-        console.log('✅ Member names →', memberNames);
-        socket.emit('getTeamMember', memberNames);
+        console.log('✅ Member data →', memberData);
+        socket.emit('getTeamMember', memberData);
 
     } catch (err) {
         console.error('[Socket] Failed to fetch team members:', err);
         socket.emit('getTeamMember', { error: "Failed to fetch team members" });
     }
 }
+
 
 
 module.exports = { getTeamName, getDepartmentName, getTeamMember };
