@@ -17,18 +17,9 @@ exports.selesView_recent_month = async (req, res) => {
         console.log('Current Date:', currentDate);
         
         // Current month (April)
-        const startOfCurrentMonth = new Date(currentDate.getFullYear(), 3, 1); // Month 3 = April, 1st day
-        startOfCurrentMonth.setHours(0, 0, 0, 0);  // Set time to midnight (00:00:00) in local time
-        
-        const endOfCurrentMonth = new Date(currentDate.getFullYear(), 4, 0); // Last day of April
-        endOfCurrentMonth.setHours(23, 59, 59, 999);  // Set time to the end of the day (23:59:59.999) in local time
-    
-        // Previous month (March)
-        const startOfLastMonth = new Date(currentDate.getFullYear(), 2, 1); // Month 2 = March, 1st day
-        startOfLastMonth.setHours(0, 0, 0, 0); // Set time to midnight (00:00:00) in local time
-        
-        const endOfLastMonth = new Date(currentDate.getFullYear(), 3, 0); // Last day of March
-        endOfLastMonth.setHours(23, 59, 59, 999); // Set time to the end of the day (23:59:59.999) in local time
+        const startOfCurrentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        const endOfCurrentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+        endOfCurrentMonth.setHours(23, 59, 59, 999);
      
         const startDate = startOfCurrentMonth;
         const endDate = endOfCurrentMonth;
@@ -46,6 +37,9 @@ exports.selesView_recent_month = async (req, res) => {
                 after_Fiverr_bonus: true
             }
         });
+
+
+        console.log('Sales Data:', salesData);
        
         
 
