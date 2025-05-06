@@ -194,10 +194,8 @@ async function getTeamName(departmentId, socket) {
       });
   
       console.log('✅ Team Names:', teamNames);
-  
-      const eventName = `getTeamName:${departmentId}`;
       console.log(`📤 Emitting event → ${eventName}`);
-      socket.emit(eventName, teamNames);
+      socket.emit( `getTeamName:${departmentId}`, teamNames);
   
     } catch (err) {
       console.error('[Socket] Failed to emit team names:', err);
