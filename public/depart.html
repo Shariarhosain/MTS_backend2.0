@@ -60,6 +60,7 @@
 
     // Listen for team names and update team dropdown
     socket.on('getTeamName', function(teams) {
+      console.log('Teams:', teams); // Debugging log
       const teamSelect = document.getElementById('teamSelect');
       teamSelect.innerHTML = '<option value="">Select a Team</option>'; // Reset
       teams.forEach(team => {

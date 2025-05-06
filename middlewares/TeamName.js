@@ -123,31 +123,58 @@ const { Server } = require('socket.io');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-async function getTeamName(departmentId, socket) {
-  try {
-      console.log('Fetching team names for department ID:', departmentId);
+// async function getTeamName(departmentId, socket) {
+//   try {
+//       console.log('Fetching team names for department ID:', departmentId);
 
+//       if (typeof departmentId === 'string') {
+//           departmentId = parseInt(departmentId, 10);
+//       }
+//       if (isNaN(departmentId)) {
+//           console.error('Invalid departmentId:', departmentId);
+//           return;
+//       }
+
+//       const teamNames = await prisma.team.findMany({
+//           where: { department_id: departmentId },
+//           select: { team_name: true, id: true }
+//       });
+
+
+//       // ✅ Dynamically emit event
+//       socket.emit("getTeamName", teamNames);
+
+//   } catch (err) {
+//       console.error('[Socket] Failed to emit team names:', err);
+//   }
+// }
+
+async function getTeamName(departmentId, socket) {
+    try {
+      console.log('Fetching team names for department ID:', departmentId);
+  
       if (typeof departmentId === 'string') {
-          departmentId = parseInt(departmentId, 10);
+        departmentId = parseInt(departmentId, 10);
       }
       if (isNaN(departmentId)) {
-          console.error('Invalid departmentId:', departmentId);
-          return;
+        console.error('Invalid departmentId:', departmentId);
+        return;
       }
-
+  
       const teamNames = await prisma.team.findMany({
-          where: { department_id: departmentId },
-          select: { team_name: true, id: true }
+        where: { department_id: departmentId },
+        select: { team_name: true, id: true }
       });
-
-
-      // ✅ Dynamically emit event
-      socket.emit("getTeamName", teamNames);
-
-  } catch (err) {
+  
+      // ✅ Dynamically emit event like "getTeamName:5"
+      const eventName = `getTeamName:${departmentId}`;
+      socket.emit(eventName, teamNames);
+  
+    } catch (err) {
       console.error('[Socket] Failed to emit team names:', err);
+    }
   }
-}
+  
 
 
 async function getDepartmentName(socket) {
