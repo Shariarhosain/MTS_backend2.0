@@ -152,7 +152,7 @@ const prisma = new PrismaClient();
 async function getTeamName(departmentId, socket) {
     try {
       console.log('Fetching team names for department ID:', departmentId);
-  
+   console.log('Socket:', departmentId); // Check if socket is defined
       if (typeof departmentId === 'string') {
         departmentId = parseInt(departmentId, 10);
       }
@@ -165,9 +165,12 @@ async function getTeamName(departmentId, socket) {
         where: { department_id: departmentId },
         select: { team_name: true, id: true }
       });
+
+      console.log('Team Names:', teamNames);
   
       // ✅ Dynamically emit event like "getTeamName:5"
       const eventName = `getTeamName:${departmentId}`;
+      console.log(`Emitting event: ${eventName}`, teamNames);
       socket.emit(eventName, teamNames);
   
     } catch (err) {

@@ -25,56 +25,61 @@
 
   <script>
     const socket = io();
-
+  
     // Fetch department names when the page loads
-    socket.emit('getDepartmentNames');  
-    //console.log(socket.emit('getDepartmentNames')); // Debugging log
-
+    socket.emit('getDepartmentNames');
+  
     socket.on('getDepartmentName', function(departments) {
       const departmentSelect = document.getElementById('departmentSelect');
       departments.forEach(department => {
         const option = document.createElement('option');
-        console.log(department.id); // Debugging log
         option.value = department.id;
         option.textContent = department.department_name;
         departmentSelect.appendChild(option);
       });
     });
-   // When a department is selected, fetch corresponding team members
-    document.getElementById('departmentSelect').addEventListener('change', function() {
+  
+    // When a department is selected, fetch corresponding team names dynamically
+    document.getElementById('departmentSelect').addEventListener('change', function () {
       const departmentId = this.value;
-      console.log('Selected Department ID:', departmentId); // Debugging log
-    
       const teamSelect = document.getElementById('teamSelect');
-      
+  
       if (departmentId) {
-        teamSelect.disabled = false; // Enable team dropdown
-        socket.emit('getTeamsForDepartment', departmentId); // Fetch teams
-        socket.emit('getTeamMemberByDepartment', parseInt(departmentId)); // Fetch team members
-       
+        teamSelect.disabled = false;
+        teamSelect.innerHTML = '<option value="">Loading teams...</option>';
+  
+        // Emit request to fetch teams using dynamic event
+        socket.emit('getTeamsForDepartment', departmentId);
+  
+        // ✅ Set up dynamic listener (important: clear previous one first)
+        const eventName = `getTeamName:${departmentId}`;
+  
+        socket.off(eventName); // Prevent duplicate listeners
+        socket.on(eventName, function (teams) {
+          console.log(`Received from ${eventName}:`, teams);
+          teamSelect.innerHTML = '<option value="">Select a Team</option>';
+          teams.forEach(team => {
+            const option = document.createElement('option');
+            option.value = team.id;
+            option.textContent = team.team_name;
+            teamSelect.appendChild(option);
+          });
+        });
+  
+        // Optional: fetch team members as well
+        socket.emit('getTeamMemberByDepartment', parseInt(departmentId));
       } else {
-        teamSelect.disabled = true; // Disable team dropdown
-        teamSelect.innerHTML = '<option value="">Select a Team</option>'; // Reset
+        teamSelect.disabled = true;
+        teamSelect.innerHTML = '<option value="">Select a Team</option>';
       }
     });
-
-    // Listen for team names and update team dropdown
-    socket.on('getTeamName', function(teams) {
-      console.log('Teams:', teams); // Debugging log
-      const teamSelect = document.getElementById('teamSelect');
-      teamSelect.innerHTML = '<option value="">Select a Team</option>'; // Reset
-      teams.forEach(team => {
-        const option = document.createElement('option');
-        option.value = team.id;
-        option.textContent = team.team_name;
-        teamSelect.appendChild(option);
-      });
-    });
-
-    // Listen for team members and handle accordingly
-    socket.on('getTeamMember', function(teamMembers) { // Updated event name to match emitted event
-      console.log('Team Members:', teamMembers); // Handle team members here
+  
+    // Listen for team members
+    socket.on('getTeamMember', function (teamMembers) {
+      console.log('Team Members:', teamMembers);
+      // You can update another part of the UI if needed
     });
   </script>
+  
 </body>
 </html>
