@@ -47,6 +47,7 @@ exports.createProject = async (req, res, io) => {
     const projectName = `${clientName}-${order_id}`;
 
     
+    const departmentId = department ? parseInt(department) : null;
 
     //projectName and orderId are not allowed in the request body
     if (req.body.projectName) {
@@ -57,16 +58,9 @@ exports.createProject = async (req, res, io) => {
         });
     }
 
-    // Get departmentId from department name
-    const departmentData = await prisma.department.findUnique({
-      where: { department_name: department },
-    });
+    const profileId = profile ? parseInt(profile) : null;
 
-    const departmentId = departmentData ? departmentData.id : null;
-
-    if (!departmentId) {
-      return res.status(400).json({ error: "Invalid department name." });
-    }
+  
     // after_fiverr_amount and after_fiverr_bonus calculted by using order_amount and bonus  20% of order_amount and bonus
     const order_amount = orderAmount ? parseFloat(orderAmount) : null;
     const after_fiverr_amount = order_amount ? order_amount * 0.8 : null;
@@ -76,6 +70,7 @@ exports.createProject = async (req, res, io) => {
       ? new Date(req.body.deli_last_date)
       : null;
 
+      const ordered = ordered_by ? parseInt(ordered_by) : null;
     // Create the project record in the database
     const project = await prisma.project.create({
       data: {
@@ -87,7 +82,7 @@ exports.createProject = async (req, res, io) => {
         opsleader_comments,
         sheet_link,
         team_member: {
-          connect: { id: ordered_by }, // Connect using the team member's ID
+          connect: { id: ordered }, // Connect using the team member's ID
         },
         deli_last_date: deliLastDate,
         status,
@@ -101,7 +96,7 @@ exports.createProject = async (req, res, io) => {
         },
         project_requirements,
         profile: {
-          connect: { id: profile }, // Connect the profile by its ID
+          connect: { id: profileId }, // Connect the profile by its ID
         },
       },
     });
