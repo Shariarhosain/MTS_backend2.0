@@ -149,34 +149,61 @@ const prisma = new PrismaClient();
 //   }
 // }
 
+// async function getTeamName(departmentId, socket) {
+//     try {
+//       console.log('Fetching team names for department ID:', departmentId);
+//    console.log('Socket:', departmentId); // Check if socket is defined
+//       if (typeof departmentId === 'string') {
+//         departmentId = parseInt(departmentId, 10);
+//       }
+//       if (isNaN(departmentId)) {
+//         console.error('Invalid departmentId:', departmentId);
+//         return;
+//       }
+  
+//       const teamNames = await prisma.team.findMany({
+//         where: { department_id: departmentId },
+//         select: { team_name: true, id: true }
+//       });
+
+//       console.log('Team Names:', teamNames);
+  
+//       // ✅ Dynamically emit event like "getTeamName:5"
+//       const eventName = `getTeamName:${departmentId}`;
+//       console.log(`Emitting event: ${eventName}`, teamNames);
+//       socket.emit(eventName, teamNames);
+  
+//     } catch (err) {
+//       console.error('[Socket] Failed to emit team names:', err);
+//     }
+//   }
 async function getTeamName(departmentId, socket) {
     try {
-      console.log('Fetching team names for department ID:', departmentId);
-   console.log('Socket:', departmentId); // Check if socket is defined
-      if (typeof departmentId === 'string') {
-        departmentId = parseInt(departmentId, 10);
-      }
-      if (isNaN(departmentId)) {
-        console.error('Invalid departmentId:', departmentId);
+      console.log('🔎 Incoming departmentId:', departmentId);
+  
+      if (!departmentId || isNaN(Number(departmentId))) {
+        console.error('❌ Invalid departmentId:', departmentId);
         return;
       }
+  
+      departmentId = parseInt(departmentId, 10);
   
       const teamNames = await prisma.team.findMany({
         where: { department_id: departmentId },
         select: { team_name: true, id: true }
       });
-
-      console.log('Team Names:', teamNames);
   
-      // ✅ Dynamically emit event like "getTeamName:5"
+      console.log('✅ Team Names:', teamNames);
+  
       const eventName = `getTeamName:${departmentId}`;
-      console.log(`Emitting event: ${eventName}`, teamNames);
+      console.log(`📤 Emitting event → ${eventName}`);
       socket.emit(eventName, teamNames);
   
     } catch (err) {
       console.error('[Socket] Failed to emit team names:', err);
     }
   }
+  
   
 
 
