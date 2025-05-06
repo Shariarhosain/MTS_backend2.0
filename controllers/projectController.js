@@ -77,7 +77,7 @@ exports.createProject = async (req, res, io) => {
         order_id,
         date: today,
         project_name: projectName,
-        ops_status,
+        ops_status: "nra",
         sales_comments,
         opsleader_comments,
         sheet_link,
@@ -85,7 +85,7 @@ exports.createProject = async (req, res, io) => {
           connect: { id: ordered }, // Connect using the team member's ID
         },
         deli_last_date: deliLastDate,
-        status,
+        status: "nra",
         order_amount,
         after_fiverr_amount: after_fiverr_amount,
         bonus,
