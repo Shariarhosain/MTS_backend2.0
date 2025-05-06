@@ -10,6 +10,7 @@ const totalOrdersCardData = require("../middlewares/projectCardEmitter"); // Imp
 const emitProjectDistributionCurrentMonth = require("../middlewares/projectEmitter"); // Import the project emitter function
 const getTeamName = require("../middlewares/TeamName"); // Import the team name emitter function
 const getDepartmentName = require("../middlewares/TeamName"); // Import the department name emitter function
+const verifyToken = require("../middlewares/jwt"); // Import the JWT verification middleware
 
 // Create an instance of express app
 const app = express();
@@ -147,6 +148,8 @@ console.log("fullProject",projectsWithClientNames);
 
 // Get all projects with pagination post method
 
+
+
 // exports.getAllProjects = async (req, res,io) => {
 //   try {
 
@@ -230,54 +233,200 @@ console.log("fullProject",projectsWithClientNames);
 //     console.error("Error fetching projects:", error);
 //   }
 // };
+
+
+
+
+//right code .................
+
+// exports.getAllProjects = async (req, res, io) => {
+//   try {
+//     const currentDate = new Date();
+//     const startOfCurrentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+//     const endOfCurrentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+//     endOfCurrentMonth.setHours(23, 59, 59, 999);
+
+//     // Updated daysLeft function to show overdue message
+//     const daysLeft = (deli_last_date) => {
+//       const today = new Date();
+//       const deliveryDate = new Date(deli_last_date);
+//       const timeDiff = deliveryDate - today;
+//       const daysLeft = Math.floor(timeDiff / (1000 * 60 * 60 * 24)); // Convert milliseconds to days
+
+//       // If overdue, display it
+//       if (daysLeft < 0) {
+//         return `Overdue by ${Math.abs(daysLeft)} days`;
+//       }
+
+//       return `${daysLeft} days left`; // Otherwise, show remaining days
+//     };
+
+//     const projects = await prisma.project.findMany({
+//       where: {
+//         OR: [
+//           {
+//             date: {
+//               gte: startOfCurrentMonth,
+//               lte: endOfCurrentMonth,
+//             },
+//           },
+//           {
+//             delivery_date: {
+//               gte: startOfCurrentMonth,
+//               lte: endOfCurrentMonth,
+//             },
+//           },
+//           {
+//             status: {
+//               in: ["revision", "realrevision"],
+//             },
+//           },
+//         ],
+//       },
+//       include: {
+//         profile: true,
+//         department: true,
+//         team:true,
+//         team_member: {
+//           include: {
+//             profile: true,
+//           },
+//         },
+//       },
+//     });
+    
+
+
+//     // Sort projects by the delivery date (those with earlier dates first)
+//     projects.sort((a, b) => {
+//       const dateA = new Date(a.deli_last_date);
+//       const dateB = new Date(b.deli_last_date);
+
+//       // Sort by delivery date (earliest first)
+//       return dateA - dateB; 
+//     });
+//     const formatDate = (date) =>
+//       date ? new Date(date).toISOString().split("T")[0] : null;
+    
+  
+//   console.log("projects", projects); // Debugging the fetched projects
+
+
+ 
+
+
+
+//     //extract client name from project name
+//     const projectsWithClientNames = projects.map((project) => {
+//       const clientName = project.project_name.split("-")[0]; // Extract client name from project name
+//       return {
+//         ...project,
+//         clientName, // Add client name to the project object
+//       };
+//     });
+//   //deli_last_date without iso format
+//   const projectsWithFormattedDates = projectsWithClientNames.map((project) => ({
+//     ...project,
+//     date: formatDate(project.date),
+//     deli_last_date: formatDate(project.deli_last_date),
+//   }));
+ 
+//     return res.status(200).json({
+//       message: "Projects retrieved successfully.",
+//       projects: projectsWithFormattedDates.map((project) => ({
+//         ...project,
+//         daysLeft: daysLeft(project.deli_last_date), // Calculate and add daysLeft
+//       })),
+//     });
+
+//   } catch (error) {
+//     console.error("Error fetching projects:", error);
+//     res.status(500).json({ error: "An error occurred while fetching projects." });
+//   }
+// };
+
+//right code  end.................
+
+
+
+
 exports.getAllProjects = async (req, res, io) => {
   try {
+    // 1️⃣ Get authenticated user ID from middleware
+    const uid = req.user.uid;
+    console.log("✅ Decoded UID:", uid);
+
+    // 2️⃣ Find team based on UID
+    const teamMember = await prisma.team_member.findFirst({
+      where: { uid },
+      include: { team: true },
+    });
+
+    console.log("🔍 Team Member:", teamMember);
+
+    if (!teamMember || !teamMember.team) {
+      return res.status(404).json({ error: "Team not found for the user." });
+    }
+
+    const team = teamMember.team;
+
+    // ✅ Dynamic role detection
+    const isSalesTeam = teamMember.role?.startsWith("sales_");
+    const isOpsTeam = teamMember.role?.startsWith("operation_");
+
+    console.log("🔎 Team:", team.team_name);
+    console.log("🧭 Role:", teamMember.role);
+    console.log("🧭 Is Sales Team:", isSalesTeam);
+    console.log("🧭 Is Operations Team:", isOpsTeam);
+
+    // 3️⃣ Define Date Range for current month
     const currentDate = new Date();
     const startOfCurrentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const endOfCurrentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
     endOfCurrentMonth.setHours(23, 59, 59, 999);
 
-    // Updated daysLeft function to show overdue message
-    const daysLeft = (deli_last_date) => {
-      const today = new Date();
-      const deliveryDate = new Date(deli_last_date);
-      const timeDiff = deliveryDate - today;
-      const daysLeft = Math.floor(timeDiff / (1000 * 60 * 60 * 24)); // Convert milliseconds to days
-
-      // If overdue, display it
-      if (daysLeft < 0) {
-        return `Overdue by ${Math.abs(daysLeft)} days`;
-      }
-
-      return `${daysLeft} days left`; // Otherwise, show remaining days
+    // 4️⃣ Project filtering logic
+    let projectFilter = {
+      OR: [
+        {
+          date: {
+            gte: startOfCurrentMonth,
+            lte: endOfCurrentMonth,
+          },
+        },
+        {
+          delivery_date: {
+            gte: startOfCurrentMonth,
+            lte: endOfCurrentMonth,
+          },
+        },
+        {
+          status: {
+            in: ["revision", "realrevision"],
+          },
+        },
+      ],
     };
 
-    const projects = await prisma.project.findMany({
-      where: {
-        OR: [
-          {
-            date: {
-              gte: startOfCurrentMonth,
-              lte: endOfCurrentMonth,
-            },
-          },
-          {
-            delivery_date: {
-              gte: startOfCurrentMonth,
-              lte: endOfCurrentMonth,
-            },
-          },
-          {
-            status: {
-              in: ["revision", "realrevision"],
-            },
-          },
+    if (!isSalesTeam) {
+      // Only restrict to team if not part of sales
+      projectFilter = {
+        AND: [
+          projectFilter,
+          { team_id: team.id },
         ],
-      },
+      };
+    }
+
+    console.log("🔍 Project Filter:", projectFilter);
+
+    // 5️⃣ Fetch projects
+    const projects = await prisma.project.findMany({
+      where: projectFilter,
       include: {
         profile: true,
         department: true,
-        team:true,
+        team: true,
         team_member: {
           include: {
             profile: true,
@@ -285,56 +434,67 @@ exports.getAllProjects = async (req, res, io) => {
         },
       },
     });
-    
 
+    console.log("🔍 Fetched Projects:", projects);
 
-    // Sort projects by the delivery date (those with earlier dates first)
+    // 6️⃣ Sort by delivery deadline
     projects.sort((a, b) => {
-      const dateA = new Date(a.deli_last_date);
-      const dateB = new Date(b.deli_last_date);
-
-      // Sort by delivery date (earliest first)
-      return dateA - dateB; 
+      const dateA = new Date(a.deli_last_date || 0);
+      const dateB = new Date(b.deli_last_date || 0);
+      return dateA - dateB;
     });
+
+    // 7️⃣ Utilities
     const formatDate = (date) =>
       date ? new Date(date).toISOString().split("T")[0] : null;
-    
-  
-  console.log("projects", projects); // Debugging the fetched projects
 
+    const daysLeft = (deli_last_date) => {
+      if (!deli_last_date) return "No delivery date";
+      const today = new Date();
+      const deliveryDate = new Date(deli_last_date);
+      const timeDiff = deliveryDate - today;
+      const diffDays = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+      return diffDays < 0 ? `Overdue by ${Math.abs(diffDays)} days` : `${diffDays} days left`;
+    };
 
- 
-
-
-
-    //extract client name from project name
-    const projectsWithClientNames = projects.map((project) => {
-      const clientName = project.project_name.split("-")[0]; // Extract client name from project name
+    // 8️⃣ Format data
+    const formattedProjects = projects.map((project) => {
+      const clientName = project.project_name?.split("-")[0]?.trim() || "Unknown";
       return {
         ...project,
-        clientName, // Add client name to the project object
+        clientName,
+        date: formatDate(project.date),
+        deli_last_date: formatDate(project.deli_last_date),
+        daysLeft: daysLeft(project.deli_last_date),
       };
     });
-  //deli_last_date without iso format
-  const projectsWithFormattedDates = projectsWithClientNames.map((project) => ({
-    ...project,
-    date: formatDate(project.date),
-    deli_last_date: formatDate(project.deli_last_date),
-  }));
- 
+
+    // 9️⃣ Final Response
     return res.status(200).json({
       message: "Projects retrieved successfully.",
-      projects: projectsWithFormattedDates.map((project) => ({
-        ...project,
-        daysLeft: daysLeft(project.deli_last_date), // Calculate and add daysLeft
-      })),
+      isSalesTeam,
+      isOpsTeam,
+      projects: formattedProjects,
     });
 
   } catch (error) {
-    console.error("Error fetching projects:", error);
-    res.status(500).json({ error: "An error occurred while fetching projects." });
+    console.error("❌ Error fetching projects:", error);
+    return res.status(500).json({
+      error: "An error occurred while fetching projects.",
+    });
   }
 };
+
+
+
+
+
+
+
+
+
+
+
 
 
 

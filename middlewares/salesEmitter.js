@@ -23,6 +23,7 @@ async function emitSalesData(io) {
                 after_Fiverr_bonus: true
             }
         });
+        console.log('Sales Data:', salesData);
 
         const salesDataWithProfileName = await Promise.all(salesData.map(async (data) => {
             if (data.profile_id) {

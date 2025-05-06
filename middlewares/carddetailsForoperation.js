@@ -4,8 +4,10 @@ const prisma = new PrismaClient();
 async function emitProjectMoneyMetrics(io) {
   const now = new Date();
 
-  const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endOfCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  const startOfCurrentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+  const endOfCurrentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+  endOfCurrentMonth.setHours(23, 59, 59, 999);
+ 
 
   try {
     const projects = await prisma.project.findMany({
@@ -31,19 +33,19 @@ async function emitProjectMoneyMetrics(io) {
       const isThisMonthProject = p.date && p.date >= startOfCurrentMonth && p.date <= endOfCurrentMonth;
       const isPastProject = p.date && p.date < startOfCurrentMonth;
 
-      // total_operations: delivered this month
+      // total_operations: delivered this
       if (p.is_delivered && isThisMonthDelivery) total_operations += amt;
 
       // total_sales: created this month
       if (isThisMonthProject) total_sales += amt;
 
-      // total_assign: assigned, not delivered, delivery set this month
+      // total_assign: assigned, not delivered, delivery set this month --carry soho
       if (p.Assigned_date && !p.is_delivered && isThisMonthDelivery) total_assign += amt;
 
-      // need_to_assign: status === 'nra'+
+      // need_to_assign: status === 'nra'+ team assigned date is null
       if (p.status === 'nra') need_to_assign += amt;
 
-      // carry_operation: project is from this or earlier month AND status = revision/realrevision
+      // carry_operation: project is from this or earlier month AND status = revision/realrevision assign date previous month 
       if ((isThisMonthProject || isPastProject) && ['revision', 'realrevision'].includes(p.status)) {
         carry_operation += amt;
       }
