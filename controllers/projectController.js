@@ -347,9 +347,6 @@ console.log("fullProject",projectsWithClientNames);
 
 //right code  end.................
 
-
-
-
 exports.getAllProjects = async (req, res, io) => {
   try {
     // 1️⃣ Get authenticated user ID from middleware
@@ -489,15 +486,6 @@ exports.getAllProjects = async (req, res, io) => {
 
 
 
-
-
-
-
-
-
-
-
-
 exports.totalOrderCard = async (req, res) => {
   try{
     const currentDate = new Date();
@@ -603,13 +591,20 @@ exports.updateProject = async (req, res, io) => {
 
     // 3. Handle delivered status
     if (req.body.status === "delivered") {
-      req.body.ops_status = "delivered";
+    
       const delivery_date = new Date(req.body.delivery_date);
       if (!existingProject.delivery_date) {
         req.body.delivery_date = delivery_date;
+        existingProject.ops_status = "delivered";
       } else {
         req.body.delivery_date = existingProject.delivery_date;
+        
       }
+
+      await prisma.project.update({
+        where: { id: existingProject.id },
+        data: { ops_status: existingProject.ops_status },
+      });
     }
 
     // 4. Parse deli_last_date if needed
@@ -638,6 +633,19 @@ exports.updateProject = async (req, res, io) => {
       req.body.Assigned_date = assignedDate;
     }
 
+    const update_status =['revision', 'realrevision', 'submitted', 'delivered', 'completed'];
+
+    if (req.body.deli_last_date || update_status.includes(req.body.status)) {
+      // Save this change to DB
+      await prisma.project.update({
+        where: { id: Number(id) },
+        data: {
+          update_at: new Date(),
+        },
+      });
+    }
+    
+
     // 8. Destructure relation IDs
     const {
       department_id,
@@ -658,6 +666,148 @@ exports.updateProject = async (req, res, io) => {
         team_member: ordered_by ? { connect: { id: Number(ordered_by) } } : undefined,
       },
     });
+
+
+    //also create  in today_task table 
+    /*model today_task {
+  id                 Int       @id @default(autoincrement())
+  project_id         Int
+  client_name        String?
+  expected_finish_time String?
+  team_member        team_member[]
+  team               team?    @relation(fields: [team_id], references: [id])
+  team_id            Int?
+  project           project? @relation(fields: [project_id], references: [id])
+  
+}
+ */
+  
+// if(req.body.team_id){
+
+//   if(existingProject.team_id === null){
+
+//     const todayTask = await prisma.today_task.create({
+//       data: {
+//         project_id: project.id,
+//         client_name: project.project_name.split("-")[0], // Extract client name from project name
+//         team_member: {
+//           connect: { id: Number(req.body.team_id) }, // Connect using the team member's ID
+//         },
+//         team_id: Number(req.body.team_id), // Connect using the team ID
+//       },
+//     });
+//   }
+//   if(existingProject.team_id !== null){
+//     const todayTask = await prisma.today_task.update({
+//       where: { project_id: project.id },
+//       data: {
+//         team_id: Number(req.body.team_id), // Update the team ID
+//       },
+//     });
+//   }
+// }
+
+// project.controller.js  (inside whatever “update project” action you have)
+
+// if (req.body.team_id) {
+//   const teamId = Number(req.body.team_id);
+
+//   await prisma.today_task.upsert({
+//     where: {
+//       project_id_team_member_id: {
+//         project_id: project.id,
+//         team_member_id: null,          // composite PK / unique constraint
+//       },
+//     },
+//     create: {
+//       project_id: project.id,
+//       client_name: project.project_name.split('-')[0] || null,
+//       team_id: teamId,
+//       team_member_id: null,            // neutral parent row
+//       expected_finish_time: null,
+//       ops_status: project.ops_status ?? undefined,
+//     },
+//     update: {
+//       team_id: teamId,                 // only field you need to change later
+//     },
+//   });
+
+//   /* keep FK on project table in sync */
+//   await prisma.project.update({
+//     where: { id: project.id },
+//     data: { team_id: teamId },
+//   });
+// }
+
+if (req.body.team_id) {
+  const teamId = Number(req.body.team_id);
+
+  /* 1️⃣  look for the neutral (parent) row */
+  const parentRow = await prisma.today_task.findFirst({
+    where: { project_id: project.id, team_member_id: null },
+  });
+
+  /* 2️⃣  create it if missing, otherwise just update the team_id */
+  if (!parentRow) {
+    await prisma.today_task.create({
+      data: {
+        project_id:          project.id,
+        client_name:         project.project_name.split('-')[0] || null,
+        team_id:             teamId,
+        team_member_id:      null,         // neutral / parent row
+        expected_finish_time: null,
+        ops_status:          null,
+      },
+    });
+  } else if (parentRow.team_id !== teamId) {
+    await prisma.today_task.update({
+      where: { id: parentRow.id },
+      data:  { team_id: teamId },
+    });
+  }
+
+  /* 3️⃣  keep the FK on the project record in sync */
+  await prisma.project.update({
+    where: { id: project.id },
+    data:  { team_id: teamId },
+  });
+}
+
+
+
+
+
+
+
+
+// // 9.5. Update today_task entries per team member
+// if (req.body.team_id) {
+//   // Fetch team members from the new team
+//   const teamMembers = await prisma.team_member.findMany({
+//     where: { team_id: Number(req.body.team_id) },
+//     select: { id: true },
+//   });
+
+//   // Create a new today_task entry per team member
+//   for (const member of teamMembers) {
+//     await prisma.today_task.create({
+//       data: {
+//         project: {
+//           connect: { id: project.id },
+//         },
+//         client_name: project.project_name.split("-")[0],
+//         expected_finish_time: req.body.expected_finish_time || null,
+//         team: {
+//           connect: { id: Number(req.body.team_id) },
+//         },
+//         team_member: {
+//           connect: [{ id: member.id }],
+//         },
+//         ops_status: req.body.ops_status || "not started",
+//       },
+//     });
+//   }
+// }
 
     // 10. Format date fields
     const formatDate = (date) =>

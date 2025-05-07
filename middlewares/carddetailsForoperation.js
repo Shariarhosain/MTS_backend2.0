@@ -5,9 +5,10 @@ async function emitProjectMoneyMetrics(io) {
   const now = new Date();
 
 
+
   const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
- 
+
 
   try {
     const projects = await prisma.project.findMany({
