@@ -863,74 +863,11 @@ exports.sendPaginatedProjectData = async (socket, page = 1, limit = 10) => {
   }
 };
 
-// exports.getClientSuggestionsFromProjects = async (req, res) => {
-//   const query = req.query.query; // Get the query from the request query string
-//   console.log("Query:", query); // Debugging the query for testing
-
-//   if (!query || query.trim().length < 1) {
-//     return res.status(400).json({ error: 'Query parameter is required.' });
-//   }
-
-//   try {
-//     // Fetch project names and filter by query
-//     const projects = await prisma.project.findMany({
-//       where: {
-//         project_name: {
-//           startsWith: query, // Assuming "clientName-orderId"
-//           mode: 'insensitive',
-//         },
-
-//       },
-//    take: 100
-//     })
-
-//     //console.log("Fetched Projects:", projects); // Debugging the raw fetched data
-
-//     // Extract client names from project names (assuming format is "clientName-orderId")
-//     const clientNames = projects.map(project => {
-//       const [clientName] = project.project_name.split('-'); // Extract the client name before the hyphen
-//       return clientName;
-//     });
-
-//     console.log("Client Names from Projects:", clientNames); // Debugging the client names extracted
-
-//     // // Filter client names based on the query
-//     // const filteredClientNames = clientNames.filter(clientName =>
-//     //   clientName.toLowerCase().startsWith(query.toLowerCase()) // Check if client name starts with the query
-//     // );
-
-//     // console.log("Filtered Client Names:", filteredClientNames); // Debugging the filtered client names
-
-//     // Remove duplicates by converting to a Set
-//     const uniqueClientNames = [...new Set(clientNames)];
-
-//     // // Fetch projects related to the filtered client names
-//     // const filteredProjects = await prisma.project.findMany({
-//     //   where: {
-//     //     project_name: {
-//     //       startsWith: uniqueClientNames.join('-'),  // Fetch projects for the filtered clients by matching the prefix
-//     //       mode: 'insensitive',
-//     //     },
-//     //   },
-
-//     //   take: 100,  // Limit to 100 results
-//     // });
-
-//     //console.log("Unique Client Names:", uniqueClientNames); // Debugging the unique client names
-//     console.log("Filtered Projects:", uniqueClientNames); // Debugging the filtered projects
-//     return res.status(200).json( uniqueClientNames );  // Return filtered projects and client names
-
-//   } catch (error) {
-//     console.error('Error fetching client suggestions:', error);
-//     return res.status(500).json({ error: 'An error occurred while fetching client suggestions.' });
-//   }
-// };
-
 exports.getClientSuggestionsFromProjects = async (req, res) => {
   const query = req.query.query;
 
   if (!query || query.trim().length < 1) {
-    return res.status(400).json({ error: "Query parameter is required." });
+    return res.status(400).json({ error: 'Query parameter is required.' });
   }
 
   try {
@@ -938,27 +875,36 @@ exports.getClientSuggestionsFromProjects = async (req, res) => {
       where: {
         project_name: {
           startsWith: query, // Or use `contains` for more flexible search
-          mode: "insensitive",
-        },
+          mode: 'insensitive',
+        }
       },
-      take: 100,
+    select: {
+        project_name: true,
+        order_id: true,
+    },
+      take: 100
     });
 
-    const clientNames = projects.map((project) => {
-      const [clientName] = project.project_name.split("-");
+    const clientNames = projects.map(project => {
+      const [clientName] = project.project_name.split('-');
       return clientName;
     });
-
-    const uniqueClientNames = [...new Set(clientNames)];
+//clientname with id 
+    const uniqueClientNames = [...new Set(clientNames)].map((clientName, index) => {
+      return {
+        clientName,
+        id: projects[index].order_id // Assuming projects[index] has the id
+      };
+    });
 
     return res.status(200).json({ uniqueClientNames });
+
   } catch (error) {
-    console.error("Error fetching client suggestions:", error);
-    return res
-      .status(500)
-      .json({ error: "An error occurred while fetching client suggestions." });
+    console.error('Error fetching client suggestions:', error);
+    return res.status(500).json({ error: 'An error occurred while fetching client suggestions.' });
   }
 };
+
 
 exports.new_revision = async (req, res) => {
   const { revision_comments, delivery_date } = req.body;

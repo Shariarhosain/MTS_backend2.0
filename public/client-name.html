@@ -136,6 +136,7 @@
   try {
     const response = await fetch(`/api/project/clientSuggestions/?query=${query}`);
     const data = await response.json();
+    console.log(data); // Debugging log
 
     // If client names are found, show them
     if (data.uniqueClientNames && data.uniqueClientNames.length > 0) {
@@ -160,15 +161,16 @@ function displayClientSuggestions(clients) {
 
   clients.forEach(client => {
     const li = document.createElement('li');
-    li.textContent = client;
+    li.innerHTML = `<strong>${client.clientName}</strong> (ID: ${client.id})`; // Show name and ID
     li.onclick = () => {
-      document.getElementById('query').value = client; // Set the client name in the search box
-      resultList.innerHTML = ''; // Clear suggestions after selection
-      fetchProjectsByClient(client); // Fetch and display projects for the selected client
+      document.getElementById('query').value = client.clientName; // Only set clientName on selection
+      resultList.innerHTML = '';
+      fetchProjectsByClient(client.clientName); // Send only the name to fetch
     };
     resultList.appendChild(li);
   });
 }
+
 
 // Function to fetch and display projects based on selected client name
 async function fetchProjectsByClient(clientName) {
@@ -183,6 +185,7 @@ async function fetchProjectsByClient(clientName) {
   try {
     const response = await fetch(`/api/project/byClient?clientName=${clientName}`);
     const data = await response.json();
+    console.log(data); // Debugging log
 
     if (data.projects && data.projects.length > 0) {
       displayProjects(data.projects); // Display the list of projects
