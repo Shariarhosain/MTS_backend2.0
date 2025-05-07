@@ -178,30 +178,32 @@ const prisma = new PrismaClient();
 //     }
 //   }
 async function getTeamName(departmentId, socket) {
-    try {
-      console.log('🔎 Incoming departmentId:', departmentId);
-  
-      if (!departmentId || isNaN(Number(departmentId))) {
-        console.error('❌ Invalid departmentId:', departmentId);
-        return;
-      }
-  
-      departmentId = parseInt(departmentId, 10);
-  
-      const teamNames = await prisma.team.findMany({
-        where: { department_id: departmentId },
-        select: { team_name: true, id: true }
-      });
-  
-      console.log('✅ Team Names:', teamNames);
-      console.log(`📤 Emitting event → ${eventName}`);
-      socket.emit( `getTeamName:${departmentId}`, teamNames);
-  
-    } catch (err) {
-      console.error('[Socket] Failed to emit team names:', err);
+  try {
+    console.log('🔎 Incoming departmentId:', departmentId);
+
+    if (!departmentId || isNaN(Number(departmentId))) {
+      console.error('❌ Invalid departmentId:', departmentId);
+      return;
     }
+
+    departmentId = parseInt(departmentId, 10);
+
+    const teamNames = await prisma.team.findMany({
+      where: { department_id: departmentId },
+      select: { team_name: true, id: true }
+    });
+
+    console.log('✅ Team Names:', teamNames);
+
+    const eventName = `getTeamName:${departmentId}`; // ✅ Define before using
+    console.log(`📤 Emitting event → ${eventName}`);
+    socket.emit(eventName, teamNames); // ✅ Use dynamic name
+
+  } catch (err) {
+    console.error('[Socket] Failed to emit team names:', err);
   }
-  
+}
+
   
 
 
