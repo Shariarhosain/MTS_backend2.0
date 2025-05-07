@@ -3,6 +3,7 @@ const http = require('http');
 const cors = require('cors');
 const ProjectRoute = require('./routes/ProjectRoute');
 const ProfileRoute = require('./routes/profileRoute');
+const todayTaskRoute = require('./routes/todayTaskRoute');
 const { initSocket, getIO } = require('./socket');
 
 const app = express();
@@ -33,6 +34,7 @@ app.use(cookieParser());  // This should be before your routes
 app.use('/api/project', verifyToken, ProjectRoute(getIO)); // Ensure ProjectRoute is returning a function
 app.use('/api/teamMember', require('./routes/teamMemberRoute'));
 app.use('/api/profile', verifyToken, ProfileRoute);
+app.use('/api/today-task', verifyToken, todayTaskRoute); // Ensure todayTaskRoute is returning a function
 
 // Error handling middleware
 app.use((err, req, res, next) => {

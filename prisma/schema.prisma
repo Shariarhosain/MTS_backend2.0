@@ -39,6 +39,9 @@ model project {
   profile_id         Int?
   team                team?    @relation(fields: [team_id], references: [id])
   team_id            Int?
+  update_at         DateTime? @db.Date
+  today_task         today_task[] // one project can have many today tasks
+  team_members team_member[] @relation("ProjectAssignments")
 }
 
 
@@ -54,6 +57,8 @@ model team {
   project            project[] // one team can have many projects
   // Relation with task assignments
  revision revision[] 
+ today_task today_task[] // one team can have many today tasks
+
   
 
 
@@ -128,6 +133,10 @@ model team_member {
   profile              profile[]  // one team_member can have many profiles
   designation          String? // Add this field
   uid                 String? @unique
+  today_task          today_task[] // one team_member can have many today tasks
+  assigned_projects project[] @relation("ProjectAssignments")
+
+  
 }
 
 
@@ -145,3 +154,20 @@ model revision {
   team                    team[]
 
 }
+
+
+model today_task {
+  id                 Int       @id @default(autoincrement())
+  project_id         Int
+  client_name        String?
+  expected_finish_time String?
+   team_member_id       Int?         
+  team_member          team_member? @relation(fields: [team_member_id], references: [id])
+  ops_status         String?
+  team               team?    @relation(fields: [team_id], references: [id])
+  team_id            Int?
+  project           project? @relation(fields: [project_id], references: [id])
+  
+}
+
+
