@@ -881,6 +881,7 @@ exports.getClientSuggestionsFromProjects = async (req, res) => {
     select: {
         project_name: true,
         order_id: true,
+        id: true,
     },
       take: 100
     });
@@ -893,7 +894,8 @@ exports.getClientSuggestionsFromProjects = async (req, res) => {
     const uniqueClientNames = [...new Set(clientNames)].map((clientName, index) => {
       return {
         clientName,
-        id: projects[index].order_id // Assuming projects[index] has the id
+        order_id: projects[index].order_id, // Assuming projects[index] has the id
+        id: projects[index].id // Assuming projects[index] has the id
       };
     });
 
@@ -904,7 +906,6 @@ exports.getClientSuggestionsFromProjects = async (req, res) => {
     return res.status(500).json({ error: 'An error occurred while fetching client suggestions.' });
   }
 };
-
 
 exports.new_revision = async (req, res) => {
   const { id: project_id } = req.params;
