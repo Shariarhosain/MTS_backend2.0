@@ -907,7 +907,6 @@ exports.getClientSuggestionsFromProjects = async (req, res) => {
 
 
 exports.new_revision = async (req, res) => {
-  const { revision_comments, delivery_date } = req.body;
   const { id: project_id } = req.params;
 
   try {
@@ -932,42 +931,11 @@ exports.new_revision = async (req, res) => {
       data: { status: "revision" },
     });
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (req.body.delivery_date) {
-      const deliveryDate = new Date(req.body.delivery_date);
-      deliveryDate.setHours(0, 0, 0, 0);
-      req.body.delivery_date = deliveryDate;
-    } else {
-      return res.status(400).json({ error: "Delivery date is required." });
-    }
-
-    if (req.body.metting_date) {
-      const meetingDate = new Date(req.body.metting_date);
-      meetingDate.setHours(0, 0, 0, 0);
-      req.body.metting_date = meetingDate;
-    }
-
-    const newRevision = await prisma.revision.create({
-      data: {
-        project_id: Number(project_id),
-        revision_date: today,
-        revision_comments,
-        delivery_date: req.body.delivery_date,
-        metting_link: req.body.metting_link || null,
-        metting_date: req.body.metting_date || null,
-        team: {
-          connect: [{ id: project.team.id }], // ✅ Correct way to connect the team
-        },
-      },
-    });
 
     res.status(200).json({
       message:
         "Project status updated to revision and revision record created successfully.",
-      updatedProject,
-      newRevision,
+      updatedProject
     });
   } catch (error) {
     console.error("Error updating project status to revision:", error);
