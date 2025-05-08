@@ -7,6 +7,7 @@ const { getTeamName } = require('./middlewares/TeamName');
 const { getTeamMember } = require('./middlewares/TeamName');
 const emitProfilename = require('./middlewares/showProfilename');
 const emitProjectMoneyMetrics = require('./middlewares/carddetailsForoperation');
+const {eachTeamChart} = require('./middlewares/teamwiseDeliveryGraph');
 
 const totalOrdersCardData  = require('./middlewares/projectCardEmitter');
 const initSocket = (server) => {
@@ -124,6 +125,50 @@ try{
       }
     });
      
+
+
+
+
+
+
+
+
+    socket.on('teamwiseDeliveryGraph', (teamwiseDelivery) => {
+      io.emit('teamwiseDeliveryGraph', teamwiseDelivery);
+    });
+
+
+
+
+
+    socket.on('TeamChart', async () => {
+      try {
+        console.log('Fetching each team chart data...');
+       await eachTeamChart(io);  // Fetch and emit each team chart data
+      } catch (error) {
+        console.error("Error fetching each team chart data:", error);
+      }
+    }); 
+    
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   });
 };
 

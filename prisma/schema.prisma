@@ -52,11 +52,11 @@ model team {
   department         department? @relation(fields: [department_id], references: [id],onDelete: Cascade)
   department_id      Int
   team_member        team_member[]
+  team_target        Decimal?  @db.Decimal(65,0)
   team_achieve       Decimal?  @db.Decimal(65,0) 
   team_cancel        Int?
   total_carry        Decimal?  @db.Decimal(65,0)
   project            project[] // one team can have many projects
-  // Relation with task assignments
  revision revision[] 
  today_task today_task[] // one team can have many today tasks
 
@@ -136,8 +136,22 @@ model team_member {
   uid                 String? @unique
   today_task          today_task[] // one team_member can have many today tasks
   assigned_projects project[] @relation("ProjectAssignments")
+  member_target       member_target[] // one team_member can have many targets
 
   
+}
+
+
+
+model member_target {
+  id                 Int       @id @default(autoincrement())
+  team_member_id     Int
+  team_member        team_member? @relation(fields: [team_member_id], references: [id])
+  target             Decimal?  @db.Decimal(65,0)
+  achieve           Decimal?  @db.Decimal(65,0)
+  carry             Decimal?  @db.Decimal(65,0)
+  cancel             Decimal?  @db.Decimal(65,0)
+  update_at         DateTime? @db.Date
 }
 
 

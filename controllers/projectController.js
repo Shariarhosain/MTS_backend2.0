@@ -11,6 +11,7 @@ const emitProjectDistributionCurrentMonth = require("../middlewares/projectEmitt
 const getTeamName = require("../middlewares/TeamName"); // Import the team name emitter function
 const getDepartmentName = require("../middlewares/TeamName"); // Import the department name emitter function
 const verifyToken = require("../middlewares/jwt"); // Import the JWT verification middleware
+const  teamwiseDeliveryGraph = require("../middlewares/teamwiseDeliveryGraph"); // Import the team member emitter function
 
 // Create an instance of express app
 const app = express();
@@ -668,79 +669,14 @@ exports.updateProject = async (req, res, io) => {
     });
 
 
-    //also create  in today_task table 
-    /*model today_task {
-  id                 Int       @id @default(autoincrement())
-  project_id         Int
-  client_name        String?
-  expected_finish_time String?
-  team_member        team_member[]
-  team               team?    @relation(fields: [team_id], references: [id])
-  team_id            Int?
-  project           project? @relation(fields: [project_id], references: [id])
-  
-}
- */
-  
-// if(req.body.team_id){
 
-//   if(existingProject.team_id === null){
-
-//     const todayTask = await prisma.today_task.create({
-//       data: {
-//         project_id: project.id,
-//         client_name: project.project_name.split("-")[0], // Extract client name from project name
-//         team_member: {
-//           connect: { id: Number(req.body.team_id) }, // Connect using the team member's ID
-//         },
-//         team_id: Number(req.body.team_id), // Connect using the team ID
-//       },
-//     });
-//   }
-//   if(existingProject.team_id !== null){
-//     const todayTask = await prisma.today_task.update({
-//       where: { project_id: project.id },
-//       data: {
-//         team_id: Number(req.body.team_id), // Update the team ID
-//       },
-//     });
-//   }
-// }
-
-// project.controller.js  (inside whatever “update project” action you have)
-
-// if (req.body.team_id) {
-//   const teamId = Number(req.body.team_id);
-
-//   await prisma.today_task.upsert({
-//     where: {
-//       project_id_team_member_id: {
-//         project_id: project.id,
-//         team_member_id: null,          // composite PK / unique constraint
-//       },
-//     },
-//     create: {
-//       project_id: project.id,
-//       client_name: project.project_name.split('-')[0] || null,
-//       team_id: teamId,
-//       team_member_id: null,            // neutral parent row
-//       expected_finish_time: null,
-//       ops_status: project.ops_status ?? undefined,
-//     },
-//     update: {
-//       team_id: teamId,                 // only field you need to change later
-//     },
-//   });
-
-//   /* keep FK on project table in sync */
-//   await prisma.project.update({
-//     where: { id: project.id },
-//     data: { team_id: teamId },
-//   });
-// }
 
 if (req.body.team_id) {
   const teamId = Number(req.body.team_id);
+  await teamwiseDeliveryGraph(io);
+//if team_id is present in the request body, then ad to team table team_achieve 
+
+
 
   /* 1️⃣  look for the neutral (parent) row */
   const parentRow = await prisma.today_task.findFirst({

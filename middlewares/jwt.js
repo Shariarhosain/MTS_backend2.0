@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = 'your_secret_key';  // Store securely in .env
-
+global.user = null;
 const verifyToken = (req, res, next) => {
 //Bearer token from header Authorization
     const authHeader = req.headers['authorization'];
@@ -9,9 +9,13 @@ const verifyToken = (req, res, next) => {
 
     console.log('Token received:', token);
 
+
+
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
         req.user = decoded;  // Attach user data to the request object
+        global.user = decoded
+
         next();  // Proceed to the next middleware or route handler
     } catch (error) {
         if (error.name === 'TokenExpiredError') {

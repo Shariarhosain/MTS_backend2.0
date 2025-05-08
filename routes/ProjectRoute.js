@@ -1,6 +1,7 @@
 const express = require("express");
 const asyncHandler = require("../middlewares/asyncHandler");
 
+const {teamwiseDelivery,eachTeamChart} = require('../controllers/salesTeamController');
 //const verifyToken = require('../middlewares/jwt'); // Import the JWT verification middleware
 const {
   createProject,
@@ -31,6 +32,11 @@ module.exports = (getIO) => {
 
   router.get("/clientSuggestions", getClientSuggestionsFromProjects);
   
+
+  router.get("/teamwiseDelivery", teamwiseDelivery);
+  router.get("/eachTeamChart", eachTeamChart); // Added this line to include the new route
+
+
 
   router.get("/getall/:id", getProjectById);
 

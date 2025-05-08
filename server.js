@@ -31,9 +31,9 @@ app.use(express.static('public'));
 
 // Pass the getIO function to your router
 app.use(cookieParser());  // This should be before your routes
-app.use('/api/project',ProjectRoute(getIO)); // Ensure ProjectRoute is returning a function
+app.use('/api/project',verifyToken,ProjectRoute(getIO)); // Ensure ProjectRoute is returning a function
 app.use('/api/teamMember', require('./routes/teamMemberRoute'));
-app.use('/api/profile', ProfileRoute);
+app.use('/api/profile', verifyToken, ProfileRoute);
 app.use('/api/today-task', verifyToken, todayTaskRoute); // Ensure todayTaskRoute is returning a function
 
 // Error handling middleware
