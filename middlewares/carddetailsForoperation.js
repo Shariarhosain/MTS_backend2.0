@@ -38,7 +38,7 @@ async function emitProjectMoneyMetrics(io) {
       const isThisMonthProject = p.date && p.date >= startOfCurrentMonth && p.date <= endOfCurrentMonth;
       const isPastProject = p.date && p.date < startOfCurrentMonth;
 
-      // total_operations: delivered this month
+ // total_operations: delivered this month
       if (p.is_delivered && isThisMonthDelivery) total_operations += amt;
 
       // total_sales: created this month
