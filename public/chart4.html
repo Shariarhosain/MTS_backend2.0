@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Chart</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            padding: 20px;
+            background-color: #f7f7f7;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            text-align: center;
+        }
+        table {
+            width: 100%;
+            margin-top: 20px;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 8px;
+            text-align: center;
+        }
+        .error {
+            color: red;
+            text-align: center;
+        }
+        canvas {
+            margin-top: 30px;
+            width: 100%;
+            height: 400px;
+        }
+    </style>
+    <!-- Include Chart.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Include Socket.IO Client -->
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Team Chart Overview</h2>
+        <div id="error-message" class="error"></div>
+        
+        <!-- Table to display the data -->
+        <table id="team-data-table">
+            <thead>
+                <tr>
+                    <th>Team Name</th>
+                    <th>Team Target</th>
+                    <th>Team Achievement</th>
+                    <th>Team Cancelled</th>
+                    <th>Team Total Carry</th>
+                    <th>Submitted</th> <!-- Added Submitted column -->
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Data will be populated here -->
+            </tbody>
+        </table>
+
+        <!-- Canvas for the chart -->
+        <canvas id="teamChart"></canvas>
+    </div>
+
+    <script>
+        // Connect to the socket server
+        const socket = io('https://mtsbackend20-production.up.railway.app'); // Adjust this URL to your server's URL
+
+        // First, fetch data from the API to populate the table and chart initially
+        fetch('http://localhost:3000/api/project/eachTeamChart', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJzNVdFaFJoR05BWm1BSjZUNWMyY0dJdHF2QlgyIiwiaWF0IjoxNzQ2Njk5Mjg5LCJleHAiOjE3NDY3NDI0ODl9._YIrAPXiYTr_-QgQjh3oS0YCysrjwiuCdXbA125hoSs' // Replace with your token if needed
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Error fetching data from the server');
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log(data);  // Debugging purpose
+
+            // Populate the table with the fetched data
+            const tableBody = document.getElementById('team-data-table').getElementsByTagName('tbody')[0];
+            tableBody.innerHTML = ''; // Clear existing rows
+
+            // Create a new row for the fetched data
+            const row = tableBody.insertRow();
+            row.insertCell(0).textContent = data.teamName || 'Unknown Team';
+            row.insertCell(1).textContent = data.teamTarget;
+            row.insertCell(2).textContent = data.teamAchievement;
+            row.insertCell(3).textContent = data.teamCancelled;
+            row.insertCell(4).textContent = data.teamTotalCarry;
+            row.insertCell(5).textContent = data.submitted; // Display Submitted value
+
+            // Create the chart using fetched data
+            createChart(data);
+        })
+        .catch(error => {
+            // Handle errors gracefully
+            document.getElementById('error-message').textContent = error.message;
+        });
+
+        // Function to create the chart
+        function createChart(data) {
+            const ctx = document.getElementById('teamChart').getContext('2d');
+
+            // Create a bar chart with the data fetched
+            const chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Target', 'Achievement', 'Cancelled', 'Total Carry', 'Submitted'],
+                    datasets: [{
+                        label: 'Team Data',
+                        data: [data.teamTarget, data.teamAchievement, data.teamCancelled, data.teamTotalCarry, data.submitted],
+                        backgroundColor: ['#FF5733', '#33FF57', '#FF33A1', '#337AFF', '#FF5733'],
+                        borderColor: ['#FF5733', '#33FF57', '#FF33A1', '#337AFF', '#FF5733'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        socket.emit('TeamChart'); // Emit an event to request the initial data
+
+        // Now, listen for updates via Socket.IO
+        socket.on('eachTeamChart', (data) => {
+            console.log("Real-time update received:", data);
+
+            // Update the table with new data
+            const tableBody = document.getElementById('team-data-table').getElementsByTagName('tbody')[0];
+            tableBody.innerHTML = ''; // Clear existing rows
+
+            // Create a new row for the updated data
+            const row = tableBody.insertRow();
+            row.insertCell(0).textContent = data.teamName || 'Unknown Team';
+            row.insertCell(1).textContent = data.teamTarget;
+            row.insertCell(2).textContent = data.teamAchievement;
+            row.insertCell(3).textContent = data.teamCancelled;
+            row.insertCell(4).textContent = data.teamTotalCarry;
+            row.insertCell(5).textContent = data.submitted; // Update Submitted value
+
+            // Update the chart with the new data
+            createChart(data);
+        });
+
+        socket.on('error', (error) => {
+            // Handle errors gracefully
+            document.getElementById('error-message').textContent = error.error;
+        });
+    </script>
+
+</body>
+</html>

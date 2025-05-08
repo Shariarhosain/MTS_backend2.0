@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Team-wise Delivery Amounts</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f9fafb; padding: 2rem; }
+    h1 { margin-bottom: 1.5rem; text-align: center; }
+    #chartWrapper { max-width: 720px; margin: auto; }
+  </style>
+</head>
+<body>
+  <h1>Team-wise Delivery Amounts (Live)</h1>
+  <div id="chartWrapper">
+    <canvas id="deliveryChart" height="380"></canvas>
+  </div>
+
+  <!-- Load Chart.js and Socket.IO -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+  <script>
+    const socket = io("http://localhost:3000"); // Replace with your backend URL if needed
+    let chart;
+
+    // 🟢 Initial load using API fetch
+    async function drawChart() {
+      try {
+        const res = await fetch('http://localhost:3000/api/project/teamwiseDelivery');
+        const data = await res.json();
+        createOrUpdateChart(data);
+      } catch (err) {
+        console.error('Error loading initial chart data:', err);
+      }
+    }
+
+    // 📊 Create or update chart
+    function createOrUpdateChart(data) {
+      const labels = Object.keys(data);
+      const totals = Object.values(data);
+
+      if (chart) {
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = totals;
+        chart.update();
+      } else {
+        const ctx = document.getElementById("deliveryChart").getContext("2d");
+        chart = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels,
+            datasets: [{
+              label: "After Fiverr Amount (USD)",
+              data: totals,
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: { callback: v => `$${v}` }
+              }
+            },
+            plugins: {
+              tooltip: { callbacks: { label: ctx => `$${ctx.raw}` } },
+              legend: { display: false }
+            }
+          }
+        });
+      }
+    }
+
+    // 🔁 Listen for real-time updates via Socket.IO
+    socket.on("teamwiseDeliveryGraph", (liveData) => {
+      console.log("📡 Live update received");
+      createOrUpdateChart(liveData);
+    });
+
+    // ⚡ Ask server to send live data (optional)
+    socket.emit("teamwiseDeliveryGraph");
+
+    // ✅ Initial render
+    drawChart();
+  </script>
+</body>
+</html>
