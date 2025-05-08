@@ -38,20 +38,20 @@ async function emitProjectMoneyMetrics(io) {
       const isThisMonthProject = p.date && p.date >= startOfCurrentMonth && p.date <= endOfCurrentMonth;
       const isPastProject = p.date && p.date < startOfCurrentMonth;
 
-      // total_operations: delivered this month
+ // total_operations: delivered this month
       if (p.is_delivered && isThisMonthDelivery) total_operations += amt;
 
       // total_sales: created this month
       if (isThisMonthProject) total_sales += amt;
 
-      // total_assign: assigned, not delivered, delivery set this month
-      if (p.Assigned_date && !p.is_delivered && isThisMonthDelivery) total_assign += amt;
+      // total_assign: assigned, not delivered
+      if (p.Assigned_date && !p.is_delivered) total_assign += amt;
 
       // need_to_assign: status === 'nra' and Assigned_date is null
       if (p.status === 'nra') need_to_assign += amt;
 
       // carry_operation: old or current project AND revision status
-      if ((isThisMonthProject || isPastProject) && ['revision', 'realrevision'].includes(p.status)) {
+      if ((isThisMonthProject || isPastProject) && !p.is_delivered) {
         carry_operation += amt;
       }
 
