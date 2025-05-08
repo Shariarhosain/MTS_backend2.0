@@ -4,11 +4,8 @@ const prisma = new PrismaClient();
 async function emitProjectMoneyMetrics(io) {
   const now = new Date();
 
-
-
   const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-
 
   try {
     const projects = await prisma.project.findMany({
@@ -27,31 +24,38 @@ async function emitProjectMoneyMetrics(io) {
     let need_to_assign = 0;
     let carry_operation = 0;
     let carry_pm = 0;
+    let cancelled = 0;
 
     projects.forEach(p => {
-      const amt = parseInt(p.order_amount) || 0; // Ensure amount is a number
+      const amt = parseInt(p.after_fiverr_amount) || 0;
+
+      if (p.status === 'cancelled') {
+        cancelled += amt;
+        return; // Exit this loop iteration early
+      }
+
       const isThisMonthDelivery = p.delivery_date && p.delivery_date >= startOfCurrentMonth && p.delivery_date <= endOfCurrentMonth;
       const isThisMonthProject = p.date && p.date >= startOfCurrentMonth && p.date <= endOfCurrentMonth;
       const isPastProject = p.date && p.date < startOfCurrentMonth;
 
-      // total_operations: delivered this
+      // total_operations: delivered this month
       if (p.is_delivered && isThisMonthDelivery) total_operations += amt;
 
       // total_sales: created this month
       if (isThisMonthProject) total_sales += amt;
 
-      // total_assign: assigned, not delivered, delivery set this month --carry soho
+      // total_assign: assigned, not delivered, delivery set this month
       if (p.Assigned_date && !p.is_delivered && isThisMonthDelivery) total_assign += amt;
 
-      // need_to_assign: status === 'nra'+ team assigned date is null
+      // need_to_assign: status === 'nra' and Assigned_date is null
       if (p.status === 'nra') need_to_assign += amt;
 
-      // carry_operation: project is from this or earlier month AND status = revision/realrevision assign date previous month 
+      // carry_operation: old or current project AND revision status
       if ((isThisMonthProject || isPastProject) && ['revision', 'realrevision'].includes(p.status)) {
         carry_operation += amt;
       }
 
-      // carry_pm: project is from previous month AND unassigned
+      // carry_pm: old project AND not yet assigned
       if (isPastProject && !p.Assigned_date) {
         carry_pm += amt;
       }
@@ -67,6 +71,7 @@ async function emitProjectMoneyMetrics(io) {
       carry_operation,
       carry_pm,
       total_carry,
+      cancelled, // Include only cancelled total here
     };
 
     io.emit('projectMoneyMetrics', result);
