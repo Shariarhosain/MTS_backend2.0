@@ -15,7 +15,7 @@ const initSocket = (server) => {
   io = new Server(server, {
     cors: {
       origin: '*',
-      methods: ['GET', 'POST']
+      methods: ['GET', 'POST', 'PUT', 'DELETE'],
     }
   });
 
@@ -139,18 +139,15 @@ try{
 
 
 
-
-
-    socket.on('TeamChart', async () => {
-      try {
-        console.log('Fetching each team chart data...');
-       await eachTeamChart(io);  // Fetch and emit each team chart data
-      } catch (error) {
-        console.error("Error fetching each team chart data:", error);
-      }
-    }); 
-    
-  
+// Listen for TeamChart emit
+socket.on('TeamChart', async () => {
+  try {
+    console.log('Fetching each team chart data...');
+    await eachTeamChart(io); // Must use io.emit inside this
+  } catch (error) {
+    console.error("Error fetching each team chart data:", error);
+  }
+});
 
 
 

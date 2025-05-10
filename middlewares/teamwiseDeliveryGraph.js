@@ -142,8 +142,11 @@ if (project.status === 'cancelled') {
             teamAchievement,
             teamCancelled,
             teamTotalCarry,
-            submitted
+            submitted,
+            teamName: teamData.team_name || 'Unknown Team', // Get the team name
         };
+
+        console.log('Team Data:', teamData);
 
         console.log('Team Chart Data:', result);
         // Emit the result to the socket
