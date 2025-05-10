@@ -85,7 +85,7 @@
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJzNVdFaFJoR05BWm1BSjZUNWMyY0dJdHF2QlgyIiwiaWF0IjoxNzQ2ODQzOTAzLCJleHAiOjE3NDY4ODcxMDN9.rUKqI4ZkHxo25spTp1QZojlt5DO51giIANYpCjUrntc'
+                'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJrdUdycm9UdUlLaDBPNmtDS21yYW1IaWxud3IxIiwiaWF0IjoxNzQ2ODcyODQxLCJleHAiOjE3NDY5MTYwNDF9.rV4BnHyg_Ora1Xs1XQ-PdJLdqcUQ-Bv94HN-mg17yig'
             }
         })
         .then(response => {
@@ -154,6 +154,12 @@
     
         // Emit request to socket for real-time data
         socket.emit('TeamChart');
+        socket.emit('TeamChartid', 1); 
+
+
+        socket.on('eachTeamChartBYteam_id', (data) => {
+            console.log("Real-time for eachTeamChartBYteam_id:", data);
+        });
     
         // Handle real-time update
         socket.on('eachTeamChart', (data) => {

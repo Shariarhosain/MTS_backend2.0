@@ -51,7 +51,7 @@ async function emitProjectMoneyMetrics(io) {
       if (p.status === 'nra') need_to_assign += amt;
 
       // carry_operation: old or current project AND revision status
-      if ((isThisMonthProject || isPastProject) && !p.is_delivered) {
+      if (isPastProject && !p.is_delivered) {
         carry_operation += amt;
       }
 
