@@ -559,6 +559,7 @@ exports.getProjectById = async (req, res) => {
       date ? new Date(date).toISOString().split("T")[0] : null;
     const formattedProject = {
       ...project,
+       clientName: project.project_name?.split("-")[0]?.trim() || "Unknown",
       date: formatDate(project.date),
       deli_last_date: formatDate(project.deli_last_date),
     };

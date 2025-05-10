@@ -74,134 +74,7 @@ exports.getTodayTask = async (req, res) => {
 };
 
 
-//   try {
-//     const { uid } = req.user;
-//     const me = await prisma.team_member.findUnique({ where: { uid } });
-//     if (!me) return res.status(404).json({ error: 'User not found' });
 
-//     const project_id = req.body.project_id;
-//     if (!project_id)
-//       return res.status(400).json({ error: 'project_id is required' });
-
-//     const project = await prisma.project.findUnique({
-//       where: { id: project_id },
-//       select: { team_id: true, is_delivered: true },
-//     });
-//     if (!project)      return res.status(404).json({ error: 'Project not found' });
-//     if (project.is_delivered)
-//       return res.status(400).json({ error: 'Project already delivered' });
-
-//     const expected_finish_time = req.body.expected_finish_time;
-//     const ops_status           = req.body.ops_status;
-
-//     /* ─────────────── LEADER ─────────────── */
-//     if (me.role === 'operation_leader') {
-//       const team_member_ids   = Array.isArray(req.body.team_member_ids)
-//                                 ? req.body.team_member_ids : [];
-//       const target_member_ids = Array.isArray(req.body.target_member_ids)
-//                                 ? req.body.target_member_ids : [];
-
-//       /* validation */
-//       const allIds = [...team_member_ids, ...target_member_ids];
-//       if (allIds.length) {
-//         const ok = await prisma.team_member.count({
-//           where: { id: { in: allIds }, team_id: project.team_id },
-//         });
-//         if (ok !== allIds.length)
-//           return res.status(400).json({ error: 'One or more IDs not in team' });
-//       }
-
-//       /* need target_member_ids when changing status/date */
-//       if ((ops_status || expected_finish_time) && !target_member_ids.length) {
-//         return res
-//           .status(400)
-//           .json({ error: 'target_member_ids is required to update status or date' });
-//       }
-
-//       /* fetch parent row for client_name */
-//       const parentRow = await prisma.today_task.findFirst({
-//         where: { project_id, team_member_id: null },
-//         select: { client_name: true },
-//       });
-//       if (!parentRow)
-//         return res.status(404).json({ error: 'Parent today_task row not found' });
-
-//       const tx = [];
-
-//       /* A) replace assignees if list supplied */
-//       if (team_member_ids.length) {
-//         tx.push(
-//           prisma.today_task.deleteMany({
-//             where: { project_id, NOT: { team_member_id: null } },
-//           })
-//         );
-//         team_member_ids.forEach(id =>
-//           tx.push(
-//             prisma.today_task.create({
-//               data: {
-//                 project_id,
-//                 team_id: project.team_id,
-//                 team_member_id: id,
-//                 client_name: parentRow.client_name,
-//                 expected_finish_time,
-//                 ops_status,
-//               },
-//             })
-//           )
-//         );
-//       }
-
-//       /* B) update only the specified member rows */
-//       if (target_member_ids.length) {
-//         tx.push(
-//           prisma.today_task.updateMany({
-//             where: {
-//               project_id,
-//               team_member_id: { in: target_member_ids },
-//             },
-//             data: {
-//               ...(expected_finish_time && { expected_finish_time }),
-//               ...(ops_status && { ops_status }),
-//             },
-//           })
-//         );
-//       }
-
-//       await prisma.$transaction(tx);
-
-//       return res.json({
-//         message: 'Leader update complete',
-//         project_id,
-//         ...(team_member_ids.length   && { team_member_ids }),
-//         ...(target_member_ids.length && { target_member_ids }),
-//       });
-//     }
-
-//     /* ─────────────── MEMBER ─────────────── */
-//     if (me.role === 'operation_member') {
-//       const mine = await prisma.today_task.findFirst({
-//         where: { project_id, team_member_id: me.id },
-//       });
-//       if (!mine) return res.status(403).json({ error: 'Not your project' });
-
-//       await prisma.today_task.update({
-//         where: { id: mine.id },
-//         data: {
-//           ...(expected_finish_time && { expected_finish_time }),
-//           ...(ops_status && { ops_status }),
-//         },
-//       });
-
-//       return res.json({ message: 'Updated by member', project_id });
-//     }
-
-//     return res.status(403).json({ error: 'Access denied' });
-//   } catch (err) {
-//     console.error('updateProjectAssignments →', err);
-//     return res.status(500).json({ error: 'Internal server error' });
-//   }
-// };
-// API for assigning team members to a project
 exports.assignProjectToTeam = async (req, res) => {
   try {
     const { uid } = req.user;
@@ -388,4 +261,6 @@ exports.updateProjectAssignments = async (req, res) => {
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+
 
