@@ -39,7 +39,7 @@ async function teamwiseDeliveryGraph(io) {
 
 async function eachTeamChart(io) {
     try {
-      /* 1️⃣ User info */
+      /* 1️⃣ ইউজারের আইডি + রোল */
       const me = await prisma.team_member.findUnique({
         where  : { uid: global.user.uid },
         select : { id: true, role: true, first_name: true, team_id: true },
@@ -54,36 +54,41 @@ async function eachTeamChart(io) {
       const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
       const endOfMonth   = new Date(today.getFullYear(), today.getMonth() + 1, 0);
   
-      /* SALES / SALES_LEADER  → single combined object */
+      /* ------------------------------------------------------------------
+         SALES PATH  ➜  একক অবজেক্ট (নিজের টিম)  -------------------------*/
       if (isSales || isSalesLeader) {
-  
-        /* ➊ কোন কোন member-id ধরব */
+        /* subordinate + self */
         let orderByIds = isSalesLeader
           ? (await prisma.team_member.findMany({
               where  : { team_id: me.team_id, role: { startsWith: 'sales_' } },
               select : { id: true },
-            })).map(m => m.id).concat(me.id)   // leader নিজেও
+            })).map(m => m.id).concat(me.id)
           : [me.id];
   
-        /* ➋ সেই সব অর্ডারের প্রজেক্ট (এই মাসে যাই হোক) */
+        /* সব অর্ডার (টিম যাই হোক) */
         const projectsThisMonth = await prisma.project.findMany({
           where: {
             ordered_by: { in: orderByIds },
             OR: [
               { is_delivered: true },
-              { AND: [
+              {
+                AND: [
                   { is_delivered: false },
                   { delivery_date: { gte: startOfMonth } },
-                ]},
+                ],
+              },
             ],
           },
         });
-        const projectsNotDelivered = await prisma.project.findMany({
-          where: { ordered_by: { in: orderByIds }, is_delivered: false },
-        });
-        const projectsAll = [...projectsThisMonth, ...projectsNotDelivered];
   
-        /* ➌ নিজের টিমের বেসিক তথ্য */
+        const projectsNotDelivered = await prisma.project.findMany({
+          where: {
+            ordered_by: { in: orderByIds },
+            is_delivered: false,
+          },
+        });
+  
+        /* নিজের টিমের বেসিক ডাটা (target, members, name) */
         const teamData = await prisma.team.findUnique({
           where  : { id: me.team_id },
           select : {
@@ -93,7 +98,7 @@ async function eachTeamChart(io) {
           },
         });
   
-        /* ➍ মোট মেট্রিক */
+        /* মোট হিসাব */
         let teamTarget      = Number(teamData.team_target || 0);
         let teamAchievement = 0, teamCancelled = 0,
             teamTotalCarry  = 0, submitted     = 0, totalAssign = 0;
@@ -104,6 +109,7 @@ async function eachTeamChart(io) {
                                Number(p.after_Fiverr_bonus  || 0);
           }
         });
+  
         projectsNotDelivered.forEach(p => {
           teamTotalCarry += Number(p.total_carry || 0);
   
@@ -119,49 +125,52 @@ async function eachTeamChart(io) {
                          Number(p.after_Fiverr_bonus  || 0);
         });
   
-        /* ➎ earned map তৈরি (ordered_by ভিত্তিতে) */
-        const earnedMap = new Map();
-        projectsAll.forEach(p => {
-          const amt = Number(p.after_fiverr_amount || 0) +
-                      Number(p.after_Fiverr_bonus  || 0);
-          earnedMap.set(p.ordered_by,
-            (earnedMap.get(p.ordered_by) || 0) + amt);
-        });
+        /* memberTarget */
+        let memberTarget = [];
   
-        /* ➏ memberTarget */
-        let memberTarget;
         if (isSalesLeader) {
+          const memberIds = teamData.team_member.map(m => m.id);
+          const distributions = await prisma.member_distribution.findMany({
+            where: { team_member_id: { in: memberIds } },
+          });
+  
           memberTarget = teamData.team_member.map(m => ({
-            memberName : m.first_name,
-            target     : m.target || 0,
-            earned     : earnedMap.get(m.id) || 0,
+            memberName: m.first_name,
+            target    : m.target || 0,
+            earned    : distributions
+                         .filter(d => d.team_member_id === m.id)
+                         .reduce((s, d) => s + Number(d.amount), 0),
           }));
         } else { // individual sales_*
           const myTarget = teamData.team_member.find(m => m.id === me.id)?.target || 0;
+          const { _sum } = await prisma.member_distribution.aggregate({
+            where : { team_member_id: me.id },
+            _sum  : { amount: true },
+          });
           memberTarget = [{
-            memberName : me.first_name || 'You',
-            target     : myTarget,
-            earned     : earnedMap.get(me.id) || 0,
+            memberName: me.first_name || 'You',
+            target    : myTarget,
+            earned    : Number(_sum.amount || 0),
           }];
         }
   
-        /* ➐ সাপ্তাহিক ব্রেকডাউন */
+        /* চার-সপ্তাহ ব্রেকডাউন */
         const weeks = [
-          { w:'Week 1', s:new Date(today.getFullYear(),today.getMonth(), 1 ), e:new Date(today.getFullYear(),today.getMonth(), 7 ) },
-          { w:'Week 2', s:new Date(today.getFullYear(),today.getMonth(), 8 ), e:new Date(today.getFullYear(),today.getMonth(),14 ) },
-          { w:'Week 3', s:new Date(today.getFullYear(),today.getMonth(),15 ), e:new Date(today.getFullYear(),today.getMonth(),21 ) },
-          { w:'Week 4', s:new Date(today.getFullYear(),today.getMonth(),22 ), e:endOfMonth },
+          { week:'Week 1', start:new Date(today.getFullYear(),today.getMonth(),1 ), end:new Date(today.getFullYear(),today.getMonth(),7 ) },
+          { week:'Week 2', start:new Date(today.getFullYear(),today.getMonth(),8 ), end:new Date(today.getFullYear(),today.getMonth(),14) },
+          { week:'Week 3', start:new Date(today.getFullYear(),today.getMonth(),15), end:new Date(today.getFullYear(),today.getMonth(),21) },
+          { week:'Week 4', start:new Date(today.getFullYear(),today.getMonth(),22), end:endOfMonth },
         ];
-        const weeklyAchievementBreakdown = weeks.map(({w,s,e}) => ({
-          week  : w,
-          range : `${s.toLocaleDateString('en-US',{month:'short',day:'numeric'})} - ${e.toLocaleDateString('en-US',{month:'short',day:'numeric'})}`,
-          target: Math.round(teamTarget / 4),
+        const weeklyAchievementBreakdown = weeks.map(({week,start,end}) => ({
+          week,
+          range : `${start.toLocaleDateString('en-US',{month:'short',day:'numeric'})} - ${end.toLocaleDateString('en-US',{month:'short',day:'numeric'})}`,
+          target: Math.round(teamTarget/4),
           amount: projectsThisMonth
-                   .filter(p => p.is_delivered && new Date(p.delivery_date)>=s && new Date(p.delivery_date)<=e)
-                   .reduce((sum,p) => sum + Number(p.after_fiverr_amount||0) + Number(p.after_Fiverr_bonus||0), 0),
+                   .filter(p=>p.is_delivered && new Date(p.delivery_date)>=start && new Date(p.delivery_date)<=end)
+                   .reduce((s,p)=>s+Number(p.after_fiverr_amount||0)+Number(p.after_Fiverr_bonus||0),0),
         }));
   
-        /* ➑ Emit single object */
+        /* একটাই রেজাল্ট অবজেক্ট Emit */
         io.emit('eachTeamChart', [{
           teamTarget,
           teamAchievement,
@@ -173,291 +182,117 @@ async function eachTeamChart(io) {
           memberTarget,
           weeklyAchievementBreakdown,
         }]);
-        return;
+        return;                       // ✔️ sales path শেষ
       }
   
-      /* ----------------------------------------------------------------
-         OPERATION PATH  (unchanged except earnedMap)                   */
+      /* ------------------------------------------------------------------
+         OPERATION PATH  ➜  টিম-ওয়াইজ (পুরনো লজিক) ---------------------*/
       if (!isOperation) return console.log('Invalid role');
   
-      const teamData = await prisma.team.findUnique({
-        where  : { id: me.team_id },
-        select : {
-          team_target : true,
-          team_name   : true,
-          team_member : { select : { id: true, first_name: true, target: true } },
-        },
-      });
+      /* টিম-আইডি = আমার নিজস্ব টিম */
+      const teamIds = [me.team_id].filter(Boolean);
   
-      const baseFilter = { team_id: me.team_id };
-      const thisMonth  = await prisma.project.findMany({
-        where : {
-          ...baseFilter,
-          OR: [
-            { is_delivered: true },
-            { AND: [ { is_delivered: false },
-                     { delivery_date: { gte: startOfMonth } } ] },
-          ],
-        },
-      });
-      const notDelivered = await prisma.project.findMany({
-        where: { ...baseFilter, is_delivered: false },
-      });
+      const resultArray = [];
   
-      let teamTarget      = Number(teamData.team_target || 0);
-      let teamAchievement = 0, teamCancelled = 0,
-          teamTotalCarry  = 0, submitted     = 0, totalAssign = 0;
-  
-      thisMonth.forEach(p=>{
-        if(p.is_delivered){
-          teamAchievement += Number(p.after_fiverr_amount||0)+Number(p.after_Fiverr_bonus||0);
-        }
-      });
-      notDelivered.forEach(p=>{
-        teamTotalCarry += Number(p.total_carry||0);
-        if(p.status==='submitted'){
-          submitted += Number(p.after_fiverr_amount||0)+Number(p.after_Fiverr_bonus||0);
-        }
-        if(p.status==='cancelled'){
-          teamCancelled += Number(p.after_fiverr_amount||0)+Number(p.after_Fiverr_bonus||0);
-        }
-        totalAssign += Number(p.after_fiverr_amount||0)+Number(p.after_Fiverr_bonus||0);
-      });
-  
-      const projectsAll = [...thisMonth, ...notDelivered];
-      const earnedMap = new Map();
-
-
-// helper → Decimal | string | null ➜ numeric
-const num = v => v ? parseFloat(v.toString()) : 0;
-
-// buildEarnedMap → exclude cancelled entirely
-const buildEarnedMap = projects => {
-  const map = new Map();
-  projects
-    .filter(p => p.status !== 'cancelled')    // ← skip all cancelled
-    .forEach(p => {
-      const amt = num(p.after_fiverr_amount) + num(p.after_Fiverr_bonus);
-      map.set(
-        p.ordered_by,
-        (map.get(p.ordered_by) || 0) + amt
-      );
-    });
-  return map;
-};
-
-// …then in your code:
-
-
-// earnedMap – শুধু delivered বা submitted ধরে
-console.log('projectsAll', projectsAll);
-projectsAll
-.filter(p => p.status !== 'cancelled')   // ← চাইলে submitted যোগ করুন
-  .forEach(p => {
-    const amt = num(p.after_fiverr_amount) + num(p.after_Fiverr_bonus);
-
-    earnedMap.set(p.ordered_by, (earnedMap.get(p.ordered_by) || 0) + amt);
- 
-  });
-      const memberTarget = teamData.team_member.map(m=>({
-        memberName : m.first_name,
-        target     : m.target || 0,
-        earned     : earnedMap.get(m.id) || 0,
-      }));
-  
-      const weeks = [
-        { w:'Week 1', s:new Date(today.getFullYear(),today.getMonth(),1), e:new Date(today.getFullYear(),today.getMonth(),7) },
-        { w:'Week 2', s:new Date(today.getFullYear(),today.getMonth(),8), e:new Date(today.getFullYear(),today.getMonth(),14) },
-        { w:'Week 3', s:new Date(today.getFullYear(),today.getMonth(),15),e:new Date(today.getFullYear(),today.getMonth(),21) },
-        { w:'Week 4', s:new Date(today.getFullYear(),today.getMonth(),22),e:endOfMonth },
-      ];
-      const weeklyAchievementBreakdown = weeks.map(({w,s,e})=>({
-        week  : w,
-        range : `${s.toLocaleDateString('en-US',{month:'short',day:'numeric'})} - ${e.toLocaleDateString('en-US',{month:'short',day:'numeric'})}`,
-        target: Math.round(teamTarget/4),
-        amount: thisMonth.filter(p=>p.is_delivered && new Date(p.delivery_date)>=s && new Date(p.delivery_date)<=e)
-               .reduce((sum,p)=>sum+Number(p.after_fiverr_amount||0)+Number(p.after_Fiverr_bonus||0),0),
-      }));
-  
-      io.emit('eachTeamChart',[{
-        teamTarget,
-        teamAchievement,
-        teamCancelled,
-        teamTotalCarry,
-        submitted,
-        totalAssign,
-        teamName  : teamData.team_name,
-        memberTarget,
-        weeklyAchievementBreakdown,
-      }]);
-  
-    } catch (err) {
-      console.error('Error fetching team data:', err);
-    }
-  }
-  
-async function eachTeamChartByid(io, team_id) {
-    try {
-      const today = new Date();
-      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-  
-      const teamData = await prisma.team.findUnique({
-        where: { id: team_id },
-        select: {
-          team_target: true,
-          team_name: true,
-          team_member: {
-            select: { id: true, first_name: true, target: true, role: true },
+      for (const teamId of teamIds) {
+        const teamData = await prisma.team.findUnique({
+          where  : { id: teamId },
+          select : {
+            team_target : true,
+            team_name   : true,
+            team_member : { select : { id: true, first_name: true, target: true } },
           },
-        },
-      });
+        });
+        if (!teamData) continue;
   
-      if (!teamData) return console.log("Team not found");
-  
-      const orderByIds = teamData.team_member
-        .filter((m) => m.role?.startsWith("sales_"))
-        .map((m) => m.id);
-  
-      const projectsThisMonth = await prisma.project.findMany({
-        where: {
-          ordered_by: { in: orderByIds },
-          OR: [
-            { is_delivered: true },
-            {
-              AND: [
-                { is_delivered: false },
-                { delivery_date: { gte: startOfMonth } },
-              ],
-            },
-          ],
-        },
-      });
-  
-      const projectsNotDelivered = await prisma.project.findMany({
-        where: {
-          ordered_by: { in: orderByIds },
-          is_delivered: false,
-        },
-      });
-  
-      const projectsAll = [...projectsThisMonth, ...projectsNotDelivered];
-  
-      let teamTarget = Number(teamData.team_target || 0);
-      let teamAchievement = 0,
-        teamCancelled = 0,
-        teamTotalCarry = 0,
-        submitted = 0,
-        totalAssign = 0;
-  
-      projectsThisMonth.forEach((p) => {
-        if (p.is_delivered) {
-          teamAchievement +=
-            Number(p.after_fiverr_amount || 0) +
-            Number(p.after_Fiverr_bonus || 0);
-        }
-      });
-  
-      projectsNotDelivered.forEach((p) => {
-        teamTotalCarry += Number(p.total_carry || 0);
-        if (p.status === "submitted") {
-          submitted +=
-            Number(p.after_fiverr_amount || 0) +
-            Number(p.after_Fiverr_bonus || 0);
-        }
-        if (p.status === "cancelled") {
-          teamCancelled +=
-            Number(p.after_fiverr_amount || 0) +
-            Number(p.after_Fiverr_bonus || 0);
-        }
-        totalAssign +=
-          Number(p.after_fiverr_amount || 0) +
-          Number(p.after_Fiverr_bonus || 0);
-      });
-  
-      const earnedMap = new Map();
-      projectsAll
-        .filter((p) => p.status !== "cancelled")
-        .forEach((p) => {
-          const amt =
-            Number(p.after_fiverr_amount || 0) +
-            Number(p.after_Fiverr_bonus || 0);
-          earnedMap.set(
-            p.ordered_by,
-            (earnedMap.get(p.ordered_by) || 0) + amt
-          );
+        const baseFilter  = { team_id: teamId };
+        const thisMonth   = await prisma.project.findMany({
+          where : {
+            ...baseFilter,
+            OR: [
+              { is_delivered: true },
+              {
+                AND: [
+                  { is_delivered: false },
+                  { delivery_date: { gte: startOfMonth } },
+                ],
+              },
+            ],
+          },
+        });
+        const notDelivered = await prisma.project.findMany({
+          where: { ...baseFilter, is_delivered: false },
         });
   
-      const memberTarget = teamData.team_member.map((m) => ({
-        memberName: m.first_name,
-        target: m.target || 0,
-        earned: earnedMap.get(m.id) || 0,
-      }));
+        let teamTarget      = Number(teamData.team_target || 0);
+        let teamAchievement = 0, teamCancelled = 0,
+            teamTotalCarry  = 0, submitted     = 0, totalAssign = 0;
   
-      const weeks = [
-        {
-          w: "Week 1",
-          s: new Date(today.getFullYear(), today.getMonth(), 1),
-          e: new Date(today.getFullYear(), today.getMonth(), 7),
-        },
-        {
-          w: "Week 2",
-          s: new Date(today.getFullYear(), today.getMonth(), 8),
-          e: new Date(today.getFullYear(), today.getMonth(), 14),
-        },
-        {
-          w: "Week 3",
-          s: new Date(today.getFullYear(), today.getMonth(), 15),
-          e: new Date(today.getFullYear(), today.getMonth(), 21),
-        },
-        {
-          w: "Week 4",
-          s: new Date(today.getFullYear(), today.getMonth(), 22),
-          e: endOfMonth,
-        },
-      ];
+        thisMonth.forEach(p=>{
+          if(p.is_delivered){
+            teamAchievement += Number(p.after_fiverr_amount||0)+Number(p.after_Fiverr_bonus||0);
+          }
+        });
+        notDelivered.forEach(p=>{
+          teamTotalCarry += Number(p.total_carry||0);
+          if(p.status==='submitted'){
+            submitted += Number(p.after_fiverr_amount||0)+Number(p.after_Fiverr_bonus||0);
+          }
+          if(p.status==='cancelled'){
+            teamCancelled += Number(p.after_fiverr_amount||0)+Number(p.after_Fiverr_bonus||0);
+          }
+          totalAssign += Number(p.after_fiverr_amount||0)+Number(p.after_Fiverr_bonus||0);
+        });
   
-      const weeklyAchievementBreakdown = weeks.map(({ w, s, e }) => ({
-        week: w,
-        range: `${s.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        })} - ${e.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        })}`,
-        target: Math.round(teamTarget / 4),
-        amount: projectsThisMonth
-          .filter(
-            (p) =>
-              p.is_delivered &&
-              new Date(p.delivery_date) >= s &&
-              new Date(p.delivery_date) <= e
-          )
-          .reduce(
-            (sum, p) =>
-              sum +
-              Number(p.after_fiverr_amount || 0) +
-              Number(p.after_Fiverr_bonus || 0),
-            0
-          ),
-      }));
+        const memberIds = teamData.team_member.map(m=>m.id);
+        const distributions = await prisma.member_distribution.findMany({
+          where:{ team_member_id:{in:memberIds} },
+        });
+        const memberTarget = teamData.team_member.map(m=>({
+          memberName:m.first_name,
+          target:m.target||0,
+          earned:distributions.filter(d=>d.team_member_id===m.id)
+                 .reduce((s,d)=>s+Number(d.amount),0),
+        }));
   
-      io.emit("eachTeamChartBYteam_id", [
-        {
+        const weeks=[
+          {week:'Week 1',start:new Date(today.getFullYear(),today.getMonth(),1),end:new Date(today.getFullYear(),today.getMonth(),7)},
+          {week:'Week 2',start:new Date(today.getFullYear(),today.getMonth(),8),end:new Date(today.getFullYear(),today.getMonth(),14)},
+          {week:'Week 3',start:new Date(today.getFullYear(),today.getMonth(),15),end:new Date(today.getFullYear(),today.getMonth(),21)},
+          {week:'Week 4',start:new Date(today.getFullYear(),today.getMonth(),22),end:endOfMonth},
+        ];
+        const weeklyAchievementBreakdown = weeks.map(({week,start,end})=>({
+          week,
+          range:`${start.toLocaleDateString('en-US',{month:'short',day:'numeric'})} - ${end.toLocaleDateString('en-US',{month:'short',day:'numeric'})}`,
+          target:Math.round(teamTarget/4),
+          amount:thisMonth.filter(p=>p.is_delivered&&new Date(p.delivery_date)>=start&&new Date(p.delivery_date)<=end)
+                 .reduce((s,p)=>s+Number(p.after_fiverr_amount||0)+Number(p.after_Fiverr_bonus||0),0),
+        }));
+  
+        resultArray.push({
           teamTarget,
           teamAchievement,
           teamCancelled,
           teamTotalCarry,
           submitted,
           totalAssign,
-          teamName: teamData.team_name,
+          teamName  : teamData.team_name,
           memberTarget,
           weeklyAchievementBreakdown,
-        },
-      ]);
+        });
+      }
+  
+      /* Emit operation result(s) */
+      io.emit('eachTeamChart', resultArray);
+  
     } catch (err) {
-      console.error("Error fetching team data:", err);
+      console.error('Error fetching team data:', err);
     }
   }
-module.exports = { teamwiseDeliveryGraph, eachTeamChart, eachTeamChartByid };
+  
+  
+
+  //have to do team id pass 
+  
+
+module.exports = { teamwiseDeliveryGraph, eachTeamChart };

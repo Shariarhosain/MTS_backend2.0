@@ -8,7 +8,7 @@ const { getTeamMember } = require('./middlewares/TeamName');
 const emitProfilename = require('./middlewares/showProfilename');
 const emitProjectMoneyMetrics = require('./middlewares/carddetailsForoperation');
 const {eachTeamChart} = require('./middlewares/teamwiseDeliveryGraph');
-const {eachTeamChartByid} = require('./middlewares/teamwiseDeliveryGraph');
+const {eachTeamChartByTeamId} = require('./middlewares/teamwiseDeliveryGraph');
 
 const totalOrdersCardData  = require('./middlewares/projectCardEmitter');
 const initSocket = (server) => {
@@ -156,7 +156,7 @@ socket.on('TeamChart', async () => {
 socket.on('TeamChartid', async (teamId) => {
   try {
     console.log('Fetching each team chart data by ID:', teamId);
-    await eachTeamChartByid(io, teamId); // Must use io.emit inside this
+    await eachTeamChartByTeamId(io, teamId); // Must use io.emit inside this
   } catch (error) {
     console.error("Error fetching each team chart data by ID:", error);
   }
