@@ -103,6 +103,7 @@ async function eachTeamChart(io) {
      let teamCancelled = 0;
      let teamTotalCarry = 0;
      let submitted = 0;
+     let totalAssign=0;
 
      console.log('Team Projects This Month:', teamProjectsThisMonth);
      console.log('Team Target:', teamTarget);
@@ -133,6 +134,9 @@ if (project.status === 'cancelled') {
    teamCancelled += parseFloat(project.after_fiverr_amount) + (parseFloat(project.after_Fiverr_bonus) || 0) || 0;
 }
 
+totalAssign += parseFloat(project.after_fiverr_amount) + (parseFloat(project.after_Fiverr_bonus) || 0) || 0;
+
+
      });
 
 
@@ -143,6 +147,7 @@ if (project.status === 'cancelled') {
             teamCancelled,
             teamTotalCarry,
             submitted,
+            totalAssign,
             teamName: teamData.team_name || 'Unknown Team', // Get the team name
         };
 
