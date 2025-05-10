@@ -82,7 +82,11 @@ async function eachTeamChart(io) {
              ],
          },
          include: {
-             team: true
+             team: {
+                include: {
+                    team_member: true, // Include team members if needed
+                },
+             }
          },
      });
 
@@ -93,7 +97,11 @@ async function eachTeamChart(io) {
              is_delivered: false, // Not delivered
          },
          include: {
-             team: true,
+             team: {
+                    include: {
+                        team_member: true, // Include team members if needed
+                    },
+             }
          },
      });
 
@@ -140,16 +148,30 @@ totalAssign += parseFloat(project.after_fiverr_amount) + (parseFloat(project.aft
      });
 
 
-        // Step 8: Return the response with team chart data
-        const result = {
-            teamTarget,
-            teamAchievement,
-            teamCancelled,
-            teamTotalCarry,
-            submitted,
-            totalAssign,
-            teamName: teamData.team_name || 'Unknown Team', // Get the team name
-        };
+     const membersRaw = teamProjectsThisMonth.flatMap(project =>
+        project.team.team_member.map(member => ({
+          memberName: member.first_name,
+          target: member.target || 0,
+        }))
+      );
+      
+      // Remove duplicates based on memberName
+      const uniqueMembers = Array.from(
+        new Map(membersRaw.map(m => [m.memberName, m])).values()
+      );
+      
+      const result = {
+        teamTarget,
+        teamAchievement,
+        teamCancelled,
+        teamTotalCarry,
+        submitted,
+        totalAssign,
+        teamName: teamData.team_name || 'Unknown Team',
+        memberTarget: uniqueMembers,
+      };
+      
+      
 
         console.log('Team Data:', teamData);
 
