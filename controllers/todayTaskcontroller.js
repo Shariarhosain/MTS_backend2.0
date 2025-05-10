@@ -78,18 +78,23 @@ exports.getTodayTask = async (req, res) => {
 exports.assignProjectToTeam = async (req, res) => {
   try {
     const { uid } = req.user;
+
+    // Step 1: Validate user
     const me = await prisma.team_member.findUnique({ where: { uid } });
     if (!me) return res.status(404).json({ error: 'User not found' });
 
-    const project_id = req.body.project_id;
-    const team_member_ids = req.body.team_member_ids;
+    const { project_id, team_member_ids } = req.body;
 
-    if (!project_id || !team_member_ids || !Array.isArray(team_member_ids) || !team_member_ids.length)
+    // Step 2: Validate input
+    if (!project_id || !Array.isArray(team_member_ids) || !team_member_ids.length) {
       return res.status(400).json({ error: 'Invalid project_id or team_member_ids' });
+    }
 
+    // Step 3: Validate project
     const project = await prisma.project.findUnique({ where: { id: project_id } });
     if (!project) return res.status(404).json({ error: 'Project not found' });
 
+    // Step 4: Find parent task row to get client_name
     const parentRow = await prisma.today_task.findFirst({
       where: { project_id, team_member_id: null },
       select: { client_name: true },
@@ -97,11 +102,9 @@ exports.assignProjectToTeam = async (req, res) => {
     if (!parentRow)
       return res.status(404).json({ error: 'Parent task not found' });
 
-    const tx = [];
-
-    // Add new task rows for each new team member
-    team_member_ids.forEach(id => {
-      tx.push(
+    // Step 5: Create today_task rows for each team member
+    const createdTasks = await prisma.$transaction(
+      team_member_ids.map(id =>
         prisma.today_task.create({
           data: {
             project_id,
@@ -110,13 +113,26 @@ exports.assignProjectToTeam = async (req, res) => {
             client_name: parentRow.client_name,
           },
         })
-      );
-    });
+      )
+    );
 
-    await prisma.$transaction(tx);
+    // Step 6: Create member_distribution rows connected to corresponding today_task
+    const distributionTx = createdTasks.map(task =>
+      prisma.member_distribution.create({
+        data: {
+          team_member_id: task.team_member_id,
+          amount: 0,
+          today_task: {
+            connect: [{ id: task.id }], // ✅ Each member gets their own task link
+          },
+        },
+      })
+    );
 
-    
+    // Step 7: Execute member_distribution inserts
+    await prisma.$transaction(distributionTx);
 
+    // Step 8: Respond
     return res.json({
       message: 'New team members assigned successfully',
       project_id,
@@ -127,6 +143,7 @@ exports.assignProjectToTeam = async (req, res) => {
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
+
 
 // API for replacing a team member in an existing project
 exports.replaceProjectMember = async (req, res) => {
@@ -181,6 +198,27 @@ exports.replaceProjectMember = async (req, res) => {
     );
 
     await prisma.$transaction(tx);
+
+        //when replacing  team member also update row of members into  member distribution table. first find the old member and then update it with new member id
+    /*model member_distribution {
+  id                 Int       @id @default(autoincrement())
+  team_member_id     Int
+  team_member        team_member? @relation(fields: [team_member_id], references: [id])
+  amount            Decimal?  @db.Decimal(65,0)
+  today_task         today_task[] 
+}
+ */
+    const distributionTx = await prisma.member_distribution.updateMany({
+      where: { team_member_id: old_member_id, today_task: { project_id } },
+      data: {
+        team_member_id: new_member_id,
+      }
+    });
+    await distributionTx;
+    
+   
+
+    console.log(`Updated member distribution from ${old_member_id} to ${new_member_id} for project ${project_id}`);
 
     return res.json({
       message: 'Team member replaced successfully',

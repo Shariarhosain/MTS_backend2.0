@@ -38,152 +38,280 @@ async function teamwiseDeliveryGraph(io) {
 }
 
 
+// async function eachTeamChart(io) {
+//     try {
+//       const userId = global.user.uid;
+  
+//       const userTeam = await prisma.team_member.findUnique({
+//         where: { uid: userId },
+//         select: { team_id: true },
+//       });
+  
+//       if (!userTeam) {
+//         console.log("User not found in any team");
+//         return;
+//       }
+  
+//       const currentDate = new Date();
+//       const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+  
+//       const teamData = await prisma.team.findUnique({
+//         where: { id: userTeam.team_id },
+//         select: {
+//           team_target: true,
+//           team_name: true,
+//           team_member: {
+//             select: {
+//               id: true,
+//               first_name: true,
+//               target: true,
+//             },
+//           },
+//         },
+//       });
+  
+//       const teamProjectsThisMonth = await prisma.project.findMany({
+//         where: {
+//           team_id: userTeam.team_id,
+//           OR: [
+//             { is_delivered: true },
+//             {
+//               AND: [
+//                 { is_delivered: false },
+//                 { delivery_date: { gte: startOfMonth } },
+//               ],
+//             },
+//           ],
+//         },
+//       });
+  
+//       const teamProjectsNotDelivered = await prisma.project.findMany({
+//         where: {
+//           team_id: userTeam.team_id,
+//           is_delivered: false,
+//         },
+//       });
+  
+//       let teamTarget = teamData.team_target ? parseInt(teamData.team_target) : 0;
+//       let teamAchievement = 0;
+//       let teamCancelled = 0;
+//       let teamTotalCarry = 0;
+//       let submitted = 0;
+//       let totalAssign = 0;
+  
+//       teamProjectsThisMonth.forEach(project => {
+//         if (project.is_delivered) {
+//           teamAchievement += parseFloat(project.after_fiverr_amount) + (parseFloat(project.after_Fiverr_bonus) || 0) || 0;
+//         }
+//       });
+  
+//       teamProjectsNotDelivered.forEach(project => {
+//         teamTotalCarry += parseFloat(project.total_carry) || 0;
+  
+//         if (project.status === 'submitted') {
+//           submitted += parseFloat(project.after_fiverr_amount) + (parseFloat(project.after_Fiverr_bonus) || 0) || 0;
+//         }
+  
+//         if (project.status === 'cancelled') {
+//           teamCancelled += parseFloat(project.after_fiverr_amount) + (parseFloat(project.after_Fiverr_bonus) || 0) || 0;
+//         }
+  
+//         totalAssign += parseFloat(project.after_fiverr_amount) + (parseFloat(project.after_Fiverr_bonus) || 0) || 0;
+//       });
+  
+//       // Fetch member distribution (earnings)
+//       const memberIds = teamData.team_member.map(m => m.id);
+//       const distributions = await prisma.member_distribution.findMany({
+//         where: {
+//           team_member_id: { in: memberIds },
+//         },
+//       });
+  
+//       const memberTarget = teamData.team_member.map(member => {
+//         const totalEarned = distributions
+//           .filter(dist => dist.team_member_id === member.id)
+//           .reduce((sum, dist) => sum + parseFloat(dist.amount), 0);
+  
+//         return {
+//           memberName: member.first_name,
+//           target: member.target || 0,
+//           earned: totalEarned,
+//         };
+//       });
+  
+//       const result = {
+//         teamTarget,
+//         teamAchievement,
+//         teamCancelled,
+//         teamTotalCarry,
+//         submitted,
+//         totalAssign,
+//         teamName: teamData.team_name || 'Unknown Team',
+//         memberTarget,
+//       };
+  
+//       console.log('Team Chart Data:', result);
+//       io.emit("eachTeamChart", result);
+  
+//     } catch (error) {
+//       console.error('Error fetching team data:', error);
+//     }
+//   }
+  
+
 async function eachTeamChart(io) {
-    try {
-        // Get the user ID from the session (global.user assumed)
-     const userId = global.user.uid;
-     console.log('User ID:', userId);
+  try {
+    const userId = global.user.uid;
 
-     // Step 1: Find the team of the user
-     const userTeam = await prisma.team_member.findUnique({
-         where: { uid: userId },
-         select: { team_id: true }, // Fetch the team_id of the user
-     });
+    const userTeam = await prisma.team_member.findUnique({
+      where: { uid: userId },
+      select: { team_id: true },
+    });
 
-     if (!userTeam) {
-         return res.status(404).json({ error: 'User not found in any team' });
-     }
-
-     // Step 2: Get the current date and calculate the start of the current month
-     const currentDate = new Date();
-     const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-
-     // Step 3: Retrieve the team associated with this user and get its target value once
-     const teamData = await prisma.team.findUnique({
-         where: { id: userTeam.team_id },
-         select: {
-             team_target: true, // Get the team target
-             team_name: true,   // Get the team name
-         },
-     });
-
-     // Step 4: Retrieve all projects assigned to this team for this month (delivered or not)
-     const teamProjectsThisMonth = await prisma.project.findMany({
-         where: {
-             team_id: userTeam.team_id,
-             OR: [
-                 { is_delivered: true },
-                 {
-                     AND: [
-                         { is_delivered: false },
-                         { delivery_date: { gte: startOfMonth } },
-                     ],
-                 },
-             ],
-         },
-         include: {
-             team: {
-                include: {
-                    team_member: true, // Include team members if needed
-                },
-             }
-         },
-     });
-
-     // Step 5: Retrieve previous projects that are NOT delivered (and are from previous months)
-     const teamProjectsNotDelivered = await prisma.project.findMany({
-         where: {
-             team_id: userTeam.team_id,
-             is_delivered: false, // Not delivered
-         },
-         include: {
-             team: {
-                    include: {
-                        team_member: true, // Include team members if needed
-                    },
-             }
-         },
-     });
-
-     // Initialize variables to hold the overall team achievements, targets, and cancellations
-     let teamTarget = teamData.team_target ? parseInt(teamData.team_target) : 0;  // Now using the team target directly from team data
-     let teamAchievement = 0;
-     let teamCancelled = 0;
-     let teamTotalCarry = 0;
-     let submitted = 0;
-     let totalAssign=0;
-
-     console.log('Team Projects This Month:', teamProjectsThisMonth);
-     console.log('Team Target:', teamTarget);
-
-     // Step 6: Loop through projects for this month to calculate achievements, cancellations, and submitted
-     teamProjectsThisMonth.forEach(project => {
-         if (project.is_delivered) {
-             teamAchievement += parseFloat(project.after_fiverr_amount) + (parseFloat(project.after_Fiverr_bonus) || 0) || 0;
-         }
-
-       
-
-       console.log('Project:', project);
-     });
-
-     // Step 7: Loop through previous (not delivered) projects to calculate carry-over value
-     teamProjectsNotDelivered.forEach(project => {
-         teamTotalCarry += parseFloat(project.total_carry) || 0;
-         
-console.log('Submitted Project:', project.status);  
-if (project.status === 'submitted') {
-
-    
-        submitted += parseFloat(project.after_fiverr_amount) + (parseFloat(project.after_Fiverr_bonus) || 0) || 0;
-}
-
-if (project.status === 'cancelled') {
-   teamCancelled += parseFloat(project.after_fiverr_amount) + (parseFloat(project.after_Fiverr_bonus) || 0) || 0;
-}
-
-totalAssign += parseFloat(project.after_fiverr_amount) + (parseFloat(project.after_Fiverr_bonus) || 0) || 0;
-
-
-     });
-
-
-     const membersRaw = teamProjectsThisMonth.flatMap(project =>
-        project.team.team_member.map(member => ({
-          memberName: member.first_name,
-          target: member.target || 0,
-        }))
-      );
-      
-      // Remove duplicates based on memberName
-      const uniqueMembers = Array.from(
-        new Map(membersRaw.map(m => [m.memberName, m])).values()
-      );
-      
-      const result = {
-        teamTarget,
-        teamAchievement,
-        teamCancelled,
-        teamTotalCarry,
-        submitted,
-        totalAssign,
-        teamName: teamData.team_name || 'Unknown Team',
-        memberTarget: uniqueMembers,
-      };
-      
-      
-
-        console.log('Team Data:', teamData);
-
-        console.log('Team Chart Data:', result);
-        // Emit the result to the socket
-        io.emit("eachTeamChart", result);
-
-    } catch (error) {
-        console.error('Error fetching team data:', error);
-        return res.status(500).json({ error: 'Internal server error' });
+    if (!userTeam) {
+      console.log("User not found in any team");
+      return;
     }
-};
+
+    const currentDate = new Date();
+    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+
+    const teamData = await prisma.team.findUnique({
+      where: { id: userTeam.team_id },
+      select: {
+        team_target: true,
+        team_name: true,
+        team_member: {
+          select: {
+            id: true,
+            first_name: true,
+            target: true,
+          },
+        },
+      },
+    });
+
+    const teamProjectsThisMonth = await prisma.project.findMany({
+      where: {
+        team_id: userTeam.team_id,
+        OR: [
+          { is_delivered: true },
+          {
+            AND: [
+              { is_delivered: false },
+              { delivery_date: { gte: startOfMonth } },
+            ],
+          },
+        ],
+      },
+    });
+
+    const teamProjectsNotDelivered = await prisma.project.findMany({
+      where: {
+        team_id: userTeam.team_id,
+        is_delivered: false,
+      },
+    });
+
+    let teamTarget = teamData.team_target ? parseInt(teamData.team_target) : 0;
+    let teamAchievement = 0;
+    let teamCancelled = 0;
+    let teamTotalCarry = 0;
+    let submitted = 0;
+    let totalAssign = 0;
+
+    teamProjectsThisMonth.forEach(project => {
+      if (project.is_delivered) {
+        teamAchievement += parseFloat(project.after_fiverr_amount) + (parseFloat(project.after_Fiverr_bonus) || 0) || 0;
+      }
+    });
+
+    teamProjectsNotDelivered.forEach(project => {
+      teamTotalCarry += parseFloat(project.total_carry) || 0;
+
+      if (project.status === 'submitted') {
+        submitted += parseFloat(project.after_fiverr_amount) + (parseFloat(project.after_Fiverr_bonus) || 0) || 0;
+      }
+
+      if (project.status === 'cancelled') {
+        teamCancelled += parseFloat(project.after_fiverr_amount) + (parseFloat(project.after_Fiverr_bonus) || 0) || 0;
+      }
+
+      totalAssign += parseFloat(project.after_fiverr_amount) + (parseFloat(project.after_Fiverr_bonus) || 0) || 0;
+    });
+
+    // Step 5: Get all project IDs for this team this month
+    const projectIdsThisMonth = await prisma.project.findMany({
+      where: {
+        team_id: userTeam.team_id,
+        delivery_date: {
+          gte: startOfMonth,
+          lte: endOfMonth,
+        }
+      },
+      select: { id: true }
+    });
+
+    const projectIds = projectIdsThisMonth.map(p => p.id);
+
+    // Step 6: Get all today_task under those projects
+    const teamMemberIds = teamData.team_member.map(m => m.id);
+
+    const todayTasks = await prisma.today_task.findMany({
+      where: {
+        project_id: { in: projectIds },
+        team_member_id: { in: teamMemberIds }
+      },
+      select: { id: true, team_member_id: true }
+    });
+
+    const taskIds = todayTasks.map(task => task.id);
+
+    // Step 7: Get member_distribution entries only for this team's members and this month's tasks
+    const distributions = await prisma.member_distribution.findMany({
+      where: {
+        team_member_id: { in: teamMemberIds },
+        today_task: {
+          some: {
+            id: { in: taskIds },
+          },
+        },
+      },
+    });
+
+    // Step 8: Build memberTarget
+    const memberTarget = teamData.team_member.map(member => {
+      const totalEarned = distributions
+        .filter(dist => dist.team_member_id === member.id)
+        .reduce((sum, dist) => sum + parseFloat(dist.amount), 0);
+
+      return {
+        memberName: member.first_name,
+        target: member.target || 0,
+        earned: totalEarned,
+      };
+    });
+
+    const result = {
+      teamTarget,
+      teamAchievement,
+      teamCancelled,
+      teamTotalCarry,
+      submitted,
+      totalAssign,
+      teamName: teamData.team_name || 'Unknown Team',
+      memberTarget,
+    };
+
+    console.log('Team Chart Data:', result);
+    io.emit("eachTeamChart", result);
+
+  } catch (error) {
+    console.error('Error fetching team data:', error);
+  }
+}
+
 
 
 module.exports = { teamwiseDeliveryGraph, eachTeamChart };
