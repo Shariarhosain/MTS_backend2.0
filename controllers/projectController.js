@@ -424,7 +424,11 @@ exports.getAllProjects = async (req, res, io) => {
       include: {
         profile: true,
         department: true,
-        team: true,
+        team: {
+          include: {
+            team_member: true,
+          },
+        },
         team_member: {
           include: {
             profile: true,
