@@ -136,19 +136,19 @@ model team_member {
   uid                 String? @unique
   today_task          today_task[] // one team_member can have many today tasks
   assigned_projects project[] @relation("ProjectAssignments")
-  member_target       member_target[] // one team_member can have many targets
+  member_distribution       member_distribution[] // one team_member can have many targets
 
   
 }
 
 
 
-model member_target {
+model member_distribution {
   id                 Int       @id @default(autoincrement())
   team_member_id     Int
   team_member        team_member? @relation(fields: [team_member_id], references: [id])
+  amount            Decimal?  @db.Decimal(65,0)
   today_task         today_task[] 
-
 }
 
 
@@ -177,7 +177,7 @@ model today_task {
   team               team?    @relation(fields: [team_id], references: [id])
   team_id            Int?
   project           project? @relation(fields: [project_id], references: [id])
-  member_target      member_target[]
+  member_distribution      member_distribution[]
   
 }
 
