@@ -98,7 +98,7 @@ async function eachTeamChart(io) {
      });
 
      // Initialize variables to hold the overall team achievements, targets, and cancellations
-     let teamTarget = teamData.team_target || 0;  // Now using the team target directly from team data
+     let teamTarget = teamData.team_target ? parseInt(teamData.team_target) : 0;  // Now using the team target directly from team data
      let teamAchievement = 0;
      let teamCancelled = 0;
      let teamTotalCarry = 0;
@@ -142,8 +142,11 @@ if (project.status === 'cancelled') {
             teamAchievement,
             teamCancelled,
             teamTotalCarry,
-            submitted
+            submitted,
+            teamName: teamData.team_name || 'Unknown Team', // Get the team name
         };
+
+        console.log('Team Data:', teamData);
 
         console.log('Team Chart Data:', result);
         // Emit the result to the socket

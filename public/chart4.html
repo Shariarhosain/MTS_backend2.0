@@ -76,14 +76,16 @@
 
     <script>
         // Connect to the socket server
-        const socket = io('https://mtsbackend20-production.up.railway.app'); // Adjust this URL to your server's URL
-
+        const socket = io(); // Adjust this if your server runs on another host/port
+    
+        let chart;  // Store chart instance globally
+    
         // First, fetch data from the API to populate the table and chart initially
         fetch('http://localhost:3000/api/project/eachTeamChart', {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJzNVdFaFJoR05BWm1BSjZUNWMyY0dJdHF2QlgyIiwiaWF0IjoxNzQ2Njk5Mjg5LCJleHAiOjE3NDY3NDI0ODl9._YIrAPXiYTr_-QgQjh3oS0YCysrjwiuCdXbA125hoSs' // Replace with your token if needed
+                'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJzNVdFaFJoR05BWm1BSjZUNWMyY0dJdHF2QlgyIiwiaWF0IjoxNzQ2ODQzOTAzLCJleHAiOjE3NDY4ODcxMDN9.rUKqI4ZkHxo25spTp1QZojlt5DO51giIANYpCjUrntc'
             }
         })
         .then(response => {
@@ -93,43 +95,35 @@
             return response.json();
         })
         .then(data => {
-            console.log(data);  // Debugging purpose
-
-            // Populate the table with the fetched data
-            const tableBody = document.getElementById('team-data-table').getElementsByTagName('tbody')[0];
-            tableBody.innerHTML = ''; // Clear existing rows
-
-            // Create a new row for the fetched data
-            const row = tableBody.insertRow();
-            row.insertCell(0).textContent = data.teamName || 'Unknown Team';
-            row.insertCell(1).textContent = data.teamTarget;
-            row.insertCell(2).textContent = data.teamAchievement;
-            row.insertCell(3).textContent = data.teamCancelled;
-            row.insertCell(4).textContent = data.teamTotalCarry;
-            row.insertCell(5).textContent = data.submitted; // Display Submitted value
-
-            // Create the chart using fetched data
+            updateTable(data);
             createChart(data);
         })
         .catch(error => {
-            // Handle errors gracefully
             document.getElementById('error-message').textContent = error.message;
         });
-
-        // Function to create the chart
+    
+        // Function to create/update the chart
         function createChart(data) {
             const ctx = document.getElementById('teamChart').getContext('2d');
-
-            // Create a bar chart with the data fetched
-            const chart = new Chart(ctx, {
+    
+            if (chart) {
+                chart.destroy(); // Destroy previous instance
+            }
+    
+            chart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: ['Target', 'Achievement', 'Cancelled', 'Total Carry', 'Submitted'],
                     datasets: [{
                         label: 'Team Data',
-                        data: [data.teamTarget, data.teamAchievement, data.teamCancelled, data.teamTotalCarry, data.submitted],
+                        data: [
+                            data.teamTarget,
+                            data.teamAchievement,
+                            data.teamCancelled,
+                            data.teamTotalCarry,
+                            data.submitted
+                        ],
                         backgroundColor: ['#FF5733', '#33FF57', '#FF33A1', '#337AFF', '#FF5733'],
-                        borderColor: ['#FF5733', '#33FF57', '#FF33A1', '#337AFF', '#FF5733'],
                         borderWidth: 1
                     }]
                 },
@@ -143,35 +137,35 @@
                 }
             });
         }
-
-        socket.emit('TeamChart'); // Emit an event to request the initial data
-
-        // Now, listen for updates via Socket.IO
-        socket.on('eachTeamChart', (data) => {
-            console.log("Real-time update received:", data);
-
-            // Update the table with new data
+    
+        // Function to update table
+        function updateTable(data) {
             const tableBody = document.getElementById('team-data-table').getElementsByTagName('tbody')[0];
             tableBody.innerHTML = ''; // Clear existing rows
-
-            // Create a new row for the updated data
+    
             const row = tableBody.insertRow();
             row.insertCell(0).textContent = data.teamName || 'Unknown Team';
             row.insertCell(1).textContent = data.teamTarget;
             row.insertCell(2).textContent = data.teamAchievement;
             row.insertCell(3).textContent = data.teamCancelled;
             row.insertCell(4).textContent = data.teamTotalCarry;
-            row.insertCell(5).textContent = data.submitted; // Update Submitted value
-
-            // Update the chart with the new data
+            row.insertCell(5).textContent = data.submitted;
+        }
+    
+        // Emit request to socket for real-time data
+        socket.emit('TeamChart');
+    
+        // Handle real-time update
+        socket.on('eachTeamChart', (data) => {
+            console.log("Real-time update received:", data);
+            updateTable(data);
             createChart(data);
         });
-
+    
         socket.on('error', (error) => {
-            // Handle errors gracefully
             document.getElementById('error-message').textContent = error.error;
         });
     </script>
-
+    
 </body>
 </html>
