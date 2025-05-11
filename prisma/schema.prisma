@@ -89,6 +89,9 @@ model profile {
   repeat_order   Decimal?      @db.Decimal(65, 0)
   keywords       String?
   total_rating   Decimal?      @db.Decimal(65, 0)
+  ranking_page  String?
+  row          Int?
+  promotion_amount Decimal? @db.Decimal(65, 0)
   projects       project[]
   department     department[]  @relation("departmentToprofile")
   team_members   team_member[] @relation("profileToteam_member")
@@ -135,7 +138,7 @@ model member_distribution {
   team_member    team_member  @relation(fields: [team_member_id], references: [id])
   project_id     Int
   project        project      @relation(fields: [project_id], references: [id])
-  
+
   
 }
 
@@ -161,4 +164,10 @@ model today_task {
   project              project               @relation(fields: [project_id], references: [id])
   team                 team?                 @relation(fields: [team_id], references: [id])
   team_member          team_member?          @relation(fields: [team_member_id], references: [id])
+}
+
+
+model anouncement {
+  id          Int       @id @default(autoincrement())
+ is_done      Boolean?  @default(false)
 }

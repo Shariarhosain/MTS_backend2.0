@@ -76,3 +76,27 @@ exports.selesView_recent_month = async (req, res) => {
 };
 
 
+
+
+exports.announcement = async (req, res) => {
+    try {
+        const announcements = await prisma.anouncement.update({
+            where: {
+                id: 1 // Assuming you want to update the announcement with id 1
+            },
+            data: {
+                is_done: true
+            }
+        });
+        return res.status(200).json({
+            message: 'Announcements updated successfully',
+            announcements
+        });
+    } catch (error) {
+        console.error('Error updating announcements:', error);
+        return res.status(500).json({ message: 'An error occurred while updating announcements', error: error.message });
+    }
+};
+
+
+

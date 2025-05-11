@@ -12,6 +12,7 @@ const server = http.createServer(app);
 initSocket(server); // ✅ Initialize Socket.IO here
 const cookieParser = require('cookie-parser');
 const verifyToken = require('./middlewares/jwt');
+const { Prisma } = require('@prisma/client');
 
 app.use(cors());
 app.use(express.json());
@@ -34,9 +35,11 @@ app.use(cookieParser());  // This should be before your routes
 app.use('/api/project',verifyToken,ProjectRoute(getIO)); // Ensure ProjectRoute is returning a function
 app.use('/api/teamMember', require('./routes/teamMemberRoute'));
 
-app.use('/api/profile', verifyToken, ProfileRoute);
+app.use('/api/profile', ProfileRoute);
 
 app.use('/api/today-task', verifyToken, todayTaskRoute); // Ensure todayTaskRoute is returning a function
+
+
 
 // Error handling middleware
 app.use((err, req, res, next) => {
