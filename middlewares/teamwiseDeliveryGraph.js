@@ -539,229 +539,229 @@ async function teamwiseDeliveryGraph(io) {
 
 
 
-async function eachTeamChart(io) {
-  try {
-    const me = await prisma.team_member.findUnique({
-      where:  { uid: global.user.uid },
-      select: { id: true, role: true, first_name: true, team_id: true },
-    });
-    if (!me) {
-      console.log('User not found');
-      return;
-    }
+// async function eachTeamChart(io) {
+//   try {
+//     const me = await prisma.team_member.findUnique({
+//       where:  { uid: global.user.uid },
+//       select: { id: true, role: true, first_name: true, team_id: true },
+//     });
+//     if (!me) {
+//       console.log('User not found');
+//       return;
+//     }
 
-    const isSalesRole  = me.role?.startsWith('sales_');
-    const isOperation  = me.role?.startsWith('operation_');
+//     const isSalesRole  = me.role?.startsWith('sales_');
+//     const isOperation  = me.role?.startsWith('operation_');
 
-    const today        = new Date();
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const endOfMonth   = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+//     const today        = new Date();
+//     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+//     const endOfMonth   = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
-    // ← Define weeks *once*, here, so both branches can use it
-    const weeks = [
-      { week: 'Week 1', start: new Date(today.getFullYear(), today.getMonth(), 1),  end: new Date(today.getFullYear(), today.getMonth(), 7) },
-      { week: 'Week 2', start: new Date(today.getFullYear(), today.getMonth(), 8),  end: new Date(today.getFullYear(), today.getMonth(), 14) },
-      { week: 'Week 3', start: new Date(today.getFullYear(), today.getMonth(), 15), end: new Date(today.getFullYear(), today.getMonth(), 21) },
-      { week: 'Week 4', start: new Date(today.getFullYear(), today.getMonth(), 22), end: endOfMonth },
-    ];
+//     // ← Define weeks *once*, here, so both branches can use it
+//     const weeks = [
+//       { week: 'Week 1', start: new Date(today.getFullYear(), today.getMonth(), 1),  end: new Date(today.getFullYear(), today.getMonth(), 7) },
+//       { week: 'Week 2', start: new Date(today.getFullYear(), today.getMonth(), 8),  end: new Date(today.getFullYear(), today.getMonth(), 14) },
+//       { week: 'Week 3', start: new Date(today.getFullYear(), today.getMonth(), 15), end: new Date(today.getFullYear(), today.getMonth(), 21) },
+//       { week: 'Week 4', start: new Date(today.getFullYear(), today.getMonth(), 22), end: endOfMonth },
+//     ];
 
-    // ─── SALES branch ───────────────────────────────────────────────────────────
-    if (isSalesRole) {
-      const teamMembers = await prisma.team_member.findMany({
-        where:  { team_id: me.team_id },
-        select: { id: true, first_name: true, target: true },
-      });
-      const memberIds   = teamMembers.map(m => m.id);
+//     // ─── SALES branch ───────────────────────────────────────────────────────────
+//     if (isSalesRole) {
+//       const teamMembers = await prisma.team_member.findMany({
+//         where:  { team_id: me.team_id },
+//         select: { id: true, first_name: true, target: true },
+//       });
+//       const memberIds   = teamMembers.map(m => m.id);
 
-      const allProjects = await prisma.project.findMany({
-        where: { ordered_by: { in: memberIds } },
-      });
+//       const allProjects = await prisma.project.findMany({
+//         where: { ordered_by: { in: memberIds } },
+//       });
 
-      const projectsThisMonth = allProjects.filter(p =>
-        (p.is_delivered || (!p.is_delivered && new Date(p.delivery_date) >= startOfMonth)) &&
-        new Date(p.delivery_date) <= endOfMonth
-      );
-      const notDelivered = allProjects.filter(p => !p.is_delivered);
+//       const projectsThisMonth = allProjects.filter(p =>
+//         (p.is_delivered || (!p.is_delivered && new Date(p.delivery_date) >= startOfMonth)) &&
+//         new Date(p.delivery_date) <= endOfMonth
+//       );
+//       const notDelivered = allProjects.filter(p => !p.is_delivered);
 
-      const {
-        team_target: rawTarget,
-        team_name:    teamName
-      } = await prisma.team.findUnique({
-        where:  { id: me.team_id },
-        select: { team_target: true, team_name: true }
-      }) || { team_target: 0, team_name: '' };
+//       const {
+//         team_target: rawTarget,
+//         team_name:    teamName
+//       } = await prisma.team.findUnique({
+//         where:  { id: me.team_id },
+//         select: { team_target: true, team_name: true }
+//       }) || { team_target: 0, team_name: '' };
 
-      const teamTarget = Number(rawTarget);
+//       const teamTarget = Number(rawTarget);
 
-      let teamAchievement = 0, teamCancelled = 0,
-          teamTotalCarry = 0, submitted = 0, totalAssign = 0;
+//       let teamAchievement = 0, teamCancelled = 0,
+//           teamTotalCarry = 0, submitted = 0, totalAssign = 0;
 
-      projectsThisMonth.forEach(p => {
-        if (p.is_delivered) {
-          teamAchievement += Number(p.after_fiverr_amount || 0)
-                           + Number(p.after_Fiverr_bonus || 0);
-        }
-      });
-      notDelivered.forEach(p => {
-        teamTotalCarry += Number(p.total_carry || 0);
-        if (p.status === 'submitted') {
-          submitted += Number(p.after_fiverr_amount || 0)
-                     + Number(p.after_Fiverr_bonus || 0);
-        }
-        if (p.status === 'cancelled') {
-          teamCancelled += Number(p.after_fiverr_amount || 0)
-                         + Number(p.after_Fiverr_bonus || 0);
-        }
-        totalAssign += Number(p.after_fiverr_amount || 0)
-                     + Number(p.after_Fiverr_bonus || 0);
-      });
+//       projectsThisMonth.forEach(p => {
+//         if (p.is_delivered) {
+//           teamAchievement += Number(p.after_fiverr_amount || 0)
+//                            + Number(p.after_Fiverr_bonus || 0);
+//         }
+//       });
+//       notDelivered.forEach(p => {
+//         teamTotalCarry += Number(p.total_carry || 0);
+//         if (p.status === 'submitted') {
+//           submitted += Number(p.after_fiverr_amount || 0)
+//                      + Number(p.after_Fiverr_bonus || 0);
+//         }
+//         if (p.status === 'cancelled') {
+//           teamCancelled += Number(p.after_fiverr_amount || 0)
+//                          + Number(p.after_Fiverr_bonus || 0);
+//         }
+//         totalAssign += Number(p.after_fiverr_amount || 0)
+//                      + Number(p.after_Fiverr_bonus || 0);
+//       });
 
-      const memberTarget = teamMembers.map(m => {
-        const earned = allProjects
-          .filter(p => p.ordered_by === m.id)
-          .reduce((sum, p) =>
-            sum + Number(p.after_fiverr_amount || 0)
-                + Number(p.after_Fiverr_bonus || 0)
-          , 0);
-        return { memberName: m.first_name, target: m.target || 0, earned };
-      });
+//       const memberTarget = teamMembers.map(m => {
+//         const earned = allProjects
+//           .filter(p => p.ordered_by === m.id)
+//           .reduce((sum, p) =>
+//             sum + Number(p.after_fiverr_amount || 0)
+//                 + Number(p.after_Fiverr_bonus || 0)
+//           , 0);
+//         return { memberName: m.first_name, target: m.target || 0, earned };
+//       });
 
-      const weeklyAchievementBreakdown = weeks.map(({ week, start, end }) => ({
-        week,
-        range: `${start.toLocaleDateString('en-US',{month:'short',day:'numeric'})} - ${end.toLocaleDateString('en-US',{month:'short',day:'numeric'})}`,
-        target: Math.round(teamTarget / 4),
-        amount: projectsThisMonth
-          .filter(p => p.is_delivered && new Date(p.delivery_date) >= start && new Date(p.delivery_date) <= end)
-          .reduce((s, p) =>
-            s + Number(p.after_fiverr_amount || 0)
-              + Number(p.after_Fiverr_bonus || 0)
-          , 0),
-      }));
+//       const weeklyAchievementBreakdown = weeks.map(({ week, start, end }) => ({
+//         week,
+//         range: `${start.toLocaleDateString('en-US',{month:'short',day:'numeric'})} - ${end.toLocaleDateString('en-US',{month:'short',day:'numeric'})}`,
+//         target: Math.round(teamTarget / 4),
+//         amount: projectsThisMonth
+//           .filter(p => p.is_delivered && new Date(p.delivery_date) >= start && new Date(p.delivery_date) <= end)
+//           .reduce((s, p) =>
+//             s + Number(p.after_fiverr_amount || 0)
+//               + Number(p.after_Fiverr_bonus || 0)
+//           , 0),
+//       }));
 
-      io.emit('eachTeamChart', {
-        teamTarget,
-        teamAchievement,
-        teamCancelled,
-        teamTotalCarry,
-        submitted,
-        totalAssign,
-        teamName,
-        memberTarget,
-        weeklyAchievementBreakdown,
-      });
-      return;
-    }
+//       io.emit('eachTeamChart', {
+//         teamTarget,
+//         teamAchievement,
+//         teamCancelled,
+//         teamTotalCarry,
+//         submitted,
+//         totalAssign,
+//         teamName,
+//         memberTarget,
+//         weeklyAchievementBreakdown,
+//       });
+//       return;
+//     }
 
-    // ─── OPERATION branch ───────────────────────────────────────────────────────
-    if (!isOperation) {
-      console.log('Invalid role');
-      return;
-    }
+//     // ─── OPERATION branch ───────────────────────────────────────────────────────
+//     if (!isOperation) {
+//       console.log('Invalid role');
+//       return;
+//     }
 
-    const teamIds    = [me.team_id].filter(Boolean);
+//     const teamIds    = [me.team_id].filter(Boolean);
    
 
-    for (const teamId of teamIds) {
-      const teamData = await prisma.team.findUnique({
-        where: { id: teamId },
-        select: {
-          team_target: true,
-          team_name:   true,
-          team_member: {
-            select: { id: true, first_name: true, target: true },
-          },
-        },
-      });
-      if (!teamData) continue;
+//     for (const teamId of teamIds) {
+//       const teamData = await prisma.team.findUnique({
+//         where: { id: teamId },
+//         select: {
+//           team_target: true,
+//           team_name:   true,
+//           team_member: {
+//             select: { id: true, first_name: true, target: true },
+//           },
+//         },
+//       });
+//       if (!teamData) continue;
 
-      const baseFilter  = { team_id: teamId };
-      const thisMonth   = await prisma.project.findMany({
-        where: {
-          ...baseFilter,
-          OR: [
-            { is_delivered: true },
-            {
-              AND: [
-                { is_delivered: false },
-                { delivery_date: { gte: startOfMonth } },
-              ],
-            },
-          ],
-        },
-      });
-      const notDelivered = await prisma.project.findMany({
-        where: { ...baseFilter, is_delivered: false },
-      });
+//       const baseFilter  = { team_id: teamId };
+//       const thisMonth   = await prisma.project.findMany({
+//         where: {
+//           ...baseFilter,
+//           OR: [
+//             { is_delivered: true },
+//             {
+//               AND: [
+//                 { is_delivered: false },
+//                 { delivery_date: { gte: startOfMonth } },
+//               ],
+//             },
+//           ],
+//         },
+//       });
+//       const notDelivered = await prisma.project.findMany({
+//         where: { ...baseFilter, is_delivered: false },
+//       });
 
-      let teamTarget      = Number(teamData.team_target || 0),
-          teamAchievement = 0,
-          teamCancelled   = 0,
-          teamTotalCarry  = 0,
-          submitted       = 0,
-          totalAssign     = 0;
+//       let teamTarget      = Number(teamData.team_target || 0),
+//           teamAchievement = 0,
+//           teamCancelled   = 0,
+//           teamTotalCarry  = 0,
+//           submitted       = 0,
+//           totalAssign     = 0;
 
-      thisMonth.forEach(p => {
-        if (p.is_delivered) {
-          teamAchievement += Number(p.after_fiverr_amount || 0)
-                           + Number(p.after_Fiverr_bonus || 0);
-        }
-      });
-      notDelivered.forEach(p => {
-        teamTotalCarry += Number(p.total_carry || 0);
-        if (p.status === 'submitted') {
-          submitted += Number(p.after_fiverr_amount || 0)
-                     + Number(p.after_Fiverr_bonus || 0);
-        }
-        if (p.status === 'cancelled') {
-          teamCancelled += Number(p.after_fiverr_amount || 0)
-                         + Number(p.after_Fiverr_bonus || 0);
-        }
-        totalAssign += Number(p.after_fiverr_amount || 0)
-                     + Number(p.after_Fiverr_bonus || 0);
-      });
+//       thisMonth.forEach(p => {
+//         if (p.is_delivered) {
+//           teamAchievement += Number(p.after_fiverr_amount || 0)
+//                            + Number(p.after_Fiverr_bonus || 0);
+//         }
+//       });
+//       notDelivered.forEach(p => {
+//         teamTotalCarry += Number(p.total_carry || 0);
+//         if (p.status === 'submitted') {
+//           submitted += Number(p.after_fiverr_amount || 0)
+//                      + Number(p.after_Fiverr_bonus || 0);
+//         }
+//         if (p.status === 'cancelled') {
+//           teamCancelled += Number(p.after_fiverr_amount || 0)
+//                          + Number(p.after_Fiverr_bonus || 0);
+//         }
+//         totalAssign += Number(p.after_fiverr_amount || 0)
+//                      + Number(p.after_Fiverr_bonus || 0);
+//       });
 
-      const memberIds     = teamData.team_member.map(m => m.id);
-      const distributions = await prisma.member_distribution.findMany({
-        where: { team_member_id: { in: memberIds } },
-      });
-      const memberTarget = teamData.team_member.map(m => ({
-        memberName: m.first_name,
-        target:     m.target || 0,
-        earned:     distributions
-                     .filter(d => d.team_member_id === m.id)
-                     .reduce((s, d) => s + Number(d.amount), 0),
-      }));
+//       const memberIds     = teamData.team_member.map(m => m.id);
+//       const distributions = await prisma.member_distribution.findMany({
+//         where: { team_member_id: { in: memberIds } },
+//       });
+//       const memberTarget = teamData.team_member.map(m => ({
+//         memberName: m.first_name,
+//         target:     m.target || 0,
+//         earned:     distributions
+//                      .filter(d => d.team_member_id === m.id)
+//                      .reduce((s, d) => s + Number(d.amount), 0),
+//       }));
 
-      const weeklyAchievementBreakdown = weeks.map(({ week, start, end }) => ({
-        week,
-        range: `${start.toLocaleDateString('en-US',{month:'short',day:'numeric'})} - ${end.toLocaleDateString('en-US',{month:'short',day:'numeric'})}`,
-        target: Math.round(teamTarget / 4),
-        amount: thisMonth
-          .filter(p => p.is_delivered && new Date(p.delivery_date) >= start && new Date(p.delivery_date) <= end)
-          .reduce((s, p) =>
-            s + Number(p.after_fiverr_amount || 0)
-              + Number(p.after_Fiverr_bonus || 0)
-          , 0),
-      }));
-      const resultArray = {
-        teamTarget,
-        teamAchievement,
-        teamCancelled,
-        teamTotalCarry,
-        submitted,
-        totalAssign,
-        teamName: teamData.team_name,
-        memberTarget,
-        weeklyAchievementBreakdown,
-      };
-      io.emit('eachTeamChart', resultArray);
+//       const weeklyAchievementBreakdown = weeks.map(({ week, start, end }) => ({
+//         week,
+//         range: `${start.toLocaleDateString('en-US',{month:'short',day:'numeric'})} - ${end.toLocaleDateString('en-US',{month:'short',day:'numeric'})}`,
+//         target: Math.round(teamTarget / 4),
+//         amount: thisMonth
+//           .filter(p => p.is_delivered && new Date(p.delivery_date) >= start && new Date(p.delivery_date) <= end)
+//           .reduce((s, p) =>
+//             s + Number(p.after_fiverr_amount || 0)
+//               + Number(p.after_Fiverr_bonus || 0)
+//           , 0),
+//       }));
+//       const resultArray = {
+//         teamTarget,
+//         teamAchievement,
+//         teamCancelled,
+//         teamTotalCarry,
+//         submitted,
+//         totalAssign,
+//         teamName: teamData.team_name,
+//         memberTarget,
+//         weeklyAchievementBreakdown,
+//       };
+//       io.emit('eachTeamChart', resultArray);
 
-    }
+//     }
 
-  } catch (err) {
-    console.error('Error fetching team data:', err);
-  }
-}
+//   } catch (err) {
+//     console.error('Error fetching team data:', err);
+//   }
+// }
 
 
 async function eachTeamChart(io) {

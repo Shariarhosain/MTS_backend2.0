@@ -40,6 +40,7 @@ model project {
   team                 team?         @relation(fields: [team_id], references: [id])
   today_task           today_task[]
   team_members         team_member[] @relation("ProjectAssignments")
+  member_distribution  member_distribution[]
 }
 
 model team {
@@ -132,7 +133,10 @@ model member_distribution {
   team_member_id Int
   amount         Decimal?     @db.Decimal(65, 0)
   team_member    team_member  @relation(fields: [team_member_id], references: [id])
-  today_task     today_task[] @relation("member_distributionTotoday_task")
+  project_id     Int
+  project        project      @relation(fields: [project_id], references: [id])
+  
+  
 }
 
 model revision {
@@ -157,5 +161,4 @@ model today_task {
   project              project               @relation(fields: [project_id], references: [id])
   team                 team?                 @relation(fields: [team_id], references: [id])
   team_member          team_member?          @relation(fields: [team_member_id], references: [id])
-  member_distribution  member_distribution[] @relation("member_distributionTotoday_task")
 }
