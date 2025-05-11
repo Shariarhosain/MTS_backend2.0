@@ -88,12 +88,12 @@ exports.announcement = async (req, res) => {
     // 2️⃣ If none found, respond once
     if (announcements.length === 0) {
       return res.status(200).json({
-        announcements: "true",
+        announcements: true,
       });
     }
     // 3️⃣ If found, respond with the announcements
     return res.status(200).json({
-      announcements: "false",
+      announcements: false,
     });
 
   } catch (error) {
