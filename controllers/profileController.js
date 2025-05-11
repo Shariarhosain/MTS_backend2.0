@@ -92,18 +92,12 @@ exports.announcement = async (req, res) => {
         announcements: "done",
       });
     }
-
-    // 3️⃣ Update all fetched announcements to is_done = true
-    await prisma.anouncement.update({
-      where: { id: 1 },
-      data: { is_done: true },
-    });
-
-    // 4️⃣ Return the announcements
+    // 3️⃣ If found, respond with the announcements
     return res.status(200).json({
-      message: 'Announcements retrieved successfully',
-      announcements,
+      message: 'New announcements found',
+      announcements: "not done",
     });
+
   } catch (error) {
     console.error('Error retrieving announcements:', error);
     return res.status(500).json({
@@ -115,3 +109,32 @@ exports.announcement = async (req, res) => {
 
 
 
+
+exports.announcementPost = async (req, res) => {
+  try {
+    const { done } = req.body;
+
+  if(!done) {
+      return res.status(400).json({
+        message: 'Invalid request: done is required',
+      });
+    }
+      // 3️⃣ Update all fetched announcements to is_done = true
+    await prisma.anouncement.update({
+      where: { id: 1 },
+      data: { is_done: true },
+    });
+
+    // 4️⃣ Return the announcements
+    return res.status(200).json({
+      message: 'Announcements retrieved successfully',
+      announcements: "done",
+    });
+  } catch (error) {
+    console.error('Error updating announcements:', error);
+    return res.status(500).json({
+      message: 'An error occurred while updating announcements',
+      error: error.message,
+    });
+  }
+};
