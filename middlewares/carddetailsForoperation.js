@@ -48,7 +48,7 @@ async function emitProjectMoneyMetrics(io) {
       if (p.Assigned_date && !p.is_delivered) total_assign += amt;
 
       // need_to_assign: status === 'nra' and Assigned_date is null
-      if (p.status === 'nra') need_to_assign += amt;
+      if (!p.Assigned_date) need_to_assign += amt;
 
       // carry_operation: old or current project AND revision status
       if (isPastProject && !p.is_delivered) {
