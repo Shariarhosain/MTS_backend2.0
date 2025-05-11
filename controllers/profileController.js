@@ -79,23 +79,38 @@ exports.selesView_recent_month = async (req, res) => {
 
 
 exports.announcement = async (req, res) => {
-    try {
-        const announcements = await prisma.anouncement.update({
-            where: {
-                id: 1 // Assuming you want to update the announcement with id 1
-            },
-            data: {
-                is_done: true
-            }
-        });
-        return res.status(200).json({
-            message: 'Announcements updated successfully',
-            announcements
-        });
-    } catch (error) {
-        console.error('Error updating announcements:', error);
-        return res.status(500).json({ message: 'An error occurred while updating announcements', error: error.message });
+  try {
+    // 1️⃣ Fetch announcements where is_done is false
+    const announcements = await prisma.anouncement.findMany({
+      where: { is_done: false },
+    });
+
+    // 2️⃣ If none found, respond once
+    if (announcements.length === 0) {
+      return res.status(200).json({
+        message: 'No new announcements',
+        announcements: "done",
+      });
     }
+
+    // 3️⃣ Update all fetched announcements to is_done = true
+    await prisma.anouncement.update({
+      where: { id: 1 },
+      data: { is_done: true },
+    });
+
+    // 4️⃣ Return the announcements
+    return res.status(200).json({
+      message: 'Announcements retrieved successfully',
+      announcements,
+    });
+  } catch (error) {
+    console.error('Error retrieving announcements:', error);
+    return res.status(500).json({
+      message: 'An error occurred while retrieving announcements',
+      error: error.message,
+    });
+  }
 };
 
 
