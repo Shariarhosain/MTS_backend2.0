@@ -11,7 +11,7 @@ const emitProjectDistributionCurrentMonth = require("../middlewares/projectEmitt
 const getTeamName = require("../middlewares/TeamName"); // Import the team name emitter function
 const getDepartmentName = require("../middlewares/TeamName"); // Import the department name emitter function
 const verifyToken = require("../middlewares/jwt"); // Import the JWT verification middleware
-const  teamwiseDeliveryGraph = require("../middlewares/teamwiseDeliveryGraph"); // Import the team member emitter function
+const  {teamwiseDeliveryGraph} = require("../middlewares/teamwiseDeliveryGraph"); // Import the team member emitter function
 
 // Create an instance of express app
 const app = express();
@@ -679,7 +679,6 @@ exports.updateProject = async (req, res, io) => {
 if (req.body.team_id) {
   const teamId = Number(req.body.team_id);
   await teamwiseDeliveryGraph(io);
-//if team_id is present in the request body, then ad to team table team_achieve 
 
 
 

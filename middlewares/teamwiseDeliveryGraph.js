@@ -27,7 +27,7 @@ async function teamwiseDeliveryGraph(io) {
         }, {});
 
         io.emit("teamwiseDeliveryGraph", teamWiseDelivery); // Emit the data to the socket
-        res.status(200).json(teamWiseDelivery);
+  
     } catch (error) {
         console.error('Error fetching team-wise delivery:', error);
         res.status(500).json({ error: 'Internal server error' });
