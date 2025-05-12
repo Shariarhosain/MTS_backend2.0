@@ -178,9 +178,7 @@ const profile = await prisma.profile.findUnique({
 
   const profileRanking = await prisma.profile_ranking.create({
     data: {
-      profile_id: {
-        connect: { id: profileId },
-      },
+      profile_id: profileId,
       keywords: keywords,
       row: row,
       ranking_page: rankingPage,
@@ -209,11 +207,8 @@ exports.AllprofileRankingGet = async (req, res) => {
     // getall profile ranking data select all
     const profiles = await prisma.profile_ranking.findMany({
       include: {
-        profile: {
-          select: {
-            profile_name: true,
-          },
-        },
+        profile: true,
+        
       },
       orderBy: {
         created_date: 'desc',
@@ -333,9 +328,7 @@ exports.promotionprofile = async (req, res) => {
     // crete a new profile_promotion
     const profilePromotion = await prisma.profile_promotion.create({
       data: {
-        profile_id: {
-          connect: { id: profileId },
-        },
+        profile_id: profileId,
         promotion_amount: promotionAmount,
         created_date: new Date(),
         update_at: new Date(),
@@ -343,13 +336,13 @@ exports.promotionprofile = async (req, res) => {
     });
 
     return res.status(200).json({
-      message: 'Profile updated successfully',
-      profile,
+      message: 'profilePromotion created successfully',
+      profilePromotion,
     });
   } catch (error) {
-    console.error('Error updating profile:', error);
+    console.error('Error creating profile promotion:', error);
     return res.status(500).json({
-      message: 'An error occurred while updating the profile',
+      message: 'An error occurred while creating the profile promotion',
       error: error.message,
     });
   }
@@ -361,11 +354,8 @@ exports.AllprofilePromotionGet = async (req, res) => {
     // getall profile ranking data select all
     const profiles = await prisma.profile_promotion.findMany({
       include: {
-        profile: {
-          select: {
-            profile_name: true,
-          },
-        },
+        profile: true,
+        
       },
       orderBy: {
         created_date: 'desc',

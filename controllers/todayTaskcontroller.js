@@ -506,13 +506,13 @@ exports.replaceProjectMember = async (req, res) => {
   today_task         today_task[] 
 }
  */
-    const distributionTx = await prisma.member_distribution.updateMany({
-      where: { team_member_id: old_member_id, today_task: { project_id } },
-      data: {
-        team_member_id: new_member_id,
-      }
-    });
-    await distributionTx;
+    // const distributionTx = await prisma.member_distribution.updateMany({
+    //   where: { team_member_id: old_member_id, today_task: { project_id } },
+    //   data: {
+    //     team_member_id: new_member_id,
+    //   }
+    // });
+    // await distributionTx;
     
    
 

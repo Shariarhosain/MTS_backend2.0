@@ -5,6 +5,7 @@ const generateToken = require('../config/generateToken');  // Adjust path to you
 const prisma = new PrismaClient();
 const fs = require('fs');
 const path = require('path');
+const { de } = require('@faker-js/faker');
 
 
 
@@ -115,9 +116,7 @@ exports.createTeamMember = async (req, res) => {
                 guardian_address,
                 religion,
                 education,
-                department: {
-                    connect: { id: department.id }, // Connect to the existing department
-                },
+                department: department.id, // Use the department ID
                 dp: file,  // Store the image path
                 role: 'null', // Default role, can be updated later
                 target: 0,
