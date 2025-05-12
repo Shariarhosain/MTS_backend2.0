@@ -183,7 +183,6 @@ exports.getAllTeamMembers = async (req, res) => {
               project: true, // directly related
               profile: true, // directly related
               department: true, // directly related
-
             },
             skip,
             take: limitNumber,
@@ -249,6 +248,7 @@ exports.getTeamMemberById = async (req, res) => {
                 team: true,
                 project: true,
                 profile: true,
+                department: true,
             }
         });
         if (!teamMember) {
