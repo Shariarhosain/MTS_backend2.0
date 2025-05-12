@@ -76,7 +76,7 @@ exports.createTeamMember = async (req, res) => {
         guardian_address, 
         religion, 
         education, 
-        department_name,
+        department,
     } = req.body;
 
     try {
@@ -91,7 +91,7 @@ exports.createTeamMember = async (req, res) => {
 
         //find department_name
         const department = await prisma.department.findUnique({
-            where: { name: department_name },
+            where: { department_name: department },
         });
         if (!department) {
             return res.status(404).json({
