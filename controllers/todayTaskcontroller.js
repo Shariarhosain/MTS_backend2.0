@@ -531,77 +531,152 @@ exports.replaceProjectMember = async (req, res) => {
 };
 
 // API for updating project assignments (only allowed for operation members)
+// exports.updateProjectAssignments = async (req, res) => {
+//   try {
+//     const { uid } = req.user;
+//     const me = await prisma.team_member.findUnique({ where: { uid } });
+//     if (!me) return res.status(404).json({ error: 'User not found' });
+
+//     const { project_id, member_id, ops_status, expected_finish_time } = req.body;
+
+//     if (!project_id || !member_id) return res.status(400).json({ error: 'project_id and member_id are required' });
+
+//     const project = await prisma.project.findUnique({
+//       where: { id: project_id },
+//       select: { team_id: true, is_delivered: true },
+//     });
+//     if (!project) return res.status(404).json({ error: 'Project not found' });
+//     if (project.is_delivered) return res.status(400).json({ error: 'Project already delivered' });
+
+//     // If the user is an operation member, ensure that they can only update their own tasks
+//     if (me.role === 'operation_member') {
+//       const mine = await prisma.today_task.findFirst({
+//         where: { project_id, team_member_id: me.id },
+//       });
+//       if (!mine) return res.status(403).json({ error: 'Not your project' });
+
+//       // Update the task assigned to the specific member (operation member can only update their own task)
+//       await prisma.today_task.update({
+//         where: { id: mine.id },
+//         data: {
+//           ...(expected_finish_time && { expected_finish_time }),
+//           ...(ops_status && { ops_status }),
+//         },
+//       });
+
+//       return res.json({ message: 'Project updated by member', project_id, member_id });
+//     }
+
+//     // If the user is an operation leader, they can update any member's task
+//     if (me.role === 'operation_leader') {
+//       // Update the task for the specific member
+//       const taskToUpdate = await prisma.today_task.findFirst({
+//         where: { project_id, team_member_id: member_id },
+//       });
+
+//       if (!taskToUpdate) {
+//         return res.status(404).json({ error: 'Task not found for the specified member' });
+//       }
+
+//       await prisma.today_task.update({
+//         where: { id: taskToUpdate.id },
+//         data: {
+//           ...(expected_finish_time && { expected_finish_time }),
+//           ...(ops_status && { ops_status }),
+//         },
+//       });
+
+//       return res.json({
+//         message: 'Project updated by operation leader',
+//         project_id,
+//         member_id,
+//       });
+//     }
+
+//     return res.status(403).json({ error: 'Access denied' });
+//   } catch (err) {
+//     console.error('updateProjectAssignments →', err);
+//     return res.status(500).json({ error: 'Internal server error' });
+//   }
+// };
+
 exports.updateProjectAssignments = async (req, res) => {
   try {
     const { uid } = req.user;
     const me = await prisma.team_member.findUnique({ where: { uid } });
-    if (!me) return res.status(404).json({ error: 'User not found' });
+    if (!me) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
-    const { project_id, member_id, ops_status, expected_finish_time } = req.body;
+    // Expect the task ID and the fields to update in the request body
+    const { id: taskId, ops_status, expected_finish_time } = req.body;
 
-    if (!project_id || !member_id) return res.status(400).json({ error: 'project_id and member_id are required' });
+    // The task ID is now required to identify the specific task
+    if (!taskId) {
+      return res.status(400).json({ error: 'Task ID is required' });
+    }
 
-    const project = await prisma.project.findUnique({
-      where: { id: project_id },
-      select: { team_id: true, is_delivered: true },
+    // Find the task by its ID
+    const taskToUpdate = await prisma.today_task.findUnique({
+      where: { id: taskId },
+      include: {
+        project: {
+          select: {
+            is_delivered: true, // Still need to check if the related project is delivered
+          },
+        },
+      },
     });
-    if (!project) return res.status(404).json({ error: 'Project not found' });
-    if (project.is_delivered) return res.status(400).json({ error: 'Project already delivered' });
 
-    // If the user is an operation member, ensure that they can only update their own tasks
+    if (!taskToUpdate) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    // Check if the associated project is delivered
+    if (taskToUpdate.project && taskToUpdate.project.is_delivered) {
+       return res.status(400).json({ error: 'Cannot update task on a delivered project' });
+    }
+
+    // If the user is an operation member, ensure they can only update their own task
     if (me.role === 'operation_member') {
-      const mine = await prisma.today_task.findFirst({
-        where: { project_id, team_member_id: me.id },
-      });
-      if (!mine) return res.status(403).json({ error: 'Not your project' });
-
-      // Update the task assigned to the specific member (operation member can only update their own task)
+      if (taskToUpdate.team_member_id !== me.id) {
+        return res.status(403).json({ error: 'Not authorized to update this task' });
+      }
+      // Update the task assigned to this specific member
       await prisma.today_task.update({
-        where: { id: mine.id },
+        where: { id: taskId },
         data: {
-          ...(expected_finish_time && { expected_finish_time }),
-          ...(ops_status && { ops_status }),
+          ...(expected_finish_time !== undefined && { expected_finish_time }), // Use !== undefined to allow updating to null/empty string if needed
+          ...(ops_status !== undefined && { ops_status }), // Use !== undefined
         },
       });
 
-      return res.json({ message: 'Project updated by member', project_id, member_id });
+      return res.json({ message: 'Task updated by member', taskId: taskId });
     }
 
-    // If the user is an operation leader, they can update any member's task
+    // If the user is an operation leader, they can update any member's task by its ID
     if (me.role === 'operation_leader') {
-      // Update the task for the specific member
-      const taskToUpdate = await prisma.today_task.findFirst({
-        where: { project_id, team_member_id: member_id },
-      });
-
-      if (!taskToUpdate) {
-        return res.status(404).json({ error: 'Task not found for the specified member' });
-      }
-
       await prisma.today_task.update({
-        where: { id: taskToUpdate.id },
+        where: { id: taskId },
         data: {
-          ...(expected_finish_time && { expected_finish_time }),
-          ...(ops_status && { ops_status }),
+           ...(expected_finish_time !== undefined && { expected_finish_time }), // Use !== undefined
+           ...(ops_status !== undefined && { ops_status }), // Use !== undefined
         },
       });
 
       return res.json({
-        message: 'Project updated by operation leader',
-        project_id,
-        member_id,
+        message: 'Task updated by operation leader',
+        taskId: taskId,
       });
     }
 
+    // If the user is neither operation_member nor operation_leader
     return res.status(403).json({ error: 'Access denied' });
   } catch (err) {
     console.error('updateProjectAssignments →', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
-
-
-
 
 // /**
 //  * Fetches member distribution records, grouped by project, based on user role.
