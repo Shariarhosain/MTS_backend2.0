@@ -61,28 +61,28 @@ const { de } = require('@faker-js/faker');
 
 // Create a new team member and generate a JWT token
 exports.createTeamMember = async (req, res) => {
-    const { 
-        first_name, 
-        last_name, 
-        email, 
-        number, 
-        permanent_address, 
-        present_address, 
-        gender, 
-        blood_group, 
-        relationship, 
-        guardian_relation, 
-        guardian_number, 
-        guardian_address, 
-        religion, 
-        education, 
-        department,
+    const {
+        first_name,
+        last_name,
+        email,
+        number,
+        permanent_address,
+        present_address,
+        gender,
+        blood_group,
+        relationship,
+        guardian_relation,
+        guardian_number,
+        guardian_address,
+        religion,
+        education,
+        department: departmentName, // Rename the request body parameter
     } = req.body;
 
     try {
 
         console.log("📦 Fields:", req.body); // All form fields
-        console.log("🖼️ Files:", req.files); // All files    
+        console.log("🖼️ Files:", req.files); // All files
 
         // Access the first file in the array path
         const file = req.files.dp[0].path; // Assuming 'dp' is the field name for the image upload
@@ -91,7 +91,7 @@ exports.createTeamMember = async (req, res) => {
 
         //find department_name
         const department = await prisma.department.findUnique({
-            where: { department_name: department },
+            where: { department_name: departmentName }, // Use the renamed variable
         });
         if (!department) {
             return res.status(404).json({
@@ -100,7 +100,7 @@ exports.createTeamMember = async (req, res) => {
         }
 
         // Create team member in database
-        const teamMember = await prisma.team_member.create({
+     const teamMember = await prisma.team_member.create({
             data: {
                 first_name,
                 last_name,
@@ -116,8 +116,12 @@ exports.createTeamMember = async (req, res) => {
                 guardian_address,
                 religion,
                 education,
-                department: department.id, // Use the department ID
-                dp: file,  // Store the image path
+                department: {
+                    connect: {
+                        id: department.id, // Connect to the found department using its ID
+                    },
+                },
+                dp: file,   // Store the image path
                 role: 'null', // Default role, can be updated later
                 target: 0,
                 rewards: 0,
@@ -131,16 +135,16 @@ exports.createTeamMember = async (req, res) => {
 
         // Generate JWT Token
         const uid= req.body.uid; // Assuming uid is passed in the request body
-        if (!uid) { 
+        if (!uid) {
             return res.status(400).json({ message: 'UID is required to generate token.' });
         }
         console.log("UID:", uid); // Log the UID
         const token = generateToken(uid);
          // Send this token to the frontend for authentication
         console.log("Token:", token); // Log the generated token;
-        
+
         // Send response with token
-        return res.status(201).json({ 
+        return res.status(201).json({
             message: 'Team member created successfully',
             token: token  // Send JWT token to frontend
         });
@@ -150,7 +154,6 @@ exports.createTeamMember = async (req, res) => {
         return res.status(500).json({ message: 'An error occurred', error: error.message });
     }
 };
-
 
 exports.getAllTeamMembers = async (req, res) => {
     try {
