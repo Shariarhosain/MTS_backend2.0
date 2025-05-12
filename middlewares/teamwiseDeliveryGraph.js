@@ -1007,17 +1007,50 @@ async function eachTeamChart(io) {
         let totalAssign     = allAssignedProjects.reduce((sum, p) => sum + Number(p.after_fiverr_amount || 0) + Number(p.after_Fiverr_bonus || 0), 0);
 
         const memberIds   = teamData.team_member.map(m => m.id);
-        const distributions = await prisma.member_distribution.findMany({
-          where: { team_member_id: { in: memberIds } },
-        });
-        const memberTarget = teamData.team_member.map(m => ({
-          memberName: m.first_name,
-          target:     m.target || 0,
-          earned:     distributions
-                          .filter(d => d.team_member_id === m.id)
-                          .reduce((s, d) => s + Number(d.amount), 0),
-        }));
+        // const distributions = await prisma.member_distribution.findMany({
+        //   where: { team_member_id: { in: memberIds } },
+        // });
+        // const memberTarget = teamData.team_member.map(m => ({
+        //   memberName: m.first_name,
+        //   target:     m.target || 0,
+        //   earned:     distributions
+        //                   .filter(d => d.team_member_id === m.id)
+        //                   .reduce((s, d) => s + Number(d.amount), 0),
+        // }));
+// MODIFICATION START: Fetch distributions with project delivery details
+        const distributions = await prisma.member_distribution.findMany({
+          where: { team_member_id: { in: memberIds } },
+          include: {      // Include project data for filtering by delivery date
+            project: {
+              select: {
+                is_delivered: true,
+                delivery_date: true
+              }
+            }
+          }
+        });
+        // MODIFICATION END
 
+        // MODIFICATION START: Adjust memberTarget earned calculation
+        const memberTarget = teamData.team_member.map(m => {
+          const earnedForMonth = distributions
+            .filter(d => {
+              if (d.team_member_id === m.id && d.project && d.project.is_delivered && d.project.delivery_date) {
+                // Prisma returns dates as JS Date objects (already in UTC if your db stores them as such or as DATE type)
+                const deliveryDate = d.project.delivery_date;
+                return deliveryDate.getTime() >= startOfMonthUTC.getTime() && deliveryDate.getTime() <= endOfMonthUTC.getTime();
+              }
+              return false;
+            })
+            .reduce((s, d) => s + Number(d.amount || 0), 0); // Ensure d.amount is handled if it can be null/undefined
+
+          return {
+            memberName: m.first_name,
+            target: Number(m.target || 0), // Ensure target is a number
+            earned: earnedForMonth,
+          };
+        });
+        // MODIFICATION END
         const weeklyAchievementBreakdown = weeks.map(({ week, start, end }, index) => {
           const weeklyAmount = weeklyDeliveredProjects[index].reduce((sum, p) => sum + Number(p.after_fiverr_amount || 0) + Number(p.after_Fiverr_bonus || 0), 0);
           return {
