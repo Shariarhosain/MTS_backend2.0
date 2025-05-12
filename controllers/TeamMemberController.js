@@ -75,15 +75,28 @@ exports.createTeamMember = async (req, res) => {
         guardian_address, 
         religion, 
         education, 
+        department_name,
     } = req.body;
 
     try {
+
         console.log("📦 Fields:", req.body); // All form fields
         console.log("🖼️ Files:", req.files); // All files    
 
         // Access the first file in the array path
         const file = req.files.dp[0].path; // Assuming 'dp' is the field name for the image upload
         console.log("🖼️ File Path:", file); // Log the file path
+
+
+        //find department_name
+        const department = await prisma.department.findUnique({
+            where: { name: department_name },
+        });
+        if (!department) {
+            return res.status(404).json({
+                message: 'Department not found',
+            });
+        }
 
         // Create team member in database
         const teamMember = await prisma.team_member.create({
@@ -102,6 +115,9 @@ exports.createTeamMember = async (req, res) => {
                 guardian_address,
                 religion,
                 education,
+                department: {
+                    connect: { id: department.id }, // Connect to the existing department
+                },
                 dp: file,  // Store the image path
                 role: 'null', // Default role, can be updated later
                 target: 0,
@@ -145,14 +161,14 @@ exports.getAllTeamMembers = async (req, res) => {
                 teamMembers: [],
                 pagination: {
                     page: 1,
-                    limit: 10,
+                    limit: 100,
                     total: 0,
                     totalPages: 0,
                 }
             });
         }
 
-        const { page = 1, limit = 10 } = req.body;
+        const { page = 1, limit = 100 } = req.body;
 
         const pageNumber = parseInt(page, 10) || 1;
         const limitNumber = parseInt(limit, 10) || 10;
@@ -161,11 +177,13 @@ exports.getAllTeamMembers = async (req, res) => {
             include: {
               team: {
                 include: {
-                  department: true, // this is nested via team
+                  department: true,
                 },
               },
               project: true, // directly related
               profile: true, // directly related
+              department: true, // directly related
+
             },
             skip,
             take: limitNumber,

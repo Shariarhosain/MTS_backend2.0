@@ -105,14 +105,11 @@ exports.announcement = async (req, res) => {
   }
 };
 
-
-
-
 exports.announcementPost = async (req, res) => {
   try {
     const { done } = req.body;
 
-  if(!done) {
+    if (!done) {
       return res.status(400).json({
         message: 'Invalid request: done is required',
       });
@@ -136,3 +133,321 @@ exports.announcementPost = async (req, res) => {
     });
   }
 };
+
+
+
+
+//////////////////////////////////////////////// Profile Ranking
+
+
+exports.profileRanking = async (req, res) => {
+try{
+  
+
+  //post type profile name, ranking page , row , keywords
+  const { profileName, rankingPage, row, keywords } = req.body;
+
+  if (!profileName || !rankingPage || !row || !keywords) {
+    return res.status(400).json({
+      message: 'Invalid request: profileName, rankingPage, row, and keywords are required',
+    });
+  }
+
+  /*model profile_ranking {
+  id             Int          @id @default(autoincrement())
+  profile_id     Int
+  profile        profile      @relation(fields: [profile_id], references: [id])
+  keywords       String?
+  row          Int?
+  ranking_page  String?
+  created_date   DateTime?
+  update_at      DateTime?
+}
+
+ */
+const profile = await prisma.profile.findUnique({
+    where: { profile_name: profileName },
+  });
+  if (!profile) {
+    return res.status(404).json({
+      message: 'Profile not found',
+    });
+  }
+  const profileId = profile.id;
+  // Check if the profile already has a ranking entry
+
+  const profileRanking = await prisma.profile_ranking.create({
+    data: {
+      profile_id: {
+        connect: { id: profileId },
+      },
+      keywords: keywords,
+      row: row,
+      ranking_page: rankingPage,
+      created_date: new Date(),
+      update_at: new Date(),
+    },
+  });
+
+  return res.status(200).json({
+    message: 'Profile updated successfully',
+    profile: profileRanking,
+  });
+} catch (error) {
+  console.error('Error updating profile:', error);
+  return res.status(500).json({
+    message: 'An error occurred while updating the profile',
+    error: error.message,
+  });
+
+};
+}
+
+
+exports.AllprofileRankingGet = async (req, res) => {
+  try {
+    // getall profile ranking data select all
+    const profiles = await prisma.profile_ranking.findMany({
+      include: {
+        profile: {
+          select: {
+            profile_name: true,
+          },
+        },
+      },
+      orderBy: {
+        created_date: 'desc',
+      },
+    });
+    if (!profiles || profiles.length === 0) {
+      return res.status(404).json({
+        message: 'No profiles found',
+      });
+    }
+
+    return res.status(200).json({
+      message: 'All profiles retrieved successfully',
+      profiles,
+    });
+  } catch (error) {
+    console.error('Error retrieving profile ranking:', error);
+    return res.status(500).json({
+      message: 'An error occurred while retrieving profile ranking',
+      error: error.message,
+    });
+  }
+
+    
+};
+
+
+exports.updateprofile_ranking = async (req, res) => {
+  try {
+    const id = req.params.id;
+    // Check if the profile ID is provided
+    if (!id) {
+      return res.status(400).json({
+        message: 'Invalid request: id is required',
+      });
+    }
+
+    const updatedProfileRanking = await prisma.profile_ranking.update({
+      where: { id: Number(id) },
+      data: {
+       ...req.body,
+        update_at: new Date(),
+      }, 
+    });
+
+    return res.status(200).json({
+      message: 'Profile ranking updated successfully',
+      profileRanking: updatedProfileRanking,
+    });
+  } catch (error) {
+    console.error('Error updating profile ranking:', error);
+    return res.status(500).json({
+      message: 'An error occurred while updating the profile ranking',
+      error: error.message,
+    });
+  }
+};
+
+exports.deleteProfileRanking = async (req, res) => {
+  try {
+    const id = req.params.id;
+    // Check if the profile ID is provided
+    if (!id) {
+      return res.status(400).json({
+        message: 'Invalid request: id is required',
+      });
+    }
+    // Delete the profile ranking
+    const deletedProfileRanking = await prisma.profile_ranking.delete({
+      where: { id: Number(id) },
+    });
+    return res.status(200).json({
+      message: 'Profile ranking deleted successfully',
+      profileRanking: deletedProfileRanking,
+    });
+  } catch (error) {
+    console.error('Error deleting profile ranking:', error);
+    return res.status(500).json({
+      message: 'An error occurred while deleting the profile ranking',
+      error: error.message,
+    });
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+exports.promotionprofile = async (req, res) => {
+  try {
+    const { profileName, promotionAmount } = req.body;
+
+    if (!profileName || !promotionAmount) {
+      return res.status(400).json({
+        message: 'Invalid request: profileName and promotionAmount are required',
+      });
+    }
+    // Find the profile by name
+    const profile = await prisma.profile.findUnique({
+      where: { profile_name: profileName },
+    });
+
+    if (!profile) {
+      return res.status(404).json({
+        message: 'Profile not found',
+      });
+    }
+
+    const profileId = profile.id;
+
+    // crete a new profile_promotion
+    const profilePromotion = await prisma.profile_promotion.create({
+      data: {
+        profile_id: {
+          connect: { id: profileId },
+        },
+        promotion_amount: promotionAmount,
+        created_date: new Date(),
+        update_at: new Date(),
+      },
+    });
+
+    return res.status(200).json({
+      message: 'Profile updated successfully',
+      profile,
+    });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    return res.status(500).json({
+      message: 'An error occurred while updating the profile',
+      error: error.message,
+    });
+  }
+};
+
+
+exports.AllprofilePromotionGet = async (req, res) => {
+  try {
+    // getall profile ranking data select all
+    const profiles = await prisma.profile_promotion.findMany({
+      include: {
+        profile: {
+          select: {
+            profile_name: true,
+          },
+        },
+      },
+      orderBy: {
+        created_date: 'desc',
+      },
+    });
+    if (!profiles || profiles.length === 0) {
+      return res.status(404).json({
+        message: 'No profiles found',
+      });
+    }
+
+    return res.status(200).json({
+      message: 'All profiles retrieved successfully',
+      profiles,
+    });
+  } catch (error) {
+    console.error('Error retrieving profile ranking:', error);
+    return res.status(500).json({
+      message: 'An error occurred while retrieving profile ranking',
+      error: error.message,
+    });
+  }
+};
+
+
+
+exports.updateprofile_promotion = async (req, res) => {
+  try {
+    const id = req.params.id;
+    // Check if the profile ID is provided
+    if (!id) {
+      return res.status(400).json({
+        message: 'Invalid request: id is required',
+      });
+    }
+
+    const updatedProfilePromotion = await prisma.profile_promotion.update({
+      where: { id: Number(id) },
+      data: {
+       ...req.body,
+        update_at: new Date(),
+      }, 
+    });
+
+    return res.status(200).json({
+      message: 'Profile promotion updated successfully',
+      profilePromotion: updatedProfilePromotion,
+    });
+  } catch (error) {
+    console.error('Error updating profile promotion:', error);
+    return res.status(500).json({
+      message: 'An error occurred while updating the profile promotion',
+      error: error.message,
+    });
+  }
+};
+
+
+exports.deleteProfilePromotion = async (req, res) => {
+  try {
+    const id = req.params.id;
+    // Check if the profile ID is provided
+    if (!id) {
+      return res.status(400).json({
+        message: 'Invalid request: id is required',
+      });
+    }
+    // Delete the profile ranking
+    const deletedProfilePromotion = await prisma.profile_promotion.delete({
+      where: { id: Number(id) },
+    });
+    return res.status(200).json({
+      message: 'Profile promotion deleted successfully',
+      profilePromotion: deletedProfilePromotion,
+    });
+  } catch (error) {
+    console.error('Error deleting profile promotion:', error);
+    return res.status(500).json({
+      message: 'An error occurred while deleting the profile promotion',
+      error: error.message,
+    });
+  }
+};
+
+

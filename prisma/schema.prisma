@@ -68,9 +68,11 @@ model department {
   department_designation   String?
   project_requirements     String?
   total_carry              Decimal?  @db.Decimal(65, 0)
+
   assign_project           project[]
   department_teams         team[]
   department_profile       profile[] @relation("departmentToprofile")
+  team_members             team_member[]
 }
 
 model profile {
@@ -87,14 +89,35 @@ model profile {
   profile_target Decimal?      @db.Decimal(65, 0)
   department_id  Int
   repeat_order   Decimal?      @db.Decimal(65, 0)
-  keywords       String?
   total_rating   Decimal?      @db.Decimal(65, 0)
-  ranking_page  String?
-  row          Int?
-  promotion_amount Decimal? @db.Decimal(65, 0)
   projects       project[]
   department     department[]  @relation("departmentToprofile")
   team_members   team_member[] @relation("profileToteam_member")
+  profile_promotion profile_promotion[]
+  profile_ranking profile_ranking[]
+}
+
+model profile_ranking {
+  id             Int          @id @default(autoincrement())
+  profile_id     Int
+  profile        profile      @relation(fields: [profile_id], references: [id])
+  keywords       String?
+  row          Int?
+  ranking_page  String?
+  created_date   DateTime?
+  update_at      DateTime?
+}
+
+
+
+
+model  profile_promotion {
+  id             Int          @id @default(autoincrement())
+  profile_id     Int
+  promotion_amount Decimal?     @db.Decimal(65, 0)
+  profile        profile      @relation(fields: [profile_id], references: [id])
+  created_date   DateTime?
+  update_at      DateTime?
 }
 
 model team_member {
@@ -129,6 +152,8 @@ model team_member {
   today_task          today_task[]
   assigned_projects   project[]             @relation("ProjectAssignments")
   profile             profile[]             @relation("profileToteam_member")
+    department_id          Int?
+  department              department? @relation(fields: [department_id], references: [id], onDelete: Cascade)
 }
 
 model member_distribution {
