@@ -441,3 +441,102 @@ exports.deleteProfilePromotion = async (req, res) => {
 };
 
 
+
+
+
+exports.createProjectSpecialOrder = async (req, res) => {
+  try {
+    const { profileName, special_order_amount, delivery_date, client_name } = req.body;
+
+    if (!profileName || !special_order_amount || !delivery_date || !client_name) {
+      return res.status(400).json({
+        message: 'Invalid request: profileName, special_order_amount, delivery_date, and client_name are required',
+      });
+    }
+    //get profile id
+    const profile = await prisma.profile.findUnique({
+      where: { profile_name: profileName },
+    });
+
+    if (!profile) {
+      return res.status(404).json({
+        message: 'Profile not found',
+      });
+    }
+
+    const newOrder = await prisma.project_special_order.create({
+      data: {
+        profile_id: profile.id,
+        special_order_amount: special_order_amount ? parseFloat(special_order_amount) : null,
+        delivery_date: delivery_date ? new Date(delivery_date) : null,
+        client_name,
+        created_date: new Date(),
+        update_at: new Date(),
+      },
+    });
+    res.status(201).json({
+      message: 'Special order created successfully',
+      order: newOrder,
+    });
+  } catch (error) {
+    console.error('Error creating special order:', error);
+    res.status(500).json({ error: 'Failed to create special order' });
+  }
+};
+
+exports.getProjectSpecialOrder = async (req, res) => {
+ // get all project special orders
+
+ try {
+   const orders = await prisma.project_special_order.findMany({
+     include: { profile: true },
+   });
+   res.json({
+      message: 'Project special orders retrieved successfully',
+      orders,
+   });
+ } catch (error) {
+   console.error('Error getting project special orders:', error);
+   res.status(500).json({ error: 'Failed to get project special orders' });
+ }
+};
+
+
+
+
+
+exports.updateProjectSpecialOrder = async (req, res) => {
+  const { id } = req.params;
+  try {
+
+
+    const updatedOrder = await prisma.project_special_order.update({
+      where: { id: parseInt(id) },
+      data: {
+        ...req.body,
+        update_at: new Date(),
+      },
+      include: { profile: true },
+    });
+    res.json({
+      message: 'Special order updated successfully',
+      order: updatedOrder,
+    });
+  } catch (error) {
+    console.error('Error updating special order:', error);
+    res.status(500).json({ error: 'Failed to update special order' });
+  }
+};
+
+exports.deleteProjectSpecialOrder = async (req, res) => {
+  const { id } = req.params;
+  try {
+    await prisma.project_special_order.delete({
+      where: { id: parseInt(id) },
+    });
+    res.status(204).send(); // No content on successful deletion
+  } catch (error) {
+    console.error('Error deleting special order:', error);
+    res.status(500).json({ error: 'Failed to delete special order' });
+  }
+};

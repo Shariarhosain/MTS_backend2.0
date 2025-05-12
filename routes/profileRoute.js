@@ -10,7 +10,11 @@ const {
   promotionprofile,
   AllprofilePromotionGet,
   updateprofile_promotion,
-  deleteProfilePromotion
+  deleteProfilePromotion,
+  deleteProjectSpecialOrder,
+  updateProjectSpecialOrder,
+  getProjectSpecialOrder,
+  createProjectSpecialOrder
 } = require('../controllers/profileController'); // Import the controller functions
 const verifyToken = require('../middlewares/jwt'); // Import the JWT verification middleware
 
@@ -33,4 +37,10 @@ router.get('/promotion', verifyToken, AllprofilePromotionGet);    // Get all pro
 router.put('/promotion/:id', verifyToken, updateprofile_promotion); // Update a specific profile promotion
 router.delete('/promotion/delete/:id', verifyToken, deleteProfilePromotion); // Delete a specific profile promotion
 
+
+// Project Special Order Routes
+router.post('/projectSpecialOrder/create', verifyToken, createProjectSpecialOrder); // Create project special order
+router.put('/projectSpecialOrder/:id', verifyToken, updateProjectSpecialOrder); // Update project special order
+router.get('/projectSpecialOrder', verifyToken, getProjectSpecialOrder); // Get all project special orders
+router.delete('/projectSpecialOrder/:id', verifyToken, deleteProjectSpecialOrder); // Delete project special order
 module.exports = router; // Export the router for use in other files

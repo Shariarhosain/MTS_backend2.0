@@ -95,6 +95,7 @@ model profile {
   team_members   team_member[] @relation("profileToteam_member")
   profile_promotion profile_promotion[]
   profile_ranking profile_ranking[]
+  profile_special_order Project_special_order[]
 }
 
 model profile_ranking {
@@ -195,4 +196,19 @@ model today_task {
 model anouncement {
   id          Int       @id @default(autoincrement())
  is_done      Boolean?  @default(false)
+}
+
+
+
+
+
+model  Project_special_order {
+  id             Int          @id @default(autoincrement())
+  profile_id     Int
+  profile        profile      @relation(fields: [profile_id], references: [id])
+  special_order_amount Decimal?     @db.Decimal(65, 0)
+  delivery_date     DateTime? @db.Date
+  client_name          String?
+  created_date   DateTime?
+  update_at      DateTime?
 }
