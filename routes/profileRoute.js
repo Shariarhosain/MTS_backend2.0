@@ -14,7 +14,8 @@ const {
   deleteProjectSpecialOrder,
   updateProjectSpecialOrder,
   getProjectSpecialOrder,
-  createProjectSpecialOrder
+  createProjectSpecialOrder,
+  getProfileCurrentMonthWeeklyDetails
 } = require('../controllers/profileController'); // Import the controller functions
 const verifyToken = require('../middlewares/jwt'); // Import the JWT verification middleware
 
@@ -43,4 +44,31 @@ router.post('/projectSpecialOrder/create', verifyToken, createProjectSpecialOrde
 router.put('/projectSpecialOrder/:id', verifyToken, updateProjectSpecialOrder); // Update project special order
 router.get('/projectSpecialOrder', verifyToken, getProjectSpecialOrder); // Get all project special orders
 router.delete('/projectSpecialOrder/:id', verifyToken, deleteProjectSpecialOrder); // Delete project special order
+
+
+
+
+
+
+
+// In your router file
+router.get('/special-orders/reports/current-month-weekly-details', getProfileCurrentMonthWeeklyDetails);
+
+
+
+
+
+
+
+
+
 module.exports = router; // Export the router for use in other files
+
+
+
+
+
+
+
+
+

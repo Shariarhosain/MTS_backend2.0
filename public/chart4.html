@@ -85,7 +85,7 @@
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJrcXlHUHhJZGoxVGtpWG9zd1RDc0VMZFR2bVcyIiwiaWF0IjoxNzQ3MDAyMjk4LCJleHAiOjE3NDcwNDU0OTh9.WvxgI_7DBqIi3MSJqXCNDeX5k8dPkCmd0Wlnv6r8G0k'
+                'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJPTEhhUG56UDdyZVdQdjVQbmg0a00xbVJSdTEzIiwiaWF0IjoxNzQ3MTE4NjU4LCJleHAiOjE3NDcxNjE4NTh9.c0e6Kd1DVctKhJIouwFHrhVf-XCWRi74wu_ajxWLzsQ'
             }
         })
         .then(response => {
@@ -154,16 +154,15 @@
     
         // Emit request to socket for real-time data
         socket.emit('TeamChart');
-        socket.emit('TeamChartid', 1); 
+        socket.emit('TeamChartid', 3); // Example team ID, replace with actual ID if needed
 
-
-        socket.on('eachTeamChartBYteam_id', (data) => {
-            console.log("Real-time for eachTeamChartBYteam_id:", data);
+        socket.on('eachTeamChartForTeamId', (data) => {
+            console.log("Real-time for eachTeamChartForTeamId:", data);
         });
     
         // Handle real-time update
         socket.on('eachTeamChart', (data) => {
-            console.log("Real-time update received:", data);
+            
             updateTable(data);
             createChart(data);
         });

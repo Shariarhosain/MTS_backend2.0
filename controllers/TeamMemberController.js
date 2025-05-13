@@ -319,3 +319,147 @@ exports.login = async (req, res) => {
         return res.status(500).json({ message: 'An error occurred during login', error: error.message });
     }
 }
+
+
+
+
+/*model team {
+  id            Int           @id @default(autoincrement())
+  team_name     String?       @unique @db.VarChar(250)
+  department_id Int
+  team_target   Decimal?      @db.Decimal(65, 0)
+  project       project[]
+  department    department    @relation(fields: [department_id], references: [id], onDelete: Cascade)
+  team_member   team_member[]
+  today_task    today_task[]
+  revision      revision[]    @relation("revisionToteam")
+}
+ */
+
+exports.teamCreate = async (req, res) => {  
+
+    const { team_name, department_id } = req.body;
+    try {
+        const team = await prisma.team.create({
+            data: {
+                team_name,
+                department: {
+                    connect: {
+                        id: department_id,
+                    },
+                },
+            },
+        });
+        return res.status(201).json({ message: 'Team created successfully', team });
+    } catch (error) {
+        console.error('Error creating team:', error);
+        return res.status(500).json({ message: 'An error occurred while creating the team', error: error.message });
+    }
+
+}
+
+
+exports.updateTeam = async (req, res) => {
+    const { id } = req.params;
+    const { team_name, department_id } = req.body;
+    try {
+        const updatedTeam = await prisma.team.update({
+            where: { id: parseInt(id, 10) },
+            data: {
+               ...team_name && { team_name },
+                ...(department_id && {
+                    department: {
+                        connect: {
+                            id: department_id,
+                        },
+                    },
+                }),
+            },
+        });
+        return res.status(200).json({ message: 'Team updated successfully', team: updatedTeam });
+    } catch (error) {
+        console.error('Error updating team:', error);
+        return res.status(500).json({ message: 'An error occurred while updating the team', error: error.message });
+    }
+};
+
+exports.deleteTeam = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const deletedTeam = await prisma.team.delete({
+            where: { id: parseInt(id, 10) },
+        });
+        return res.status(200).json({ message: 'Team deleted successfully', team: deletedTeam });
+    } catch (error) {
+        console.error('Error deleting team:', error);
+        return res.status(500).json({ message: 'An error occurred while deleting the team', error: error.message });
+    }
+};
+
+
+
+
+  exports.departmentCreate = async (req, res) => {
+    const { department_name } = req.body;
+    try {
+        const department = await prisma.department.create({
+            data: {
+                department_name,
+            },
+        });
+        return res.status(201).json({ message: 'Department created successfully', department });
+    } catch (error) {
+        console.error('Error creating department:', error);
+        return res.status(500).json({ message: 'An error occurred while creating the department', error: error.message });
+    }
+};
+exports.updateDepartment = async (req, res) => {
+    const { id } = req.params;
+    const { department_name } = req.body;
+    try {
+        const updatedDepartment = await prisma.department.update({
+            where: { id: parseInt(id, 10) },
+            data: {
+                department_name,
+            },
+        });
+        return res.status(200).json({ message: 'Department updated successfully', department: updatedDepartment });
+    } catch (error) {
+        console.error('Error updating department:', error);
+        return res.status(500).json({ message: 'An error occurred while updating the department', error: error.message });
+    }
+};
+
+exports.deleteDepartment = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const deletedDepartment = await prisma.department.delete({
+            where: { id: parseInt(id, 10) },
+        });
+        return res.status(200).json({ message: 'Department deleted successfully', department: deletedDepartment });
+    } catch (error) {
+        console.error('Error deleting department:', error);
+        return res.status(500).json({ message: 'An error occurred while deleting the department', error: error.message });
+    }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

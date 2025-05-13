@@ -4,6 +4,10 @@ const cors = require('cors');
 const ProjectRoute = require('./routes/ProjectRoute');
 const ProfileRoute = require('./routes/profileRoute');
 const todayTaskRoute = require('./routes/todayTaskRoute');
+const DepartmentRoute = require('./routes/departmentRoute');
+const TeamRoute = require('./routes/teamRoute');
+
+
 const { initSocket, getIO } = require('./socket');
 
 const app = express();
@@ -38,6 +42,8 @@ app.use('/api/teamMember', require('./routes/teamMemberRoute'));
 app.use('/api/profile', ProfileRoute);
 
 app.use('/api/today-task', verifyToken, todayTaskRoute); // Ensure todayTaskRoute is returning a function
+app.use('/api/department', verifyToken, DepartmentRoute); // Ensure DepartmentRoute is returning a function
+app.use('/api/team', verifyToken, TeamRoute); // Ensure TeamRoute is returning a function
 
 
 
