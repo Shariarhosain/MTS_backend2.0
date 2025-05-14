@@ -1327,4 +1327,196 @@ async function eachTeamChartForTeamId(io, teamIdToQuery) {
   }
 }
 
-module.exports = { teamwiseDeliveryGraph, eachTeamChart, eachTeamChartForTeamId };
+
+
+async function getProfileCurrentMonthWeeklyDetails  (io)  {
+  try {
+    // 1. Determine Current Year and Month
+    const currentServerDate = new Date();
+    const year = currentServerDate.getFullYear();
+    const monthIndex = currentServerDate.getMonth(); // 0-indexed (e.g., January is 0, May is 4)
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const currentMonthName = monthNames[monthIndex];
+
+    // Calculate the last day of the current month for the range string
+    const lastDayOfCurrentMonthNumber = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+
+    // 2. Define Week Structures
+    // This base definition will be deep-copied for each profile.
+    const baseWeeksDefinition = [
+      {
+        week: 'Week 1',
+        range: `${currentMonthName} 1 - ${currentMonthName} 7`,
+        _internal_start_date: new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0, 0)),
+        _internal_end_date: new Date(Date.UTC(year, monthIndex, 7, 23, 59, 59, 999)),
+        amount: 0,
+        clients: []
+      },
+      {
+        week: 'Week 2',
+        range: `${currentMonthName} 8 - ${currentMonthName} 14`,
+        _internal_start_date: new Date(Date.UTC(year, monthIndex, 8, 0, 0, 0, 0)),
+        _internal_end_date: new Date(Date.UTC(year, monthIndex, 14, 23, 59, 59, 999)),
+        amount: 0,
+        clients: []
+      },
+      {
+        week: 'Week 3',
+        range: `${currentMonthName} 15 - ${currentMonthName} 21`,
+        _internal_start_date: new Date(Date.UTC(year, monthIndex, 15, 0, 0, 0, 0)),
+        _internal_end_date: new Date(Date.UTC(year, monthIndex, 21, 23, 59, 59, 999)),
+        amount: 0,
+        clients: []
+      },
+      {
+        week: 'Week 4',
+        range: `${currentMonthName} 22 - ${currentMonthName} ${lastDayOfCurrentMonthNumber}`,
+        _internal_start_date: new Date(Date.UTC(year, monthIndex, 22, 0, 0, 0, 0)),
+        _internal_end_date: new Date(Date.UTC(year, monthIndex + 1, 0, 23, 59, 59, 999)), // End of the last day
+        amount: 0,
+        clients: []
+      }
+    ];
+
+    // 3. Fetch Special Orders for the Entire Current Month
+    const firstDayOfMonth = baseWeeksDefinition[0]._internal_start_date;
+    const lastDayOfMonth = baseWeeksDefinition[3]._internal_end_date;
+
+    const ordersInMonth = await prisma.project_special_order.findMany({
+      where: {
+        created_date: {
+          gte: firstDayOfMonth,
+          lte: lastDayOfMonth,
+        },
+      },
+      select: {
+        special_order_amount: true,
+        created_date: true,
+        client_name: true, // Crucial for the report
+        profile: {
+          select: {
+            profile_name: true,
+          },
+        },
+      },
+    });
+
+    // 4. Process and Aggregate Orders
+    const reportDataByProfile = {};
+    let overallTotalSpecialOrderAmount = 0; // Initialize overall total amount
+    const profileOrderStats = {}; // To store { totalOrders: 0, totalAmount: 0 } for each profile
+
+    ordersInMonth.forEach(order => {
+      if (
+        !order.profile ||
+        !order.profile.profile_name ||
+        !order.created_date ||
+        order.special_order_amount === null ||
+        order.special_order_amount === undefined
+      ) {
+        console.warn('Skipping order due to missing essential data:', order);
+        return;
+      }
+
+      const profileName = order.profile.profile_name;
+      const amount = parseFloat(order.special_order_amount);
+      const clientName = order.client_name ? order.client_name.trim() : null;
+
+      if (isNaN(amount)) {
+        console.warn(`Skipping order for profile ${profileName} due to invalid amount:`, order.special_order_amount);
+        return;
+      }
+      
+      if (!clientName || clientName === "") {
+        // Client name is crucial for the weekly breakdown details.
+        // If it's missing, we might still count it for overall/profile totals if requirements differ,
+        // but for this report's structure, it's better to skip if client name is missing for weekly aggregation.
+        console.warn(`Skipping order for profile ${profileName} due to missing client name (client name is required for weekly client breakdown).`);
+        return;
+      }
+
+      // Update overall total amount
+      overallTotalSpecialOrderAmount += amount;
+
+      // Initialize and update profile-specific stats
+      if (!profileOrderStats[profileName]) {
+        profileOrderStats[profileName] = { totalOrders: 0, totalAmount: 0 };
+      }
+      profileOrderStats[profileName].totalOrders += 1;
+      profileOrderStats[profileName].totalAmount += amount;
+
+      const orderDate = new Date(order.created_date);
+
+      // Initialize for the profile in reportDataByProfile if it's the first time encountered
+      if (!reportDataByProfile[profileName]) {
+        // Deep copy baseWeeksDefinition for this specific profile
+        reportDataByProfile[profileName] = baseWeeksDefinition.map(weekDef => ({
+          ...weekDef, // Spread to copy properties from baseWeeksDefinition
+          // target: weekDef.target, // Uncomment if target is part of baseWeeksDefinition and needed
+          amount: 0, // Ensure amount starts at 0 for this profile's week
+          clients: [] // Fresh array for this profile's week clients
+        }));
+      }
+
+      // Assign order to the correct week for this profile
+      for (const weekData of reportDataByProfile[profileName]) {
+        if (orderDate >= weekData._internal_start_date && orderDate <= weekData._internal_end_date) {
+          // Aggregate total amount for the week
+          weekData.amount += amount;
+
+          // Find if the client already exists in this week's client list
+          const existingClient = weekData.clients.find(client => client.name === clientName);
+
+          if (existingClient) {
+            // If client exists, add the amount
+            existingClient.amount += amount;
+          } else {
+            // If client does not exist, add a new client object
+            weekData.clients.push({ name: clientName, amount: amount });
+          }
+          break; // Order processed for one week
+        }
+      }
+    });
+
+    // 5. Finalize data: sort clients by name, remove internal date fields, and format profile summary
+    for (const profileName in reportDataByProfile) {
+      reportDataByProfile[profileName].forEach(weekData => {
+        // Sort clients by name
+        weekData.clients.sort((a, b) => a.name.localeCompare(b.name));
+        
+        // Clean up helper fields
+        delete weekData._internal_start_date;
+        delete weekData._internal_end_date;
+      });
+    }
+
+    // Format profile summary for the response
+    const profileSummaryForResponse = {};
+    for (const profileName in profileOrderStats) {
+      const stats = profileOrderStats[profileName];
+      profileSummaryForResponse[profileName] = {
+        "total special orders": stats.totalOrders, // Key as per your example
+        "total amount": parseFloat(stats.totalAmount.toFixed(2)) // Key as per your example
+      };
+    }
+
+    // If you want to ensure all profiles (even those with no orders) are listed in profileOrderSummary or report,
+    // you would need to fetch all profile names first, initialize reportDataByProfile and profileOrderStats for all of them,
+    // and then populate. Currently, only profiles with orders in the current month will appear.
+
+    io.emit('profile_based_special_orders', {
+      currentYear: year,
+      currentMonth: currentMonthName,
+      overallTotalSpecialOrderAmount: parseFloat(overallTotalSpecialOrderAmount.toFixed(2)),
+      profileOrderSummary: profileSummaryForResponse,
+      report: reportDataByProfile,
+    });
+
+  } catch (error) {
+    console.error('Error generating profile current month weekly details:', error);
+    res.status(500).json({ error: 'Failed to generate current month weekly details report' });
+  }
+};
+
+module.exports = { teamwiseDeliveryGraph, eachTeamChart, eachTeamChartForTeamId, getProfileCurrentMonthWeeklyDetails };

@@ -46,6 +46,7 @@ model project {
 model team {
   id            Int           @id @default(autoincrement())
   team_name     String?       @unique @db.VarChar(250)
+  created_date  DateTime?
   department_id Int
   team_target   Decimal?      @db.Decimal(65, 0)
   project       project[]
@@ -58,6 +59,7 @@ model team {
 model department {
   id                       Int       @id @default(autoincrement())
   department_name          String?   @unique @db.VarChar(200)
+  created_date             DateTime?
   department_target        Decimal?  @db.Decimal(65, 0)
   assign_project           project[]
   department_teams         team[]

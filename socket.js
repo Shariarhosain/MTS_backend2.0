@@ -7,7 +7,7 @@ const { getTeamName } = require('./middlewares/TeamName');
 const { getTeamMember } = require('./middlewares/TeamName');
 const emitProfilename = require('./middlewares/showProfilename');
 const emitProjectMoneyMetrics = require('./middlewares/carddetailsForoperation');
-const {eachTeamChart,eachTeamChartForTeamId} = require('./middlewares/teamwiseDeliveryGraph');
+const {eachTeamChart,eachTeamChartForTeamId,getProfileCurrentMonthWeeklyDetails} = require('./middlewares/teamwiseDeliveryGraph');
 //const {eachTeamChartByTeamId} = require('./middlewares/teamwiseDeliveryGraph');
 
 const totalOrdersCardData  = require('./middlewares/projectCardEmitter');
@@ -164,9 +164,25 @@ socket.on('TeamChartid', async (teamId) => {
 
 
     // Listen for 'disconnect' event
- 
+ /*  io.emit('profile_based_special_orders', {
+      currentYear: year,
+      currentMonth: currentMonthName,
+      overallTotalSpecialOrderAmount: parseFloat(overallTotalSpecialOrderAmount.toFixed(2)),
+      profileOrderSummary: profileSummaryForResponse,
+      report: reportDataByProfile,
+    }); */
+
+    socket.on('getProfileCurrentMonthWeeklyDetails', async () => {
+      try {
+        await getProfileCurrentMonthWeeklyDetails(io);
+      } catch (error) {
+        console.error("Error fetching profile current month weekly details:", error);
+      }
+    });
 
 
+
+    
 
 
 

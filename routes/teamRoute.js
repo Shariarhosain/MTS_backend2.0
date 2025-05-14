@@ -2,11 +2,12 @@
 
 const express = require("express");
 const router = express.Router();
-const { teamCreate, updateTeam, deleteTeam } = require('../controllers/TeamController');
+const { teamCreate, updateTeam, deleteTeam,getAllTeams} = require('../controllers/TeamController');
 
 router.post('/create', teamCreate);
 router.put('/update/:id', updateTeam);
 router.delete('/delete/:id', deleteTeam);
+router.get('/', getAllTeams); // Get all teams and their members
 
 
 

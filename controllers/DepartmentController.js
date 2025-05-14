@@ -8,6 +8,7 @@ const prisma = new PrismaClient();
         const department = await prisma.department.create({
             data: {
                 department_name,
+                created_date: new Date(),
             },
         });
         return res.status(201).json({ message: 'Department created successfully', department });
