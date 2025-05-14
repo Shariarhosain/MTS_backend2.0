@@ -48,9 +48,6 @@ router.delete('/projectSpecialOrder/:id', verifyToken, deleteProjectSpecialOrder
 
 
 
-
-
-
 // In your router file
 router.get('/special-orders/reports/current-month-weekly-details', getProfileCurrentMonthWeeklyDetails);
 

@@ -189,8 +189,8 @@ exports.getTodayTask = async (req, res) => {
         }
 
         const assigneeObj = row.team_member
-          ? { ...row.team_member, ops_status: row.ops_status, expected_finish_time: row.expected_finish_time, client_name: row.client_name, last_update: row.project?.update_at, project_id: pid, deli_last_date: row.project?.deli_last_date }
-          : { id: null, first_name: null, last_name: null, email: null, role: null, ops_status: row.ops_status };
+          ? { ...row.team_member, today_task_id: row.id, ops_status: row.ops_status, expected_finish_time: row.expected_finish_time, client_name: row.client_name, last_update: row.project?.update_at, project_id: pid, deli_last_date: row.project?.deli_last_date }
+          : { id: null, first_name: null, last_name: null, email: null, role: null, today_task_id: null, ops_status: row.ops_status };
 
         acc[pid].assign.push(assigneeObj);
         return acc;
