@@ -146,11 +146,8 @@ socket.on('getTeamwiseDeliveryGraph', async () => {
 // Listen for TeamChart emit
 socket.on('TeamChart', async () => {
   try {
-   const authenticatedUser = socket.user;
-    if (authenticatedUser) {
-        // Call the function, passing the user and the socket
-        await eachTeamChart(io, authenticatedUser, socket);
-    }
+    console.log('Fetching each team chart data...');
+    await eachTeamChart(io); // Must use io.emit inside this
   } catch (error) {
     console.error("Error fetching each team chart data:", error);
   }
@@ -208,6 +205,7 @@ socket.on('TeamChartid', async (teamId) => {
       }
     });
 
+    
 
 
 

@@ -1030,20 +1030,10 @@ async function teamwiseDeliveryGraph(io) {
 
 
 
-
-async function eachTeamChart(io, user, socket) {
-   if (!user || !user.uid) {
-       // Handle missing user context - this indicates it wasn't called correctly
-       console.error("eachTeamChart called without a valid user object.");
-       if (socket) { // Try to send error back to the specific socket
-           socket.emit('eachTeamChart', { error: "Authentication context missing." });
-       }
-       return;
-   }
-   try {
-       // Use the passed 'user' object
-       const me = await prisma.team_member.findUnique({
-           where: { uid: user.uid }, // Use user.uid from the parameter
+async function eachTeamChart(io) {
+  try {
+    const me = await prisma.team_member.findUnique({
+      where: { uid: global.user.uid },
       select: { id: true, role: true, first_name: true, team_id: true },
     });
     if (!me) {

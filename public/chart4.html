@@ -162,7 +162,7 @@
     
         // Handle real-time update
         socket.on('eachTeamChart', (data) => {
-            
+            console.log("Real-time for eachTeamChart:", data);
             updateTable(data);
             createChart(data);
         });
