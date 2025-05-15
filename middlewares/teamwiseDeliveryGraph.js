@@ -1024,11 +1024,7 @@ async function teamwiseDeliveryGraph(io) {
         console.error('Error fetching weekly team metrics by role:', error);
         io.emit("teamwiseGraph", { error: 'Internal server error fetching weekly team data.' });
     }
-}
-
-
-
-
+  }
 
 async function eachTeamChart(io) {
   try {
