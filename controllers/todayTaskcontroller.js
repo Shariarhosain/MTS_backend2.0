@@ -189,7 +189,7 @@ exports.getTodayTask = async (req, res) => {
         }
 
         const assigneeObj = row.team_member
-          ? { ...row.team_member, today_task_id: row.id, ops_status: row.ops_status, expected_finish_time: row.expected_finish_time, client_name: row.client_name, last_update: row.project?.update_at, project_id: pid, deli_last_date: row.project?.deli_last_date }
+          ? { first_name: row.team_member.first_name, email: row.team_member.email, role: row.team_member.role, id: row.id, ops_status: row.ops_status, expected_finish_time: row.expected_finish_time, client_name: row.client_name, last_update: row.project?.update_at, project_id: pid, deli_last_date: row.project?.deli_last_date }
           : { id: null, first_name: null, last_name: null, email: null, role: null, today_task_id: null, ops_status: row.ops_status };
 
         acc[pid].assign.push(assigneeObj);
@@ -607,9 +607,9 @@ exports.updateProjectAssignments = async (req, res) => {
     if (!me) {
       return res.status(404).json({ error: 'User not found' });
     }
-
+    const taskId = Number(req.params.id); // Expect the task ID to be passed in the request parameters
     // Expect the task ID and the fields to update in the request body
-    const { id: taskId, ops_status, expected_finish_time } = req.body;
+    const { ops_status, expected_finish_time } = req.body;
 
     // The task ID is now required to identify the specific task
     if (!taskId) {

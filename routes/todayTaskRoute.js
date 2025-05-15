@@ -10,7 +10,7 @@ router.get('/', verifyToken, asyncHandler(getTodayTask));
 
 router.post('/assign', verifyToken, asyncHandler(assignProjectToTeam)); // Assign team members
 router.post('/replace', verifyToken, asyncHandler(replaceProjectMember)); // Replace a team member
-router.post('/update', verifyToken, asyncHandler(updateProjectAssignments)); // Update ops_status or expected_finish_time
+router.patch('/update/:id', verifyToken, asyncHandler(updateProjectAssignments)); // Update ops_status or expected_finish_time
 
 router.get('/distribution', verifyToken, asyncHandler(getAllmemberDistribution)); // Get all member distribution
 
