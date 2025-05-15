@@ -34,6 +34,7 @@ model project {
   revision             Int?
   delivery_date        DateTime?     @db.Date
   update_at            DateTime?     @db.Date
+  branch               branch?
   department           department    @relation(fields: [department_id], references: [id], onDelete: Cascade)
   team_member          team_member   @relation(fields: [ordered_by], references: [id])
   profile              profile?      @relation(fields: [profile_id], references: [id])
@@ -102,8 +103,6 @@ model profile_ranking {
 }
 
 
-
-
 model  profile_promotion {
   id             Int          @id @default(autoincrement())
   profile_id     Int
@@ -139,13 +138,14 @@ model team_member {
   password            String?               @db.VarChar(400)
   designation         String?
   uid                 String?               @unique
+  branch             branch?
   member_distribution member_distribution[]
   project             project[]
   team                team?                 @relation(fields: [team_id], references: [id], onDelete: Cascade)
   today_task          today_task[]
   assigned_projects   project[]             @relation("ProjectAssignments")
   profile             profile[]             @relation("profileToteam_member")
-    department_id          Int?
+  department_id          Int?
   department              department? @relation(fields: [department_id], references: [id], onDelete: Cascade)
 }
 
@@ -203,4 +203,10 @@ model  Project_special_order {
   client_name          String?
   created_date   DateTime?
   update_at      DateTime?
+}
+
+
+enum branch {
+  Jamuna_branch
+  Banasree_branch
 }

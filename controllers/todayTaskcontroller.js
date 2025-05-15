@@ -188,10 +188,33 @@ exports.getTodayTask = async (req, res) => {
           };
         }
 
-        const assigneeObj = row.team_member
-          ? { first_name: row.team_member.first_name, email: row.team_member.email, role: row.team_member.role, id: row.id, ops_status: row.ops_status, expected_finish_time: row.expected_finish_time, client_name: row.client_name, last_update: row.project?.update_at, project_id: pid, deli_last_date: row.project?.deli_last_date }
-          : { id: null, first_name: null, last_name: null, email: null, role: null, today_task_id: null, ops_status: row.ops_status };
+   const rawAssignee = row.team_member
+  ? {
+      first_name: row.team_member.first_name,
+      email: row.team_member.email,
+      role: row.team_member.role,
+      id: row.id,
+      ops_status: row.ops_status,
+      expected_finish_time: row.expected_finish_time,
+      client_name: row.client_name,
+      last_update: row.project?.update_at,
+      project_id: pid,
+      deli_last_date: row.project?.deli_last_date,
+    }
+  : {
+      id: null,
+      first_name: null,
+      last_name: null,
+      email: null,
+      role: null,
+      today_task_id: null,
+      ops_status: row.ops_status,
+    };
 
+// (২) null বা undefined যেগুলো আছে সেগুলো ফিল্টার করে ক্লিন কপি বানাই
+const assigneeObj = Object.fromEntries(
+  Object.entries(rawAssignee).filter(([, v]) => v != null) // v != null  ➜ null ও undefined দুই-টাই বাদ
+);
         acc[pid].assign.push(assigneeObj);
         return acc;
       }, {})
