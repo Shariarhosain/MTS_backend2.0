@@ -7,7 +7,7 @@ const { getTeamName } = require('./middlewares/TeamName');
 const { getTeamMember } = require('./middlewares/TeamName');
 const emitProfilename = require('./middlewares/showProfilename');
 const emitProjectMoneyMetrics = require('./middlewares/carddetailsForoperation');
-const {eachTeamChart,eachTeamChartForTeamId,getProfileCurrentMonthWeeklyDetails} = require('./middlewares/teamwiseDeliveryGraph');
+const {eachTeamChart,eachTeamChartForTeamId,getProfileCurrentMonthWeeklyDetails,getMonthlyProfileActivityChart} = require('./middlewares/teamwiseDeliveryGraph');
 //const {eachTeamChartByTeamId} = require('./middlewares/teamwiseDeliveryGraph');
 
 const totalOrdersCardData  = require('./middlewares/projectCardEmitter');
@@ -185,8 +185,22 @@ socket.on('TeamChartid', async (teamId) => {
     
 
 
+/*  
+    io.emit('monthlyProfileActivityChart', {
+      message: 'Monthly profile activity chart',
+      data: groupedActivity,
+      month: monthIndex + 1,
+      year: year,
+    }); */
 
 
+    socket.on('getMonthlyProfileActivityChart', async () => {
+      try {
+        await getMonthlyProfileActivityChart(io);
+      } catch (error) {
+        console.error("Error fetching monthly profile activity chart:", error);
+      }
+    });
 
 
 

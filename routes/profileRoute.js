@@ -15,7 +15,8 @@ const {
   updateProjectSpecialOrder,
   getProjectSpecialOrder,
   createProjectSpecialOrder,
-  getProfileCurrentMonthWeeklyDetails
+  getProfileCurrentMonthWeeklyDetails,
+  getMonthlyProfileActivityChart
 } = require('../controllers/profileController'); // Import the controller functions
 const verifyToken = require('../middlewares/jwt'); // Import the JWT verification middleware
 
@@ -55,6 +56,9 @@ router.get('/special-orders/reports/current-month-weekly-details', getProfileCur
 
 
 
+
+
+router.get('/profileRanking/monthly-activity-chart', getMonthlyProfileActivityChart);
 
 
 

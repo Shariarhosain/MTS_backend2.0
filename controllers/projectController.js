@@ -37,7 +37,7 @@ exports.createProject = async (req, res, io) => {
       department,
       project_requirements,
       profile,
-      order_id
+      order_id,
      
     } = req.body;
 

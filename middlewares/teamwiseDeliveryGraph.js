@@ -1519,4 +1519,198 @@ async function getProfileCurrentMonthWeeklyDetails  (io)  {
   }
 };
 
-module.exports = { teamwiseDeliveryGraph, eachTeamChart, eachTeamChartForTeamId, getProfileCurrentMonthWeeklyDetails };
+
+
+
+// Assuming prisma client is initialized elsewhere
+// const { PrismaClient } = require('@prisma/client');
+// const prisma = new PrismaClient();
+
+// Helper function to generate the predefined week structures for a given month
+function generatePredefinedWeeks(year, monthIndex) {
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const currentMonthName = monthNames[monthIndex];
+    const lastDayOfMonthObject = new Date(year, monthIndex + 1, 0);
+    const lastDayOfCurrentMonthNumber = lastDayOfMonthObject.getDate();
+
+    return [
+        {
+            week: 'Week 1',
+            range: `${currentMonthName} 1 - ${currentMonthName} 7`,
+            _internal_start_date: new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0, 0)),
+            _internal_end_date: new Date(Date.UTC(year, monthIndex, 7, 23, 59, 59, 999)),
+            amount: 0,
+        },
+        {
+            week: 'Week 2',
+            range: `${currentMonthName} 8 - ${currentMonthName} 14`,
+            _internal_start_date: new Date(Date.UTC(year, monthIndex, 8, 0, 0, 0, 0)),
+            _internal_end_date: new Date(Date.UTC(year, monthIndex, 14, 23, 59, 59, 999)),
+            amount: 0,
+        },
+        {
+            week: 'Week 3',
+            range: `${currentMonthName} 15 - ${currentMonthName} 21`,
+            _internal_start_date: new Date(Date.UTC(year, monthIndex, 15, 0, 0, 0, 0)),
+            _internal_end_date: new Date(Date.UTC(year, monthIndex, 21, 23, 59, 59, 999)),
+            amount: 0,
+        },
+        {
+            week: 'Week 4',
+            range: `${currentMonthName} 22 - ${currentMonthName} ${lastDayOfCurrentMonthNumber}`,
+            _internal_start_date: new Date(Date.UTC(year, monthIndex, 22, 0, 0, 0, 0)),
+            _internal_end_date: new Date(Date.UTC(year, monthIndex, lastDayOfCurrentMonthNumber, 23, 59, 59, 999)),
+            amount: 0,
+        }
+    ];
+}
+
+// Custom deep copy function to preserve Date objects and reset amounts
+function deepCopyWeeklySummary(weeksArray) {
+    return weeksArray.map(week => ({
+        // Copy all properties from the original week object
+        ...week,
+        // Explicitly create new Date objects to ensure they are instances of Date
+        _internal_start_date: new Date(week._internal_start_date.getTime()),
+        _internal_end_date: new Date(week._internal_end_date.getTime()),
+        // Ensure amount is reset for the fresh copy
+        amount: 0
+    }));
+}
+
+ async function getMonthlyProfileActivityChart(io) {
+  try {
+    const now = new Date(); // Current server time: May 15, 2025
+    const year = now.getFullYear(); // 2025
+    const monthIndex = now.getMonth(); // 4 (for May, 0-indexed)
+
+    const baseWeeksDefinition = generatePredefinedWeeks(year, monthIndex);
+
+    // Use UTC dates for Prisma query to align with UTC week definitions
+    const firstDayOfMonthUTC = new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0, 0));
+    const firstDayOfNextMonthUTC = new Date(Date.UTC(year, monthIndex + 1, 1, 0, 0, 0, 0));
+
+    const rankingsThisMonth = await prisma.profile_ranking.findMany({
+      where: {
+        created_date: {
+          gte: firstDayOfMonthUTC,
+          lt: firstDayOfNextMonthUTC,
+        },
+      },
+      include: {
+        profile: {
+          select: { profile_name: true, id: true },
+        },
+      },
+      orderBy: { created_date: 'asc' },
+    });
+
+    const promotionsThisMonth = await prisma.profile_promotion.findMany({
+      where: {
+        created_date: {
+          gte: firstDayOfMonthUTC,
+          lt: firstDayOfNextMonthUTC,
+        },
+      },
+      include: {
+        profile: {
+          select: { profile_name: true, id: true },
+        },
+      },
+      orderBy: { created_date: 'asc' },
+    });
+
+    const groupedActivity = {};
+
+    rankingsThisMonth.forEach(ranking => {
+      const profileName = ranking.profile ? ranking.profile.profile_name : 'Unknown Profile';
+      if (!groupedActivity[profileName]) {
+        groupedActivity[profileName] = {
+          profileId: ranking.profile_id,
+          ranking: [],
+          promotion: {
+            weeklySummary: deepCopyWeeklySummary(baseWeeksDefinition), // Use proper deep copy
+            totalAmountThisMonth: 0,
+          },
+        };
+      }
+      groupedActivity[profileName].ranking.push({
+        date: ranking.created_date,
+        keywords: ranking.keywords,
+        row: ranking.row,
+        rankingPage: ranking.ranking_page,
+      });
+    });
+
+    promotionsThisMonth.forEach(promotion => {
+      const profileName = promotion.profile ? promotion.profile.profile_name : 'Unknown Profile';
+      const numPromotionAmount = parseFloat(promotion.promotion_amount) || 0;
+      const promotionDate = new Date(promotion.created_date);
+
+      if (!groupedActivity[profileName]) {
+        groupedActivity[profileName] = {
+          profileId: promotion.profile_id,
+          ranking: [],
+          promotion: {
+            weeklySummary: deepCopyWeeklySummary(baseWeeksDefinition), // Use proper deep copy
+            totalAmountThisMonth: 0,
+          },
+        };
+      } else if (!groupedActivity[profileName].promotion) {
+         groupedActivity[profileName].promotion = {
+            weeklySummary: deepCopyWeeklySummary(baseWeeksDefinition), // Use proper deep copy
+            totalAmountThisMonth: 0,
+         };
+      }
+      // Ensure weeklySummary exists if promotion object was somehow partially initialized
+      // This should be redundant if the above initializations are correct
+      else if (!groupedActivity[profileName].promotion.weeklySummary) {
+        groupedActivity[profileName].promotion.weeklySummary = deepCopyWeeklySummary(baseWeeksDefinition);
+      }
+
+
+      groupedActivity[profileName].promotion.totalAmountThisMonth += numPromotionAmount;
+
+      for (const weekDefinition of groupedActivity[profileName].promotion.weeklySummary) {
+        // Now both promotionDate and weekDefinition._internal_..._date are proper Date objects
+        if (promotionDate >= weekDefinition._internal_start_date && promotionDate <= weekDefinition._internal_end_date) {
+          weekDefinition.amount += numPromotionAmount;
+          break; 
+        }
+      }
+    });
+
+    Object.values(groupedActivity).forEach(profileData => {
+      if (profileData.promotion && profileData.promotion.weeklySummary) {
+        profileData.promotion.weeklySummary.forEach(week => {
+          delete week._internal_start_date;
+          delete week._internal_end_date;
+        });
+      }
+    });
+
+    if (Object.keys(groupedActivity).length === 0) {
+      return res.status(404).json({
+        message: 'No profile activity (rankings or promotions) found for the current month.',
+        data: {},
+      });
+    }
+
+   
+    io.emit('monthlyProfileActivityChart', {
+      message: 'Monthly profile activity chart',
+      data: groupedActivity,
+      month: monthIndex + 1,
+      year: year,
+    });
+
+  } catch (error) {
+    console.error('Error retrieving monthly profile activity chart:', error);
+    io.emit('monthlyProfileActivityChart', {
+      error: 'Failed to retrieve monthly profile activity chart',
+    });
+  }
+};
+
+
+module.exports = { teamwiseDeliveryGraph, eachTeamChart, eachTeamChartForTeamId, getProfileCurrentMonthWeeklyDetails, getMonthlyProfileActivityChart };

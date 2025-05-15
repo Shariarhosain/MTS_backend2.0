@@ -141,67 +141,87 @@ exports.announcementPost = async (req, res) => {
 
 
 exports.profileRanking = async (req, res) => {
-try{
-  
+  try {
+    // Expect profileName and an array of ranking entries
+    const {
+      profileName,
+      rankings
+    } = req.body;
 
-  //post type profile name, ranking page , row , keywords
-  const { profileName, rankingPage, row, keywords } = req.body;
+    // Validate that profileName is present and rankings is a non-empty array
+    if (!profileName || !Array.isArray(rankings) || rankings.length === 0) {
+      return res.status(400).json({
+        message: 'Invalid request: profileName is required, and rankings must be a non-empty array.',
+      });
+    }
 
-  if (!profileName || !rankingPage || !row || !keywords) {
-    return res.status(400).json({
-      message: 'Invalid request: profileName, rankingPage, row, and keywords are required',
-    });
+    // You might want to add validation here to ensure each item in the rankings array
+    // has the expected properties (keywords, row, rankingPage).
+    for (const rankingEntry of rankings) {
+        if (!rankingEntry.keywords || rankingEntry.row === undefined || rankingEntry.rankingPage === undefined) {
+             return res.status(400).json({
+                message: 'Invalid request: Each item in the rankings array must contain keywords, row, and rankingPage.',
+             });
+        }
+         // Optional: Add type checking if needed, e.g., typeof rankingEntry.row !== 'number'
+    }
+
+
+    /*model profile_ranking {
+    id              Int           @id @default(autoincrement())
+    profile_id      Int
+    profile         profile       @relation(fields: [profile_id], references: [id])
+    keywords        String?
+    row             Int?
+    ranking_page    String?
+    created_date    DateTime?
+    update_at       DateTime?
   }
 
-  /*model profile_ranking {
-  id             Int          @id @default(autoincrement())
-  profile_id     Int
-  profile        profile      @relation(fields: [profile_id], references: [id])
-  keywords       String?
-  row          Int?
-  ranking_page  String?
-  created_date   DateTime?
-  update_at      DateTime?
-}
+  */
+    const profile = await prisma.profile.findUnique({
+      where: {
+        profile_name: profileName
+      },
+    });
 
- */
-const profile = await prisma.profile.findUnique({
-    where: { profile_name: profileName },
-  });
-  if (!profile) {
-    return res.status(404).json({
-      message: 'Profile not found',
+    if (!profile) {
+      return res.status(404).json({
+        message: `Profile with name "${profileName}" not found`,
+      });
+    }
+
+    const profileId = profile.id;
+    const createdRankings = [];
+
+    // Loop through the array of rankings and create a new row for each
+    for (const rankingEntry of rankings) {
+      const createdRanking = await prisma.profile_ranking.create({
+        data: {
+          profile_id: profileId,
+          keywords: rankingEntry.keywords,
+          row: rankingEntry.row,
+          ranking_page: rankingEntry.rankingPage,
+          created_date: new Date(),
+          update_at: new Date(),
+        },
+      });
+      createdRankings.push(createdRanking);
+    }
+
+    return res.status(200).json({
+      message: `${createdRankings.length} profile ranking entries created successfully.`, // More specific message
+      createdRankings: createdRankings, // Return the created records
+    });
+
+  } catch (error) {
+    console.error('Error creating profile ranking entries:', error); // Updated log message
+    return res.status(500).json({
+      message: 'An error occurred while creating the profile ranking entries', // Updated error message
+      error: error.message,
     });
   }
-  const profileId = profile.id;
-  // Check if the profile already has a ranking entry
-
-  const profileRanking = await prisma.profile_ranking.create({
-    data: {
-      profile_id: profileId,
-      keywords: keywords,
-      row: row,
-      ranking_page: rankingPage,
-      created_date: new Date(),
-      update_at: new Date(),
-    },
-  });
-
-  return res.status(200).json({
-    message: 'Profile updated successfully',
-    profile: profileRanking,
-  });
-} catch (error) {
-  console.error('Error updating profile:', error);
-  return res.status(500).json({
-    message: 'An error occurred while updating the profile',
-    error: error.message,
-  });
-
 };
-}
-
-
 exports.AllprofileRankingGet = async (req, res) => {
   try {
     // getall profile ranking data select all
@@ -302,7 +322,7 @@ exports.deleteProfileRanking = async (req, res) => {
 
 
 
-
+/////////////////////// Profile Promotion
 exports.promotionprofile = async (req, res) => {
   try {
     const { profileName, promotionAmount } = req.body;
@@ -552,6 +572,209 @@ exports.deleteProjectSpecialOrder = async (req, res) => {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Assuming prisma client is initialized elsewhere
+// const { PrismaClient } = require('@prisma/client');
+// const prisma = new PrismaClient();
+
+// Helper function to generate the predefined week structures for a given month
+function generatePredefinedWeeks(year, monthIndex) {
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const currentMonthName = monthNames[monthIndex];
+    const lastDayOfMonthObject = new Date(year, monthIndex + 1, 0);
+    const lastDayOfCurrentMonthNumber = lastDayOfMonthObject.getDate();
+
+    return [
+        {
+            week: 'Week 1',
+            range: `${currentMonthName} 1 - ${currentMonthName} 7`,
+            _internal_start_date: new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0, 0)),
+            _internal_end_date: new Date(Date.UTC(year, monthIndex, 7, 23, 59, 59, 999)),
+            amount: 0,
+        },
+        {
+            week: 'Week 2',
+            range: `${currentMonthName} 8 - ${currentMonthName} 14`,
+            _internal_start_date: new Date(Date.UTC(year, monthIndex, 8, 0, 0, 0, 0)),
+            _internal_end_date: new Date(Date.UTC(year, monthIndex, 14, 23, 59, 59, 999)),
+            amount: 0,
+        },
+        {
+            week: 'Week 3',
+            range: `${currentMonthName} 15 - ${currentMonthName} 21`,
+            _internal_start_date: new Date(Date.UTC(year, monthIndex, 15, 0, 0, 0, 0)),
+            _internal_end_date: new Date(Date.UTC(year, monthIndex, 21, 23, 59, 59, 999)),
+            amount: 0,
+        },
+        {
+            week: 'Week 4',
+            range: `${currentMonthName} 22 - ${currentMonthName} ${lastDayOfCurrentMonthNumber}`,
+            _internal_start_date: new Date(Date.UTC(year, monthIndex, 22, 0, 0, 0, 0)),
+            _internal_end_date: new Date(Date.UTC(year, monthIndex, lastDayOfCurrentMonthNumber, 23, 59, 59, 999)),
+            amount: 0,
+        }
+    ];
+}
+
+// Custom deep copy function to preserve Date objects and reset amounts
+function deepCopyWeeklySummary(weeksArray) {
+    return weeksArray.map(week => ({
+        // Copy all properties from the original week object
+        ...week,
+        // Explicitly create new Date objects to ensure they are instances of Date
+        _internal_start_date: new Date(week._internal_start_date.getTime()),
+        _internal_end_date: new Date(week._internal_end_date.getTime()),
+        // Ensure amount is reset for the fresh copy
+        amount: 0
+    }));
+}
+
+exports.getMonthlyProfileActivityChart = async (req, res) => {
+  try {
+    const now = new Date(); // Current server time: May 15, 2025
+    const year = now.getFullYear(); // 2025
+    const monthIndex = now.getMonth(); // 4 (for May, 0-indexed)
+
+    const baseWeeksDefinition = generatePredefinedWeeks(year, monthIndex);
+
+    // Use UTC dates for Prisma query to align with UTC week definitions
+    const firstDayOfMonthUTC = new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0, 0));
+    const firstDayOfNextMonthUTC = new Date(Date.UTC(year, monthIndex + 1, 1, 0, 0, 0, 0));
+
+    const rankingsThisMonth = await prisma.profile_ranking.findMany({
+      where: {
+        created_date: {
+          gte: firstDayOfMonthUTC,
+          lt: firstDayOfNextMonthUTC,
+        },
+      },
+      include: {
+        profile: {
+          select: { profile_name: true, id: true },
+        },
+      },
+      orderBy: { created_date: 'asc' },
+    });
+
+    const promotionsThisMonth = await prisma.profile_promotion.findMany({
+      where: {
+        created_date: {
+          gte: firstDayOfMonthUTC,
+          lt: firstDayOfNextMonthUTC,
+        },
+      },
+      include: {
+        profile: {
+          select: { profile_name: true, id: true },
+        },
+      },
+      orderBy: { created_date: 'asc' },
+    });
+
+    const groupedActivity = {};
+
+    rankingsThisMonth.forEach(ranking => {
+      const profileName = ranking.profile ? ranking.profile.profile_name : 'Unknown Profile';
+      if (!groupedActivity[profileName]) {
+        groupedActivity[profileName] = {
+          profileId: ranking.profile_id,
+          ranking: [],
+          promotion: {
+            weeklySummary: deepCopyWeeklySummary(baseWeeksDefinition), // Use proper deep copy
+            totalAmountThisMonth: 0,
+          },
+        };
+      }
+      groupedActivity[profileName].ranking.push({
+        date: ranking.created_date,
+        keywords: ranking.keywords,
+        row: ranking.row,
+        rankingPage: ranking.ranking_page,
+      });
+    });
+
+    promotionsThisMonth.forEach(promotion => {
+      const profileName = promotion.profile ? promotion.profile.profile_name : 'Unknown Profile';
+      const numPromotionAmount = parseFloat(promotion.promotion_amount) || 0;
+      const promotionDate = new Date(promotion.created_date);
+
+      if (!groupedActivity[profileName]) {
+        groupedActivity[profileName] = {
+          profileId: promotion.profile_id,
+          ranking: [],
+          promotion: {
+            weeklySummary: deepCopyWeeklySummary(baseWeeksDefinition), // Use proper deep copy
+            totalAmountThisMonth: 0,
+          },
+        };
+      } else if (!groupedActivity[profileName].promotion) {
+         groupedActivity[profileName].promotion = {
+            weeklySummary: deepCopyWeeklySummary(baseWeeksDefinition), // Use proper deep copy
+            totalAmountThisMonth: 0,
+         };
+      }
+      // Ensure weeklySummary exists if promotion object was somehow partially initialized
+      // This should be redundant if the above initializations are correct
+      else if (!groupedActivity[profileName].promotion.weeklySummary) {
+        groupedActivity[profileName].promotion.weeklySummary = deepCopyWeeklySummary(baseWeeksDefinition);
+      }
+
+
+      groupedActivity[profileName].promotion.totalAmountThisMonth += numPromotionAmount;
+
+      for (const weekDefinition of groupedActivity[profileName].promotion.weeklySummary) {
+        // Now both promotionDate and weekDefinition._internal_..._date are proper Date objects
+        if (promotionDate >= weekDefinition._internal_start_date && promotionDate <= weekDefinition._internal_end_date) {
+          weekDefinition.amount += numPromotionAmount;
+          break; 
+        }
+      }
+    });
+
+    Object.values(groupedActivity).forEach(profileData => {
+      if (profileData.promotion && profileData.promotion.weeklySummary) {
+        profileData.promotion.weeklySummary.forEach(week => {
+          delete week._internal_start_date;
+          delete week._internal_end_date;
+        });
+      }
+    });
+
+    if (Object.keys(groupedActivity).length === 0) {
+      return res.status(404).json({
+        message: 'No profile activity (rankings or promotions) found for the current month.',
+        data: {},
+      });
+    }
+
+    return res.status(200).json({
+      message: 'Monthly profile activity grouped by profile retrieved successfully.',
+      data: groupedActivity,
+      month: monthIndex + 1,
+      year: year,
+    });
+
+  } catch (error) {
+    console.error('Error retrieving grouped monthly profile activity:', error);
+    return res.status(500).json({
+      message: 'An error occurred while retrieving grouped monthly profile activity.',
+      error: error.message,
+    });
+  }
+};
 
 
 
