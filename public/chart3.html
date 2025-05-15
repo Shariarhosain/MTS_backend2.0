@@ -71,15 +71,14 @@
         });
       }
     }
-
+ socket.emit("getTeamwiseDeliveryGraph");
     // 🔁 Listen for real-time updates via Socket.IO
-    socket.on("teamwiseDeliveryGraph", (liveData) => {
-      console.log("📡 Live update received");
+    socket.on("teamwiseGraph", (liveData) => {
+    console.log("Received live data:", liveData);
       createOrUpdateChart(liveData);
     });
 
     // ⚡ Ask server to send live data (optional)
-    socket.emit("teamwiseDeliveryGraph");
 
     // ✅ Initial render
     drawChart();

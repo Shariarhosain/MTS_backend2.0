@@ -7,7 +7,7 @@ const { getTeamName } = require('./middlewares/TeamName');
 const { getTeamMember } = require('./middlewares/TeamName');
 const emitProfilename = require('./middlewares/showProfilename');
 const emitProjectMoneyMetrics = require('./middlewares/carddetailsForoperation');
-const {eachTeamChart,eachTeamChartForTeamId,getProfileCurrentMonthWeeklyDetails,getMonthlyProfileActivityChart} = require('./middlewares/teamwiseDeliveryGraph');
+const {eachTeamChart,eachTeamChartForTeamId,getProfileCurrentMonthWeeklyDetails,getMonthlyProfileActivityChart,teamwiseDeliveryGraph} = require('./middlewares/teamwiseDeliveryGraph');
 //const {eachTeamChartByTeamId} = require('./middlewares/teamwiseDeliveryGraph');
 
 const totalOrdersCardData  = require('./middlewares/projectCardEmitter');
@@ -132,19 +132,25 @@ try{
 
 
 
+socket.on('getTeamwiseDeliveryGraph', async () => {
+  try {
+    await teamwiseDeliveryGraph(io);
+  } catch (error) {
+    console.error("Error fetching team-wise delivery graph:", error);
+  }
+});
 
-
-    socket.on('teamwiseDeliveryGraph', (teamwiseDelivery) => {
-      io.emit('teamwiseDeliveryGraph', teamwiseDelivery);
-    });
 
 
 
 // Listen for TeamChart emit
 socket.on('TeamChart', async () => {
   try {
-    console.log('Fetching each team chart data...');
-    await eachTeamChart(io); // Must use io.emit inside this
+   const authenticatedUser = socket.user;
+    if (authenticatedUser) {
+        // Call the function, passing the user and the socket
+        await eachTeamChart(io, authenticatedUser, socket);
+    }
   } catch (error) {
     console.error("Error fetching each team chart data:", error);
   }

@@ -3,39 +3,39 @@ const { io } = require('socket.io-client');
 const prisma = new PrismaClient();
 
 
-async function teamwiseDeliveryGraph(io) {
-    //show team wise total  delivery amout( after fiverr amount) group by team name
-    try {
-        const projects = await prisma.project.findMany({
-            where: {
-                is_delivered: true,
-            },
-            include: {
-                team: true,
-            },
-        });
+// async function teamwiseDeliveryGraph(io) {
+//     //show team wise total  delivery amout( after fiverr amount) group by team name
+//     try {
+//         const projects = await prisma.project.findMany({
+//             where: {
+//                 is_delivered: true,
+//             },
+//             include: {
+//                 team: true,
+//             },
+//         });
 
-        const teamWiseDelivery = projects.reduce((acc, project) => {
-            const teamName = project.team ? project.team.team_name : 'Unknown Team';
-            const amount = parseInt(project.after_fiverr_amount) + (parseInt(project.after_Fiverr_bonus) || 0) || 0;
+//         const teamWiseDelivery = projects.reduce((acc, project) => {
+//             const teamName = project.team ? project.team.team_name : 'Unknown Team';
+//             const amount = parseInt(project.after_fiverr_amount) + (parseInt(project.after_Fiverr_bonus) || 0) || 0;
 
-            if (!acc[teamName]) {
-                acc[teamName] = 0;
-            }
-            acc[teamName] += amount;
-            return acc;
-        }, {});
+//             if (!acc[teamName]) {
+//                 acc[teamName] = 0;
+//             }
+//             acc[teamName] += amount;
+//             return acc;
+//         }, {});
 
-        io.emit("teamwiseDeliveryGraph", teamWiseDelivery); // Emit the data to the socket
+//         io.emit("teamwiseDeliveryGraph", teamWiseDelivery); // Emit the data to the socket
   
-    } catch (error) {
-        console.error('Error fetching team-wise delivery:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
+//     } catch (error) {
+//         console.error('Error fetching team-wise delivery:', error);
+//         res.status(500).json({ error: 'Internal server error' });
+//     }
 
 
 
-}
+// }
 
 // async function eachTeamChart(io) {
 //   try {
@@ -762,12 +762,288 @@ async function teamwiseDeliveryGraph(io) {
 //     console.error('Error fetching team data:', err);
 //   }
 // }
+// async function teamwiseDeliveryGraph(io) {
+//     try {
+//         const today = new Date();
+//         const year = today.getFullYear();
+//         const monthIndex = today.getMonth(); // 0 for Jan, 1 for Feb, etc.
+
+//         // Define week boundaries in UTC
+//         const weeks = [
+//             { week: 'Week 1', start: new Date(Date.UTC(year, monthIndex, 1)), end: new Date(Date.UTC(year, monthIndex, 7, 23, 59, 59, 999)) }, // Include end of day
+//             { week: 'Week 2', start: new Date(Date.UTC(year, monthIndex, 8)), end: new Date(Date.UTC(year, monthIndex, 14, 23, 59, 59, 999)) }, // Include end of day
+//             { week: 'Week 3', start: new Date(Date.UTC(year, monthIndex, 15)), end: new Date(Date.UTC(year, monthIndex, 21, 23, 59, 59, 999)) }, // Include end of day
+//             { week: 'Week 4', start: new Date(Date.UTC(year, monthIndex, 22)), end: new Date(Date.UTC(year, monthIndex + 1, 0, 23, 59, 59, 999)) } // Last day of month, end of day
+//         ];
+
+//         // Fetch all teams
+//         const teams = await prisma.team.findMany({
+//             select: {
+//                 id: true,
+//                 team_name: true,
+//             },
+//         });
+
+//         // Fetch all projects that are relevant to these teams within the current month's scope
+//         // This includes projects ordered this month, delivered this month, or carry-over active projects.
+//         // To calculate all weekly metrics correctly, we need a broad set of projects.
+//         // Projects ordered this month, or delivered this month are key.
+//         // Projects ordered before but cancelled this month? Or submitted this month?
+//         // Let's fetch projects ordered or delivered within the current month, and those
+//         // ordered previously but currently assigned and not delivered/cancelled.
+//          const startOfMonthUTC = new Date(Date.UTC(year, monthIndex, 1));
+//          const endOfMonthUTC = new Date(Date.UTC(year, monthIndex + 1, 0, 23, 59, 59, 999));
 
 
-async function eachTeamChart(io) {
-  try {
-    const me = await prisma.team_member.findUnique({
-      where: { uid: global.user.uid },
+//         const projects = await prisma.project.findMany({
+//             where: {
+//                 team_id: { not: null }, // Assigned to some team
+//                 OR: [
+//                     {
+//                         // Projects ordered this month (relevant for Cancelled, Submitted, Weekly Assign)
+//                         date: { gte: startOfMonthUTC, lte: endOfMonthUTC }
+//                     },
+//                     {
+//                         // Projects delivered this month (relevant for Delivered)
+//                          delivery_date: { gte: startOfMonthUTC, lte: endOfMonthUTC },
+//                          is_delivered: true // Ensure it's actually delivered
+//                     },
+//                      // Optionally include carry-over projects ordered before but still active
+//                      // This isn't strictly needed for the *weekly slices* of metrics
+//                      // based on activity *in* the week, but might be relevant for a
+//                      // monthly summary if you were to add one. Sticking to weekly activity for now.
+//                 ]
+//             },
+//             select: {
+//                 id: true,
+//                 team_id: true,
+//                 date: true, // Order date
+//                 delivery_date: true, // Delivery date
+//                 status: true,
+//                 is_delivered: true,
+//                 after_fiverr_amount: true,
+//                 after_Fiverr_bonus: true,
+//             },
+//         });
+
+//         // Structure the result: { weekName: { teamName: { metrics } } }
+//         const weeklyTeamMetrics = {};
+
+//         // Initialize the structure with default values
+//         weeks.forEach(({ week }) => {
+//             weeklyTeamMetrics[week] = {};
+//             teams.forEach(team => {
+//                 const teamName = team.team_name || `Team ${team.id}`;
+//                 weeklyTeamMetrics[week][teamName] = {
+//                     "total canceled": 0,
+//                     "total Submit": 0,
+//                     "total delivery": 0,
+//                     "Total Assign": 0, // Sum of value for projects ordered in this week AND assigned to this team
+//                 };
+//             });
+//         });
+
+//         // Populate the weekly metrics based on project data
+//         projects.forEach(project => {
+//             const team = teams.find(t => t.id === project.team_id);
+//             if (!team) return; // Should not happen if team_id is valid
+//             const teamName = team.team_name || `Team ${team.id}`;
+//             const amount = Number(project.after_fiverr_amount || 0) + Number(project.after_Fiverr_bonus || 0);
+
+//             weeks.forEach(({ week, start, end }) => {
+//                 // Calculate 'total delivery' based on delivery_date
+//                 if (project.is_delivered && project.delivery_date) {
+//                     const deliveryDate = new Date(project.delivery_date);
+//                      // Check if deliveryDate falls within the current week's range (inclusive)
+//                     if (deliveryDate.getTime() >= start.getTime() && deliveryDate.getTime() <= end.getTime()) {
+//                         weeklyTeamMetrics[week][teamName]["total delivery"] += amount;
+//                     }
+//                 }
+
+//                 // Calculate 'total canceled', 'total Submit', and 'Total Assign' based on order date ('date')
+//                  if (project.date) {
+//                      const orderDate = new Date(project.date);
+//                       // Check if orderDate falls within the current week's range (inclusive)
+//                      if (orderDate.getTime() >= start.getTime() && orderDate.getTime() <= end.getTime()) {
+
+//                          // Canceled projects ordered this week
+//                          if (project.status === 'cancelled') {
+//                              weeklyTeamMetrics[week][teamName]["total canceled"] += amount;
+//                          }
+
+//                          // Submitted projects ordered this week (and not delivered)
+//                          if (project.status === 'submitted' && !project.is_delivered) {
+//                              weeklyTeamMetrics[week][teamName]["total Submit"] += amount;
+//                          }
+
+//                          // Projects ordered this week and assigned to this team ('Total Assign' interpretation)
+//                          // Note: This counts the project value in the week it was ordered, if assigned.
+//                          // It doesn't track assignment date specifically.
+//                          if (project.team_id === team.id) {
+//                              weeklyTeamMetrics[week][teamName]["Total Assign"] += amount;
+//                          }
+//                      }
+//                  }
+//             });
+//         });
+
+//          // Emit the structured data
+//          // You might want to wrap the result in a top-level key like 'weeklyTeamData'
+//         io.emit("teamwiseGraph", { weeklyTeamData: weeklyTeamMetrics });
+//  console.log("teamwiseGraph", { weeklyTeamData: weeklyTeamMetrics });
+//     } catch (error) {
+//         console.error('Error fetching all teams weekly metrics:', error);
+//         // Emit an error back to the client
+//         io.emit("teamwiseGraph", { error: 'Internal server error fetching weekly team data.' });
+//     }
+// }
+
+
+async function teamwiseDeliveryGraph(io) {
+    try {
+        const today = new Date();
+        const year = today.getFullYear();
+        const monthIndex = today.getMonth(); // 0 for Jan, 1 for Feb, etc.
+
+        // Define week boundaries in UTC, including the end of the day (23:59:59.999)
+        const weeks = [
+            { week: 'Week 1', start: new Date(Date.UTC(year, monthIndex, 1)), end: new Date(Date.UTC(year, monthIndex, 7, 23, 59, 59, 999)) },
+            { week: 'Week 2', start: new Date(Date.UTC(year, monthIndex, 8)), end: new Date(Date.UTC(year, monthIndex, 14, 23, 59, 59, 999)) },
+            { week: 'Week 3', start: new Date(Date.UTC(year, monthIndex, 15)), end: new Date(Date.UTC(year, monthIndex, 21, 23, 59, 59, 999)) },
+            { week: 'Week 4', start: new Date(Date.UTC(year, monthIndex, 22)), end: new Date(Date.UTC(year, monthIndex + 1, 0, 23, 59, 59, 999)) }
+        ];
+
+        const teamsWithMembers = await prisma.team.findMany({
+            select: {
+                id: true,
+                team_name: true,
+                team_member: {
+                    select: {
+                        id: true,
+                        role: true, // Role is selected
+                    },
+                },
+            },
+        });
+
+        const teamInfoMap = new Map();
+        teamsWithMembers.forEach(team => {
+            // MODIFICATION: Make role check case-insensitive for 'sales_' prefix
+            const isSales = team.team_member.some(member => member.role?.toLowerCase().startsWith('sales_'));
+            const memberIds = team.team_member.map(member => member.id);
+            const teamName = team.team_name || `Team ${team.id}`;
+            teamInfoMap.set(team.id, {
+                id: team.id,
+                name: teamName,
+                isSales: isSales, // Uses case-insensitive check now
+                memberIds: memberIds,
+            });
+        });
+
+        const startOfMonthUTC = new Date(Date.UTC(year, monthIndex, 1));
+        const endOfMonthUTC = new Date(Date.UTC(year, monthIndex + 1, 0, 23, 59, 59, 999));
+
+        const allRelevantProjects = await prisma.project.findMany({
+            where: {
+                OR: [
+                    { date: { gte: startOfMonthUTC, lte: endOfMonthUTC } }, // Ordered this month
+                    { delivery_date: { gte: startOfMonthUTC, lte: endOfMonthUTC }, is_delivered: true }, // Delivered this month
+                ]
+            },
+            select: {
+                id: true,
+                team_id: true,
+                date: true,
+                delivery_date: true,
+                status: true,
+                is_delivered: true,
+                after_fiverr_amount: true,
+                after_Fiverr_bonus: true,
+                ordered_by: true,
+            },
+        });
+
+        const weeklyTeamMetrics = {};
+        weeks.forEach(({ week }) => {
+            weeklyTeamMetrics[week] = {};
+            teamInfoMap.forEach(team => {
+                weeklyTeamMetrics[week][team.name] = {
+                    "total sales achieved": 0,
+                    "total canceled": 0,
+                    "total Submit": 0,
+                    "total delivery": 0,
+                    "Total Assign": 0,
+                };
+            });
+        });
+
+        allRelevantProjects.forEach(project => {
+            const amount = Number(project.after_fiverr_amount || 0) + Number(project.after_Fiverr_bonus || 0);
+            const orderDate = project.date ? new Date(project.date) : null;
+            const deliveryDate = project.delivery_date ? new Date(project.delivery_date) : null;
+
+            weeks.forEach(({ week, start, end }) => {
+                const orderedInWeek = orderDate && orderDate.getTime() >= start.getTime() && orderDate.getTime() <= end.getTime();
+                const deliveredInWeek = deliveryDate && deliveryDate.getTime() >= start.getTime() && deliveryDate.getTime() <= end.getTime();
+
+                teamInfoMap.forEach(team => {
+                    const teamName = team.name;
+                    const currentWeekMetrics = weeklyTeamMetrics[week][teamName];
+
+                    if (team.isSales) { // This team is identified as Sales (case-insensitively for member roles)
+                        const isRelevantOrderForSalesTeamInWeek = project.ordered_by && team.memberIds.includes(project.ordered_by) && orderedInWeek;
+
+                        if (isRelevantOrderForSalesTeamInWeek) {
+                            if (project.status !== 'cancelled') {
+                                currentWeekMetrics["total sales achieved"] += amount;
+                            }
+                            if (project.status === 'cancelled') {
+                                currentWeekMetrics["total canceled"] += amount;
+                            }
+                            if (project.status === 'submitted' && !project.is_delivered) {
+                                currentWeekMetrics["total Submit"] += amount;
+                            }
+                        }
+                    } else { // Operations Team
+                        if (project.team_id === team.id && project.is_delivered && deliveredInWeek) {
+                            currentWeekMetrics["total delivery"] += amount;
+                        }
+                    }
+
+                    if (orderedInWeek && project.team_id === team.id) {
+                        currentWeekMetrics["Total Assign"] += amount;
+                    }
+                }); // End team loop
+            }); // End week loop
+        }); // End project loop
+
+        io.emit("teamwiseGraph", { weeklyTeamData: weeklyTeamMetrics });
+        console.log("Emitted teamwiseGraph", { weeklyTeamData: weeklyTeamMetrics });
+
+    } catch (error) {
+        console.error('Error fetching weekly team metrics by role:', error);
+        io.emit("teamwiseGraph", { error: 'Internal server error fetching weekly team data.' });
+    }
+}
+
+
+
+
+
+
+async function eachTeamChart(io, user, socket) {
+   if (!user || !user.uid) {
+       // Handle missing user context - this indicates it wasn't called correctly
+       console.error("eachTeamChart called without a valid user object.");
+       if (socket) { // Try to send error back to the specific socket
+           socket.emit('eachTeamChart', { error: "Authentication context missing." });
+       }
+       return;
+   }
+   try {
+       // Use the passed 'user' object
+       const me = await prisma.team_member.findUnique({
+           where: { uid: user.uid }, // Use user.uid from the parameter
       select: { id: true, role: true, first_name: true, team_id: true },
     });
     if (!me) {

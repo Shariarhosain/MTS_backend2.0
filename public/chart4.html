@@ -154,7 +154,7 @@
     
         // Emit request to socket for real-time data
         socket.emit('TeamChart');
-        socket.emit('TeamChartid', 3); // Example team ID, replace with actual ID if needed
+        socket.emit('TeamChartid', 2); // Example team ID, replace with actual ID if needed
 
         socket.on('eachTeamChartForTeamId', (data) => {
             console.log("Real-time for eachTeamChartForTeamId:", data);
