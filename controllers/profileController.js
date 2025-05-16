@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const { profile } = require('console');
 const prisma = new PrismaClient();
 const express = require('express');
 const http = require('http');
@@ -524,24 +525,97 @@ exports.getProjectSpecialOrder = async (req, res) => {
 
 exports.updateProjectSpecialOrder = async (req, res) => {
   const { id } = req.params;
+  const { profileName, special_order_amount, delivery_date, client_name } = req.body;
+
   try {
+    const dataForUpdate = {
+      update_at: new Date(), // Always update the modification timestamp
+    };
+
+    // 1. Handle profile_id update if profileName is provided
+    if (profileName) {
+      const profile = await prisma.profile.findUnique({
+        where: { profile_name: profileName },
+      });
+
+      if (!profile) {
+        return res.status(404).json({
+          message: `Profile with name '${profileName}' not found`,
+        });
+      }
+      dataForUpdate.profile_id = profile.id;
+    } else if (req.body.hasOwnProperty('profileName') && profileName === null) {
+      // If profileName is explicitly passed as null, you might want to clear the profile_id
+      // This depends on your application's requirements.
+      // dataForUpdate.profile_id = null;
+    }
+
+
+    // 2. Handle other updatable fields from req.body
+    if (special_order_amount !== undefined) {
+      const amount = parseFloat(special_order_amount);
+      if (isNaN(amount)) {
+        return res.status(400).json({ message: 'Invalid special_order_amount format.' });
+      }
+      dataForUpdate.special_order_amount = amount;
+    }
+
+    if (delivery_date) {
+      const parsedDate = new Date(delivery_date);
+      // Check if the parsedDate is a valid date
+      if (isNaN(parsedDate.getTime())) {
+        return res.status(400).json({ message: 'Invalid delivery_date format. Please use a valid date string (e.g., YYYY-MM-DD).' });
+      }
+      dataForUpdate.delivery_date = parsedDate;
+    }
+
+    if (client_name !== undefined) {
+      // Assuming client_name can be an empty string if provided.
+      // If client_name should only be updated if it's a non-empty string:
+      // if (typeof client_name === 'string' && client_name.trim() !== '') {
+      //   dataForUpdate.client_name = client_name;
+      // } else if (client_name !== undefined) {
+      //   return res.status(400).json({ message: 'client_name must be a non-empty string if provided.'});
+      // }
+      dataForUpdate.client_name = client_name;
+    }
+
+    // Add any other fields from req.body that are part of your project_special_order schema
+    // and you want to make updatable. For example:
+    // if (req.body.status !== undefined) {
+    //   dataForUpdate.status = req.body.status;
+    // }
+
+    // Ensure there's something to update besides 'update_at' if no profileName was handled
+    // This prevents an update call with only `update_at` if other fields are also absent.
+    // However, if only profileName was provided and was valid, it's a valid update.
+    const updateKeys = Object.keys(dataForUpdate);
+    if (updateKeys.length === 1 && updateKeys[0] === 'update_at' && !req.body.hasOwnProperty('profileName')) {
+        // If only update_at is set and profileName wasn't even in the request,
+        // it implies no actual data fields were provided for update.
+        // You might want to return a message or proceed depending on desired behavior.
+        // For now, we'll allow it, as an "empty" update just touches update_at.
+    }
 
 
     const updatedOrder = await prisma.project_special_order.update({
-      where: { id: parseInt(id) },
-      data: {
-        ...req.body,
-        update_at: new Date(),
-      },
-      include: { profile: true },
+      where: { id: parseInt(id) }, // Ensure 'id' is an integer
+      data: dataForUpdate,
+      include: { profile: true }, // Include related profile data in the response
     });
+
     res.json({
       message: 'Special order updated successfully',
       order: updatedOrder,
     });
+
   } catch (error) {
     console.error('Error updating special order:', error);
-    res.status(500).json({ error: 'Failed to update special order' });
+    // Handle Prisma-specific error for record not found during update
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: `Special order with ID ${id} not found.` });
+    }
+    res.status(500).json({ error: 'Failed to update special order', details: error.message });
   }
 };
 
