@@ -910,56 +910,64 @@ async function teamwiseDeliveryGraph(io) {
             { week: 'Week 1', start: new Date(Date.UTC(year, monthIndex, 1)), end: new Date(Date.UTC(year, monthIndex, 7, 23, 59, 59, 999)) },
             { week: 'Week 2', start: new Date(Date.UTC(year, monthIndex, 8)), end: new Date(Date.UTC(year, monthIndex, 14, 23, 59, 59, 999)) },
             { week: 'Week 3', start: new Date(Date.UTC(year, monthIndex, 15)), end: new Date(Date.UTC(year, monthIndex, 21, 23, 59, 59, 999)) },
-            { week: 'Week 4', start: new Date(Date.UTC(year, monthIndex, 22)), end: new Date(Date.UTC(year, monthIndex + 1, 0, 23, 59, 59, 999)) }
+            { week: 'Week 4', start: new Date(Date.UTC(year, monthIndex, 22)), end: new Date(Date.UTC(year, monthIndex + 1, 0, 23, 59, 59, 999)) } // end is last moment of the last day of the month
         ];
 
-        const teamsWithMembers = await prisma.team.findMany({
+        const teamsWithData = await prisma.team.findMany({
             select: {
                 id: true,
                 team_name: true,
+                team_target: true, // Added team_target
                 team_member: {
                     select: {
                         id: true,
-                        role: true, // Role is selected
+                        role: true,
                     },
                 },
             },
         });
 
         const teamInfoMap = new Map();
-        teamsWithMembers.forEach(team => {
-            // MODIFICATION: Make role check case-insensitive for 'sales_' prefix
+        teamsWithData.forEach(team => {
             const isSales = team.team_member.some(member => member.role?.toLowerCase().startsWith('sales_'));
             const memberIds = team.team_member.map(member => member.id);
             const teamName = team.team_name || `Team ${team.id}`;
             teamInfoMap.set(team.id, {
                 id: team.id,
                 name: teamName,
-                isSales: isSales, // Uses case-insensitive check now
+                isSales: isSales,
                 memberIds: memberIds,
+                target: Number(team.team_target || 0), // Store numeric team target
             });
         });
 
         const startOfMonthUTC = new Date(Date.UTC(year, monthIndex, 1));
-        const endOfMonthUTC = new Date(Date.UTC(year, monthIndex + 1, 0, 23, 59, 59, 999));
+        const endOfMonthUTC = new Date(Date.UTC(year, monthIndex + 1, 0, 23, 59, 59, 999)); // Last moment of the last day of the month
 
         const allRelevantProjects = await prisma.project.findMany({
             where: {
+                // Fetch projects relevant for the month:
+                // - Ordered this month (for sales achievement, operations cancellations/assignments)
+                // - Delivered this month (for operations achievement)
+                // Ensure cancelled projects ordered this month are also fetched.
                 OR: [
                     { date: { gte: startOfMonthUTC, lte: endOfMonthUTC } }, // Ordered this month
-                    { delivery_date: { gte: startOfMonthUTC, lte: endOfMonthUTC }, is_delivered: true }, // Delivered this month
+                    { 
+                        delivery_date: { gte: startOfMonthUTC, lte: endOfMonthUTC }, 
+                        is_delivered: true 
+                    }, // Delivered this month
                 ]
             },
             select: {
                 id: true,
-                team_id: true,
-                date: true,
+                team_id: true, // ID of the team assigned to the project (usually operations)
+                date: true,         // Order date
                 delivery_date: true,
                 status: true,
                 is_delivered: true,
                 after_fiverr_amount: true,
                 after_Fiverr_bonus: true,
-                ordered_by: true,
+                ordered_by: true,   // ID of the team_member who ordered (relevant for sales)
             },
         });
 
@@ -968,11 +976,9 @@ async function teamwiseDeliveryGraph(io) {
             weeklyTeamMetrics[week] = {};
             teamInfoMap.forEach(team => {
                 weeklyTeamMetrics[week][team.name] = {
-                    "total sales achieved": 0,
-                    "total canceled": 0,
-                    "total Submit": 0,
-                    "total delivery": 0,
-                    "Total Assign": 0,
+                    "total target": Math.round((team.target || 0) / weeks.length), // Distribute target weekly
+                    "total achieve": 0,
+                    "total cancelled": 0, // Will only be populated for Operations teams
                 };
             });
         });
@@ -990,28 +996,29 @@ async function teamwiseDeliveryGraph(io) {
                     const teamName = team.name;
                     const currentWeekMetrics = weeklyTeamMetrics[week][teamName];
 
-                    if (team.isSales) { // This team is identified as Sales (case-insensitively for member roles)
-                        const isRelevantOrderForSalesTeamInWeek = project.ordered_by && team.memberIds.includes(project.ordered_by) && orderedInWeek;
-
-                        if (isRelevantOrderForSalesTeamInWeek) {
+                    if (team.isSales) {
+                        // Logic for Sales Teams
+                        const isRelevantOrderForSalesTeam = project.ordered_by && team.memberIds.includes(project.ordered_by);
+                        
+                        if (isRelevantOrderForSalesTeam && orderedInWeek) {
                             if (project.status !== 'cancelled') {
-                                currentWeekMetrics["total sales achieved"] += amount;
+                                currentWeekMetrics["total achieve"] += amount;
                             }
-                            if (project.status === 'cancelled') {
-                                currentWeekMetrics["total canceled"] += amount;
+                            // "total cancelled" is NOT calculated for sales teams as per requirements
+                        }
+                    } else {
+                        // Logic for Operations Teams (non-Sales)
+                        if (project.team_id === team.id) { // Project is assigned to this operations team
+                            if (project.is_delivered && deliveredInWeek) {
+                                currentWeekMetrics["total achieve"] += amount;
                             }
-                            if (project.status === 'submitted' && !project.is_delivered) {
-                                currentWeekMetrics["total Submit"] += amount;
+                            // Calculate "total cancelled" for operations teams
+                            // Based on projects assigned to them (team_id match)
+                            // and ordered in the week (orderedInWeek) that are now cancelled.
+                            if (project.status === 'cancelled' && orderedInWeek) {
+                                currentWeekMetrics["total cancelled"] += amount;
                             }
                         }
-                    } else { // Operations Team
-                        if (project.team_id === team.id && project.is_delivered && deliveredInWeek) {
-                            currentWeekMetrics["total delivery"] += amount;
-                        }
-                    }
-
-                    if (orderedInWeek && project.team_id === team.id) {
-                        currentWeekMetrics["Total Assign"] += amount;
                     }
                 }); // End team loop
             }); // End week loop
@@ -1021,15 +1028,14 @@ async function teamwiseDeliveryGraph(io) {
         console.log("Emitted teamwiseGraph", { weeklyTeamData: weeklyTeamMetrics });
 
     } catch (error) {
-        console.error('Error fetching weekly team metrics by role:', error);
+        console.error('Error fetching weekly team metrics for teamwiseDeliveryGraph:', error);
         io.emit("teamwiseGraph", { error: 'Internal server error fetching weekly team data.' });
     }
-  }
-
-async function eachTeamChart(io) {
+}
+async function eachTeamChart(io, user) {
   try {
     const me = await prisma.team_member.findUnique({
-      where: { uid: global.user.uid },
+      where: { uid: user.uid },  // Use user from socket auth
       select: { id: true, role: true, first_name: true, team_id: true },
     });
     if (!me) {

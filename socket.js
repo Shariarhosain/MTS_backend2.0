@@ -20,6 +20,43 @@ const initSocket = (server) => {
     }
   });
 
+
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = 'your_secret_key';  // Store securely in .env
+
+
+  io.use((socket, next) => {
+    const token = socket.handshake.auth.token || socket.handshake.headers['authorization']?.split(' ')[1];
+    if (!token) {
+      return next(new Error("Authentication error: Token missing"));
+    }
+    try {
+      const user = jwt.verify(token, JWT_SECRET);
+      socket.user = user;  // Attach user info to this socket instance
+      next();
+    } catch (err) {
+      return next(new Error("Authentication error: Invalid token"));
+    }
+  });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
@@ -143,15 +180,13 @@ socket.on('getTeamwiseDeliveryGraph', async () => {
 
 
 
-// Listen for TeamChart emit
-socket.on('TeamChart', async () => {
-  try {
-    console.log('Fetching each team chart data...');
-    await eachTeamChart(io); // Must use io.emit inside this
-  } catch (error) {
-    console.error("Error fetching each team chart data:", error);
-  }
-});
+   socket.on('TeamChart', async () => {
+      try {
+        await eachTeamChart(io, socket.user);  // Pass user info to your function
+      } catch (error) {
+        console.error("Error fetching each team chart data:", error);
+      }
+    });
 
 
 
