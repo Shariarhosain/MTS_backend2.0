@@ -84,6 +84,8 @@
         socket.on('projectData', (data) => {
             const { projects, pagination } = data;
 
+            console.log('Received project data:', projects, pagination);
+
             if (projects) {
                 // Clear previous projects to avoid duplication
                 projectsContainer.innerHTML = '';

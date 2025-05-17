@@ -5,6 +5,7 @@ const generateToken = require('../config/generateToken');  // Adjust path to you
 const prisma = new PrismaClient();
 const fs = require('fs');
 const path = require('path');
+const { de } = require('@faker-js/faker');
 
 
 
@@ -60,33 +61,46 @@ const path = require('path');
 
 // Create a new team member and generate a JWT token
 exports.createTeamMember = async (req, res) => {
-    const { 
-        first_name, 
-        last_name, 
-        email, 
-        number, 
-        permanent_address, 
-        present_address, 
-        gender, 
-        blood_group, 
-        relationship, 
-        guardian_relation, 
-        guardian_number, 
-        guardian_address, 
-        religion, 
-        education, 
+    const {
+        first_name,
+        last_name,
+        email,
+        number,
+        permanent_address,
+        present_address,
+        gender,
+        blood_group,
+        relationship,
+        guardian_relation,
+        guardian_number,
+        guardian_address,
+        religion,
+        education,
+        department: departmentName, // Rename the request body parameter
     } = req.body;
 
     try {
+
         console.log("📦 Fields:", req.body); // All form fields
-        console.log("🖼️ Files:", req.files); // All files    
+        console.log("🖼️ Files:", req.files); // All files
 
         // Access the first file in the array path
         const file = req.files.dp[0].path; // Assuming 'dp' is the field name for the image upload
         console.log("🖼️ File Path:", file); // Log the file path
 
+
+        //find department_name
+        const department = await prisma.department.findUnique({
+            where: { department_name: departmentName }, // Use the renamed variable
+        });
+        if (!department) {
+            return res.status(404).json({
+                message: 'Department not found',
+            });
+        }
+
         // Create team member in database
-        const teamMember = await prisma.team_member.create({
+     const teamMember = await prisma.team_member.create({
             data: {
                 first_name,
                 last_name,
@@ -102,7 +116,12 @@ exports.createTeamMember = async (req, res) => {
                 guardian_address,
                 religion,
                 education,
-                dp: file,  // Store the image path
+                department: {
+                    connect: {
+                        id: department.id, // Connect to the found department using its ID
+                    },
+                },
+                dp: file,   // Store the image path
                 role: 'null', // Default role, can be updated later
                 target: 0,
                 rewards: 0,
@@ -116,16 +135,16 @@ exports.createTeamMember = async (req, res) => {
 
         // Generate JWT Token
         const uid= req.body.uid; // Assuming uid is passed in the request body
-        if (!uid) { 
+        if (!uid) {
             return res.status(400).json({ message: 'UID is required to generate token.' });
         }
         console.log("UID:", uid); // Log the UID
         const token = generateToken(uid);
          // Send this token to the frontend for authentication
         console.log("Token:", token); // Log the generated token;
-        
+
         // Send response with token
-        return res.status(201).json({ 
+        return res.status(201).json({
             message: 'Team member created successfully',
             token: token  // Send JWT token to frontend
         });
@@ -136,7 +155,6 @@ exports.createTeamMember = async (req, res) => {
     }
 };
 
-
 exports.getAllTeamMembers = async (req, res) => {
     try {
         if (!req.body || Object.keys(req.body).length === 0) {
@@ -145,14 +163,14 @@ exports.getAllTeamMembers = async (req, res) => {
                 teamMembers: [],
                 pagination: {
                     page: 1,
-                    limit: 10,
+                    limit: 100,
                     total: 0,
                     totalPages: 0,
                 }
             });
         }
 
-        const { page = 1, limit = 10 } = req.body;
+        const { page = 1, limit = 100 } = req.body;
 
         const pageNumber = parseInt(page, 10) || 1;
         const limitNumber = parseInt(limit, 10) || 10;
@@ -161,11 +179,12 @@ exports.getAllTeamMembers = async (req, res) => {
             include: {
               team: {
                 include: {
-                  department: true, // this is nested via team
+                  department: true,
                 },
               },
               project: true, // directly related
               profile: true, // directly related
+              department: true, // directly related
             },
             skip,
             take: limitNumber,
@@ -231,6 +250,7 @@ exports.getTeamMemberById = async (req, res) => {
                 team: true,
                 project: true,
                 profile: true,
+                department: true,
             }
         });
         if (!teamMember) {
@@ -299,3 +319,147 @@ exports.login = async (req, res) => {
         return res.status(500).json({ message: 'An error occurred during login', error: error.message });
     }
 }
+
+
+
+
+/*model team {
+  id            Int           @id @default(autoincrement())
+  team_name     String?       @unique @db.VarChar(250)
+  department_id Int
+  team_target   Decimal?      @db.Decimal(65, 0)
+  project       project[]
+  department    department    @relation(fields: [department_id], references: [id], onDelete: Cascade)
+  team_member   team_member[]
+  today_task    today_task[]
+  revision      revision[]    @relation("revisionToteam")
+}
+ */
+
+exports.teamCreate = async (req, res) => {  
+
+    const { team_name, department_id } = req.body;
+    try {
+        const team = await prisma.team.create({
+            data: {
+                team_name,
+                department: {
+                    connect: {
+                        id: department_id,
+                    },
+                },
+            },
+        });
+        return res.status(201).json({ message: 'Team created successfully', team });
+    } catch (error) {
+        console.error('Error creating team:', error);
+        return res.status(500).json({ message: 'An error occurred while creating the team', error: error.message });
+    }
+
+}
+
+
+exports.updateTeam = async (req, res) => {
+    const { id } = req.params;
+    const { team_name, department_id } = req.body;
+    try {
+        const updatedTeam = await prisma.team.update({
+            where: { id: parseInt(id, 10) },
+            data: {
+               ...team_name && { team_name },
+                ...(department_id && {
+                    department: {
+                        connect: {
+                            id: department_id,
+                        },
+                    },
+                }),
+            },
+        });
+        return res.status(200).json({ message: 'Team updated successfully', team: updatedTeam });
+    } catch (error) {
+        console.error('Error updating team:', error);
+        return res.status(500).json({ message: 'An error occurred while updating the team', error: error.message });
+    }
+};
+
+exports.deleteTeam = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const deletedTeam = await prisma.team.delete({
+            where: { id: parseInt(id, 10) },
+        });
+        return res.status(200).json({ message: 'Team deleted successfully', team: deletedTeam });
+    } catch (error) {
+        console.error('Error deleting team:', error);
+        return res.status(500).json({ message: 'An error occurred while deleting the team', error: error.message });
+    }
+};
+
+
+
+
+  exports.departmentCreate = async (req, res) => {
+    const { department_name } = req.body;
+    try {
+        const department = await prisma.department.create({
+            data: {
+                department_name,
+            },
+        });
+        return res.status(201).json({ message: 'Department created successfully', department });
+    } catch (error) {
+        console.error('Error creating department:', error);
+        return res.status(500).json({ message: 'An error occurred while creating the department', error: error.message });
+    }
+};
+exports.updateDepartment = async (req, res) => {
+    const { id } = req.params;
+    const { department_name } = req.body;
+    try {
+        const updatedDepartment = await prisma.department.update({
+            where: { id: parseInt(id, 10) },
+            data: {
+                department_name,
+            },
+        });
+        return res.status(200).json({ message: 'Department updated successfully', department: updatedDepartment });
+    } catch (error) {
+        console.error('Error updating department:', error);
+        return res.status(500).json({ message: 'An error occurred while updating the department', error: error.message });
+    }
+};
+
+exports.deleteDepartment = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const deletedDepartment = await prisma.department.delete({
+            where: { id: parseInt(id, 10) },
+        });
+        return res.status(200).json({ message: 'Department deleted successfully', department: deletedDepartment });
+    } catch (error) {
+        console.error('Error deleting department:', error);
+        return res.status(500).json({ message: 'An error occurred while deleting the department', error: error.message });
+    }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

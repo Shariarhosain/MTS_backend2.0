@@ -2,87 +2,297 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Team-wise Delivery Amounts</title>
+  <title>Weekly Team Performance</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #f9fafb; padding: 2rem; }
-    h1 { margin-bottom: 1.5rem; text-align: center; }
-    #chartWrapper { max-width: 720px; margin: auto; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #121212; /* Dark background */
+      color: #E0E0E0; /* Light grey text for readability */
+      padding: 1rem;
+      margin: 0;
+    }
+    .main-title { /* Changed from h1 to a class for more specific styling */
+      margin-bottom: 2rem;
+      text-align: center;
+      color: #00FFFF; /* Neon Cyan */
+      font-size: 2.5em;
+      font-weight: 300;
+      letter-spacing: 2px;
+      text-shadow: 0 0 5px #00FFFF, 0 0 10px #00FFFF;
+    }
+    #chartsGridContainer { /* New: Grid container for weekly charts */
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); /* Responsive grid */
+      gap: 2rem; /* Spacing between charts */
+      width: 100%;
+      max-width: 1400px; /* Max width for the whole grid */
+      margin: 0 auto; /* Center the grid */
+    }
+    .week-chart-wrapper {
+      background: #1E1E1E; /* Slightly lighter dark shade for chart background */
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0, 255, 255, 0.1), 0 0 20px rgba(0, 255, 255, 0.05); /* Subtle neon glow */
+      display: flex;
+      flex-direction: column;
+    }
+    .week-chart-title {
+      color: #39FF14; /* Neon Green for week titles */
+      font-size: 1.5em;
+      text-align: center;
+      margin-bottom: 1rem;
+      font-weight: 400;
+      text-shadow: 0 0 3px #39FF14;
+    }
+    .week-chart-canvas-container { /* Container to manage canvas aspect ratio */
+        position: relative;
+        width: 100%;
+        /* Maintain an aspect ratio e.g., 2:1. Adjust as needed. */
+        /* padding-bottom: 50%;  You can use this or set explicit height */
+        height: 300px; /* Explicit height for canvas container */
+    }
+    .week-chart-canvas-container canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+    .status-message { /* For loading, no data, errors */
+        text-align: center;
+        font-size: 1.2em;
+        color: #FF00FF; /* Neon Magenta for status messages */
+        padding: 2rem;
+        width: 100%;
+    }
+    .no-data-message-small {
+        text-align: center;
+        font-style: italic;
+        color: #aaa;
+        margin-top: 1rem;
+    }
+
+    /* Custom scrollbar for webkit browsers */
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #2c2c2c;
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(45deg, #00FFFF, #39FF14);
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(45deg, #00B8B8, #2FAF0F);
+    }
   </style>
 </head>
 <body>
-  <h1>Team-wise Delivery Amounts (Live)</h1>
-  <div id="chartWrapper">
-    <canvas id="deliveryChart" height="380"></canvas>
+  <h1 class="main-title">Weekly Team Performance (Live)</h1>
+  <div id="chartsGridContainer">
+    <p class="status-message">Connecting to live data...</p>
   </div>
 
-  <!-- Load Chart.js and Socket.IO -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 
   <script>
-    const socket = io("http://localhost:3000"); // Replace with your backend URL if needed
-    let chart;
-
-    // 🟢 Initial load using API fetch
-    async function drawChart() {
-      try {
-        const res = await fetch('http://localhost:3000/api/project/teamwiseDelivery');
-        const data = await res.json();
-        createOrUpdateChart(data);
-      } catch (err) {
-        console.error('Error loading initial chart data:', err);
+    const socket = io('http://localhost:3000', {
+      auth: { // IMPORTANT: This token will expire. Replace with dynamic token handling.
+        token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJrcXlHUHhJZGoxVGtpWG9zd1RDc0VMZFR2bVcyIiwiaWF0IjoxNzQ3MzU2OTY0LCJleHAiOjE3NDc0MDAxNjR9.tEzTpV1tgo_mx7cyDN_CxX1fILLNeEPFeB-O_lCKwf4'
       }
-    }
-
-    // 📊 Create or update chart
-    function createOrUpdateChart(data) {
-      const labels = Object.keys(data);
-      const totals = Object.values(data);
-
-      if (chart) {
-        chart.data.labels = labels;
-        chart.data.datasets[0].data = totals;
-        chart.update();
-      } else {
-        const ctx = document.getElementById("deliveryChart").getContext("2d");
-        chart = new Chart(ctx, {
-          type: "bar",
-          data: {
-            labels,
-            datasets: [{
-              label: "After Fiverr Amount (USD)",
-              data: totals,
-              borderWidth: 1
-            }]
-          },
-          options: {
-            responsive: true,
-            scales: {
-              y: {
-                beginAtZero: true,
-                ticks: { callback: v => `$${v}` }
-              }
-            },
-            plugins: {
-              tooltip: { callbacks: { label: ctx => `$${ctx.raw}` } },
-              legend: { display: false }
-            }
-          }
-        });
-      }
-    }
-
-    // 🔁 Listen for real-time updates via Socket.IO
-    socket.on("teamwiseDeliveryGraph", (liveData) => {
-      console.log("📡 Live update received");
-      createOrUpdateChart(liveData);
     });
 
-    // ⚡ Ask server to send live data (optional)
-    socket.emit("teamwiseDeliveryGraph");
+    let activeCharts = []; // To keep track of Chart.js instances
 
-    // ✅ Initial render
-    drawChart();
+    // Neon Color Palette & Theme
+    const NEON_COLORS = {
+      target: 'rgba(57, 255, 20, 0.6)',   // Neon Green (alpha for fill)
+      achieve: 'rgba(0, 255, 255, 0.6)', // Neon Cyan (alpha for fill)
+      cancelled: 'rgba(255, 0, 255, 0.6)',// Neon Magenta (alpha for fill)
+      border_target: '#39FF14',
+      border_achieve: '#00FFFF',
+      border_cancelled: '#FF00FF',
+    };
+    const TEXT_COLOR_NEON = '#E0E0E0';
+    const GRID_LINE_COLOR = 'rgba(224, 224, 224, 0.1)'; // Even more subtle grid lines
+
+    function destroyActiveCharts() {
+      activeCharts.forEach(chart => chart.destroy());
+      activeCharts = [];
+    }
+
+    function displayWeeklyCharts(weeklyData) {
+      const chartsGridContainer = document.getElementById('chartsGridContainer');
+      chartsGridContainer.innerHTML = ''; // Clear previous content (status messages, old charts)
+      destroyActiveCharts();
+
+      const sortedWeekNames = Object.keys(weeklyData).sort((a, b) => {
+        // Basic sort for "Week 1", "Week 2", etc.
+        return parseInt(a.replace('Week ', '')) - parseInt(b.replace('Week ', ''));
+      });
+
+      if (sortedWeekNames.length === 0) {
+        chartsGridContainer.innerHTML = '<p class="status-message">No weekly data found.</p>';
+        return;
+      }
+
+      sortedWeekNames.forEach((weekName, index) => {
+        const teamsDataForWeek = weeklyData[weekName];
+
+        const weekChartWrapper = document.createElement('div');
+        weekChartWrapper.className = 'week-chart-wrapper';
+
+        const weekTitle = document.createElement('h2');
+        weekTitle.className = 'week-chart-title';
+        weekTitle.textContent = weekName;
+        weekChartWrapper.appendChild(weekTitle);
+        
+        const canvasContainer = document.createElement('div');
+        canvasContainer.className = 'week-chart-canvas-container';
+        const canvas = document.createElement('canvas');
+        // Unique ID for each canvas for Chart.js, though not strictly necessary if passing context directly
+        canvas.id = `weekChart-${index}`; 
+        canvasContainer.appendChild(canvas);
+        weekChartWrapper.appendChild(canvasContainer);
+
+        chartsGridContainer.appendChild(weekChartWrapper);
+
+        if (!teamsDataForWeek || Object.keys(teamsDataForWeek).length === 0) {
+            const noDataMsg = document.createElement('p');
+            noDataMsg.className = 'no-data-message-small';
+            noDataMsg.textContent = 'No team data for this week.';
+            weekChartWrapper.appendChild(noDataMsg);
+            return; // Skip chart creation for this empty week
+        }
+
+        const teamLabels = Object.keys(teamsDataForWeek).sort();
+        const datasets = [
+          {
+            label: "Target",
+            data: teamLabels.map(team => teamsDataForWeek[team]?.["total target"] || 0),
+            backgroundColor: NEON_COLORS.target,
+            borderColor: NEON_COLORS.border_target,
+            borderWidth: 1.5,
+            barPercentage: 0.7, // Adjust bar width
+            categoryPercentage: 0.8 // Adjust spacing between categories (teams)
+          },
+          {
+            label: "Achieve",
+            data: teamLabels.map(team => teamsDataForWeek[team]?.["total achieve"] || 0),
+            backgroundColor: NEON_COLORS.achieve,
+            borderColor: NEON_COLORS.border_achieve,
+            borderWidth: 1.5,
+            barPercentage: 0.7,
+            categoryPercentage: 0.8
+          },
+          {
+            label: "Cancelled",
+            data: teamLabels.map(team => teamsDataForWeek[team]?.["total cancelled"] || 0),
+            backgroundColor: NEON_COLORS.cancelled,
+            borderColor: NEON_COLORS.border_cancelled,
+            borderWidth: 1.5,
+            barPercentage: 0.7,
+            categoryPercentage: 0.8
+          }
+        ];
+
+        const chartOptions = {
+          responsive: true,
+          maintainAspectRatio: false, // Important for canvas in a fixed height container
+          indexAxis: 'x', // Teams on X-axis
+          scales: {
+            x: {
+              title: { display: false /* Team names are labels */ },
+              ticks: { color: TEXT_COLOR_NEON, font: {size: 10} },
+              grid: { display: false } // Cleaner look for small charts
+            },
+            y: {
+              beginAtZero: true,
+              title: { display: false /* Value is clear from context */ },
+              ticks: {
+                color: TEXT_COLOR_NEON,
+                font: {size: 10},
+                callback: function(value) { return '$' + (value/1000) + 'k'; } // Compact value display
+              },
+              grid: { color: GRID_LINE_COLOR, drawBorder: false }
+            }
+          },
+          plugins: {
+            tooltip: {
+              backgroundColor: 'rgba(20,20,20,0.9)',
+              titleColor: NEON_COLORS.border_achieve,
+              bodyColor: TEXT_COLOR_NEON,
+              borderColor: NEON_COLORS.border_achieve,
+              borderWidth: 1,
+              callbacks: {
+                label: function(context) {
+                  let label = context.dataset.label || '';
+                  if (label) { label += ': '; }
+                  if (context.parsed.y !== null) {
+                    label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
+                  }
+                  return label;
+                }
+              }
+            },
+            legend: {
+              position: 'bottom', // Legend at bottom for smaller charts
+              labels: {
+                color: TEXT_COLOR_NEON,
+                boxWidth: 12,
+                font: { size: 10 },
+                padding: 10
+              }
+            }
+          },
+          animation: {
+            duration: 600,
+            easing: 'easeOutCubic'
+          }
+        };
+
+        const newChart = new Chart(canvas.getContext('2d'), {
+          type: 'bar',
+          data: { labels: teamLabels, datasets: datasets },
+          options: chartOptions
+        });
+        activeCharts.push(newChart);
+      });
+    }
+
+    socket.on('connect', () => {
+      console.log('Connected to Socket.IO server!');
+      const chartsGridContainer = document.getElementById('chartsGridContainer');
+      chartsGridContainer.innerHTML = '<p class="status-message">Fetching live data...</p>';
+      socket.emit("getTeamwiseDeliveryGraph");
+    });
+
+    socket.on("teamwiseGraph", (liveData) => {
+      console.log("Received teamwiseGraph data:", liveData);
+      if (liveData && liveData.weeklyTeamData) {
+        displayWeeklyCharts(liveData.weeklyTeamData);
+      } else {
+        const chartsGridContainer = document.getElementById('chartsGridContainer');
+        chartsGridContainer.innerHTML = '<p class="status-message">No data received or data format is incorrect.</p>';
+        console.warn("No weeklyTeamData in liveData or liveData is null/undefined", liveData);
+      }
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from Socket.IO server.');
+      const chartsGridContainer = document.getElementById('chartsGridContainer');
+      chartsGridContainer.innerHTML = '<p class="status-message">Disconnected from live data. Attempting to reconnect...</p>';
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('Socket.IO connection error:', error);
+      const chartsGridContainer = document.getElementById('chartsGridContainer');
+      chartsGridContainer.innerHTML = `<p class="status-message">Error connecting to live data server. Please check server status and refresh. Details: ${error.message}</p>`;
+    });
   </script>
 </body>
 </html>

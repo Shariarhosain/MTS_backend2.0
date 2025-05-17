@@ -76,8 +76,12 @@
 
     <script>
         // Connect to the socket server
-        const socket = io(); // Adjust this if your server runs on another host/port
-    
+
+     const socket = io('http://localhost:3000', {
+    auth: {
+      token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJrcXlHUHhJZGoxVGtpWG9zd1RDc0VMZFR2bVcyIiwiaWF0IjoxNzQ3MzU2OTY0LCJleHAiOjE3NDc0MDAxNjR9.tEzTpV1tgo_mx7cyDN_CxX1fILLNeEPFeB-O_lCKwf4'
+    }
+  });
         let chart;  // Store chart instance globally
     
         // First, fetch data from the API to populate the table and chart initially
@@ -85,7 +89,7 @@
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJ2ZHhkaDgySHFqWURZZEVhV3VRTklaSmhiejczIiwiaWF0IjoxNzQ2OTMzMDY4LCJleHAiOjE3NDY5NzYyNjh9.aktvaqtG6EH8wKUyOQbbMOG9Y1lZdTTzy9ZYmRUu3jw'
+                'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJrcXlHUHhJZGoxVGtpWG9zd1RDc0VMZFR2bVcyIiwiaWF0IjoxNzQ3MzU2OTY0LCJleHAiOjE3NDc0MDAxNjR9.tEzTpV1tgo_mx7cyDN_CxX1fILLNeEPFeB-O_lCKwf4'
             }
         })
         .then(response => {
@@ -154,23 +158,44 @@
     
         // Emit request to socket for real-time data
         socket.emit('TeamChart');
-        socket.emit('TeamChartid', 1); 
+        socket.emit('TeamChartid', 2); // Example team ID, replace with actual ID if needed
 
-
-        socket.on('eachTeamChartBYteam_id', (data) => {
-            console.log("Real-time for eachTeamChartBYteam_id:", data);
+        socket.on('eachTeamChartForTeamId', (data) => {
+            console.log("Real-time for eachTeamChartForTeamId:", data);
         });
     
         // Handle real-time update
         socket.on('eachTeamChart', (data) => {
-            console.log("Real-time update received:", data);
+            console.log("Real-time for eachTeamChart:", data);
             updateTable(data);
             createChart(data);
         });
-    
-        socket.on('error', (error) => {
-            document.getElementById('error-message').textContent = error.error;
+
+
+
+/*
+            socket.on('getMonthlyProfileActivityChart', async () => {
+      try {
+        await getMonthlyProfileActivityChart(io);
+      } catch (error) {
+        console.error("Error fetching monthly profile activity chart:", error);
+      }
+    });*/
+
+    socket.emit('getMonthlyProfileActivityChart');
+        socket.on('monthlyProfileActivityChart', (data) => {
+            console.log("Real-time for monthlyProfileActivityChart:", data);
         });
+
+    socket.on('error', (error) => {
+        document.getElementById('error-message').textContent = error.error;
+    });
+
+
+
+
+
+
     </script>
     
 </body>

@@ -7,7 +7,7 @@ const { getTeamName } = require('./middlewares/TeamName');
 const { getTeamMember } = require('./middlewares/TeamName');
 const emitProfilename = require('./middlewares/showProfilename');
 const emitProjectMoneyMetrics = require('./middlewares/carddetailsForoperation');
-const {eachTeamChart} = require('./middlewares/teamwiseDeliveryGraph');
+const {eachTeamChart,eachTeamChartForTeamId,getProfileCurrentMonthWeeklyDetails,getMonthlyProfileActivityChart,teamwiseDeliveryGraph} = require('./middlewares/teamwiseDeliveryGraph');
 //const {eachTeamChartByTeamId} = require('./middlewares/teamwiseDeliveryGraph');
 
 const totalOrdersCardData  = require('./middlewares/projectCardEmitter');
@@ -19,6 +19,43 @@ const initSocket = (server) => {
       methods: ['GET', 'POST', 'PUT', 'DELETE'],
     }
   });
+
+
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = 'your_secret_key';  // Store securely in .env
+
+
+  io.use((socket, next) => {
+    const token = socket.handshake.auth.token || socket.handshake.headers['authorization']?.split(' ')[1];
+    if (!token) {
+      return next(new Error("Authentication error: Token missing"));
+    }
+    try {
+      const user = jwt.verify(token, JWT_SECRET);
+      socket.user = user;  // Attach user info to this socket instance
+      next();
+    } catch (err) {
+      return next(new Error("Authentication error: Invalid token"));
+    }
+  });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
@@ -132,19 +169,20 @@ try{
 
 
 
+socket.on('getTeamwiseDeliveryGraph', async () => {
+  try {
+    await teamwiseDeliveryGraph(io);
+  } catch (error) {
+    console.error("Error fetching team-wise delivery graph:", error);
+  }
+});
 
 
-    socket.on('teamwiseDeliveryGraph', (teamwiseDelivery) => {
-      io.emit('teamwiseDeliveryGraph', teamwiseDelivery);
-    });
 
-
-
-// Listen for TeamChart emit
 socket.on('TeamChart', async () => {
   try {
-    console.log('Fetching each team chart data...');
-    await eachTeamChart(io); // Must use io.emit inside this
+    // Pass the specific socket instance that triggered the event
+    await eachTeamChart(socket, socket.user);
   } catch (error) {
     console.error("Error fetching each team chart data:", error);
   }
@@ -152,11 +190,10 @@ socket.on('TeamChart', async () => {
 
 
 
-
 socket.on('TeamChartid', async (teamId) => {
   try {
     console.log('Fetching each team chart data by ID:', teamId);
-    await eachTeamChartByTeamId(io, teamId); // Must use io.emit inside this
+    await eachTeamChartForTeamId(io, teamId); // Must use io.emit inside this
   } catch (error) {
     console.error("Error fetching each team chart data by ID:", error);
   }
@@ -164,14 +201,45 @@ socket.on('TeamChartid', async (teamId) => {
 
 
     // Listen for 'disconnect' event
- 
+ /*  io.emit('profile_based_special_orders', {
+      currentYear: year,
+      currentMonth: currentMonthName,
+      overallTotalSpecialOrderAmount: parseFloat(overallTotalSpecialOrderAmount.toFixed(2)),
+      profileOrderSummary: profileSummaryForResponse,
+      report: reportDataByProfile,
+    }); */
+
+    socket.on('getProfileCurrentMonthWeeklyDetails', async () => {
+      try {
+        await getProfileCurrentMonthWeeklyDetails(io);
+      } catch (error) {
+        console.error("Error fetching profile current month weekly details:", error);
+      }
+    });
 
 
 
+    
 
 
+/*  
+    io.emit('monthlyProfileActivityChart', {
+      message: 'Monthly profile activity chart',
+      data: groupedActivity,
+      month: monthIndex + 1,
+      year: year,
+    }); */
 
 
+    socket.on('getMonthlyProfileActivityChart', async () => {
+      try {
+        await getMonthlyProfileActivityChart(io);
+      } catch (error) {
+        console.error("Error fetching monthly profile activity chart:", error);
+      }
+    });
+
+    
 
 
 

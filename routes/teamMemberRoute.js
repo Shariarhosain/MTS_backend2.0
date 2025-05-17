@@ -8,6 +8,7 @@ const verifyToken = require('../middlewares/jwt'); // Import the JWT verificatio
 // Import the functions from the controller
 const { createTeamMember, getAllTeamMembers, updateTeamMember, deactivateTeamMember, getTeamMemberById,login} = require('../controllers/TeamMemberController');
 
+
 // Define route for creating a team member
 router.post('/create', uploadMulterMiddleware, createTeamMember);
 
@@ -22,6 +23,8 @@ router.delete('/:id', verifyToken, asyncHandler(deactivateTeamMember));
 
 // Define route for login
 router.post('/login', asyncHandler(login)); // Use asyncHandler to wrap the login function
+
+
 
 
 
