@@ -172,7 +172,7 @@ const determineRole = (departmentName, memberId, leaderId) => {
 
 exports.teamCreate = async (req, res) => {
     // Receive input from the request body
-    const { team_name, department_id, team_target, leader_id, selectedMembers } = req.body;
+    const { team_name, department_id, team_target, leader_id, members: selectedMembers } = req.body;
 
     // Input validation
     if (!team_name || !department_id) {
