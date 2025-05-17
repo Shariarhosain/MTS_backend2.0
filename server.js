@@ -25,7 +25,7 @@ initSocket(server); // ✅ Initialize Socket.IO here
 // Middleware setup
 app.use(cors({
   origin: '*', // Be cautious with '*' in production
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE','PATCH'],
   credentials: true,
 }));
 app.use(express.json());
@@ -39,7 +39,7 @@ app.use('/api/project', verifyToken, ProjectRoute(getIO)); // Ensure ProjectRout
 app.use('/api/teamMember', require('./routes/teamMemberRoute'));
 app.use('/api/profile', ProfileRoute);
 app.use('/api/today-task', verifyToken, todayTaskRoute); // Ensure todayTaskRoute is returning a function
-app.use('/api/department', verifyToken, DepartmentRoute); // Ensure DepartmentRoute is returning a function
+app.use('/api/department', DepartmentRoute); // Ensure DepartmentRoute is returning a function
 app.use('/api/team', verifyToken, TeamRoute); // Ensure TeamRoute is returning a function
 
 // --- Cron Job Definition ---
