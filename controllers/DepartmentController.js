@@ -5,12 +5,17 @@ const prisma = new PrismaClient();
   exports.departmentCreate = async (req, res) => {
     const { department_name } = req.body;
     try {
-        const department = await prisma.department.create({
-            data: {
-                department_name,
-                created_date: new Date(),
-            },
-        });
+       const latest = await prisma.department.findFirst({
+  orderBy: { id: 'desc' },
+});
+
+const department = await prisma.department.create({
+  data: {
+    id: latest ? latest.id + 1 : 1, // fallback
+    department_name,
+    created_date: new Date(),
+  },
+});
         return res.status(201).json({ message: 'Department created successfully', department });
     } catch (error) {
         console.error('Error creating department:', error);
