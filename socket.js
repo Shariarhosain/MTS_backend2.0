@@ -179,15 +179,14 @@ socket.on('getTeamwiseDeliveryGraph', async () => {
 
 
 
-
-   socket.on('TeamChart', async () => {
-      try {
-        await eachTeamChart(io, socket.user);  // Pass user info to your function
-      } catch (error) {
-        console.error("Error fetching each team chart data:", error);
-      }
-    });
-
+socket.on('TeamChart', async () => {
+  try {
+    // Pass the specific socket instance that triggered the event
+    await eachTeamChart(socket, socket.user);
+  } catch (error) {
+    console.error("Error fetching each team chart data:", error);
+  }
+});
 
 
 

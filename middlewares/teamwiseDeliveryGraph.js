@@ -1033,7 +1033,7 @@ async function teamwiseDeliveryGraph(io) {
     }
 }
 
-async function eachTeamChart(io, user) {
+async function eachTeamChart(clientSocket, user) { // Changed io to clientSocket
   try {
     const me = await prisma.team_member.findUnique({
       where: { uid: user.uid },  // Use user from socket auth
@@ -1189,7 +1189,7 @@ async function eachTeamChart(io, user) {
         };
       });
 
-      io.emit('eachTeamChart', {
+      clientSocket.emit('eachTeamChart', {
         teamTarget, teamAchievement, teamCancelled, teamTotalCarry, submitted,
         totalAssign: totalAssignedAmount, assignedProjectCount,
         teamName, memberTarget, weeklyAchievementBreakdown,
@@ -1341,14 +1341,14 @@ async function eachTeamChart(io, user) {
           memberTarget,
           weeklyAchievementBreakdown,
         };
-        io.emit('eachTeamChart', resultArray);
+        clientSocket.emit('eachTeamChart', resultArray);
       }
       return;
     }
     // ... other role handling ...
   } catch (err) {
     console.error('Error fetching team data in eachTeamChart:', err);
-    io.emit('eachTeamChart', { error: "Server error fetching team data." });
+    clientSocket.emit('eachTeamChart', { error: "Server error fetching team data." });
   }
 }
 
