@@ -180,6 +180,7 @@ exports.teamCreate = async (req, res) => {
     }
 
     try {
+        console.log('Received request to create team:', req.body);
         // 1. First search department_name in department table by department_id
         const department = await prisma.department.findUnique({
             where: {
@@ -220,8 +221,10 @@ exports.teamCreate = async (req, res) => {
 
         // 4. If selectedMembers are available, connect them in team_member table
         if (selectedMembers && Array.isArray(selectedMembers)) {
+                console.log('Members to update:', selectedMembers);
             selectedMembers.forEach(memberId => membersToUpdate.add(memberId));
         }
+    
 
         // 5. Update team_member records for the leader and selected members
         if (membersToUpdate.size > 0) {
@@ -230,6 +233,8 @@ exports.teamCreate = async (req, res) => {
                 where: { id: { in: Array.from(membersToUpdate) } },
                 select: { id: true }
             });
+            console.log('Members to update:', membersToUpdate);
+            console.log('Members exist:', membersExist);
              if (membersExist.length !== membersToUpdate.size) {
                   const existingIds = new Set(membersExist.map(m => m.id));
                   const nonExistingIds = Array.from(membersToUpdate).filter(id => !existingIds.has(id));
