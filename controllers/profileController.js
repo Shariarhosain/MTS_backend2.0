@@ -99,16 +99,20 @@ exports.createProfile = async (req, res) => {
 
     const data = {
       profile_name,
+      created_date: new Date(),
     };
 
     // Connect to department if department_id is provided
     if (department_id) {
       data.department = {
         connect: { id: parseInt(department_id) },
+        
       };
     }
 
-    const newProfile = await prisma.profile.create({ data });
+    const newProfile = await prisma.profile.create({
+      data,
+    });
 
     return res.status(201).json({ message: 'Profile created successfully', profile: newProfile });
   } catch (error) {
@@ -427,14 +431,15 @@ exports.deleteProfileRanking = async (req, res) => {
 /////////////////////// Profile Promotion
 exports.promotionprofile = async (req, res) => {
   try {
-    const { profileName, promotionAmount } = req.body;
+    const { profileName, promotionAmount, clicks, impressions } = req.body;
 
-    if (!profileName || !promotionAmount) {
+    if (!profileName || promotionAmount == null) {
       return res.status(400).json({
         message: 'Invalid request: profileName and promotionAmount are required',
       });
     }
-    // Find the profile by name
+
+    // Find the profile
     const profile = await prisma.profile.findUnique({
       where: { profile_name: profileName },
     });
@@ -447,18 +452,46 @@ exports.promotionprofile = async (req, res) => {
 
     const profileId = profile.id;
 
-    // crete a new profile_promotion
+    // Get the last promotion entry (yesterday's or most recent)
+    const lastPromotion = await prisma.profile_promotion.findFirst({
+      where: { profile_id: profileId },
+      orderBy: { created_date: 'desc' },
+    });
+
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+
+    let actual_increase = promotionAmount;
+    if (lastPromotion && lastPromotion.promotion_amount) {
+      actual_increase = promotionAmount - Number(lastPromotion.promotion_amount);
+    }
+
+    // Reset check: If last entry is from last month, reset amount
+    let reset = false;
+    if (
+      lastPromotion &&
+      new Date(lastPromotion.created_date).getMonth() !== currentMonth
+    ) {
+      actual_increase = promotionAmount; // treat it as new
+      reset = true;
+    }
+
     const profilePromotion = await prisma.profile_promotion.create({
       data: {
         profile_id: profileId,
         promotion_amount: promotionAmount,
+        actual_increase,
+        clicks: clicks || 0,
+        impressions: impressions || 0,
         created_date: new Date(),
         update_at: new Date(),
       },
     });
 
     return res.status(200).json({
-      message: 'profilePromotion created successfully',
+      message: 'Profile promotion created successfully',
+      reset,
       profilePromotion,
     });
   } catch (error) {
@@ -473,63 +506,74 @@ exports.promotionprofile = async (req, res) => {
 
 exports.AllprofilePromotionGet = async (req, res) => {
   try {
-    // getall profile ranking data select all
     const profiles = await prisma.profile_promotion.findMany({
       include: {
         profile: true,
-        
       },
       orderBy: {
         created_date: 'desc',
       },
     });
+
     if (!profiles || profiles.length === 0) {
       return res.status(404).json({
-        message: 'No profiles found',
+        message: 'No profile promotion data found',
       });
     }
 
     return res.status(200).json({
-      message: 'All profiles retrieved successfully',
-      profiles,
+      message: 'All profile promotions retrieved successfully',
+      data: profiles,
     });
   } catch (error) {
-    console.error('Error retrieving profile ranking:', error);
+    console.error('Error retrieving profile promotions:', error);
     return res.status(500).json({
-      message: 'An error occurred while retrieving profile ranking',
+      message: 'Failed to retrieve profile promotions',
       error: error.message,
     });
   }
 };
 
 
-
 exports.updateprofile_promotion = async (req, res) => {
   try {
     const id = req.params.id;
-    // Check if the profile ID is provided
+
     if (!id) {
       return res.status(400).json({
-        message: 'Invalid request: id is required',
+        message: 'ID is required to update profile promotion',
       });
     }
 
-    const updatedProfilePromotion = await prisma.profile_promotion.update({
+    // Optional fields from req.body
+    const {
+      promotion_amount,
+      clicks,
+      impressions,
+    } = req.body;
+
+    // Build dynamic update data
+    const updateData = {
+      update_at: new Date(),
+    };
+
+    if (promotion_amount != null) updateData.promotion_amount = promotion_amount;
+    if (clicks != null) updateData.clicks = clicks;
+    if (impressions != null) updateData.impressions = impressions;
+
+    const updated = await prisma.profile_promotion.update({
       where: { id: Number(id) },
-      data: {
-       ...req.body,
-        update_at: new Date(),
-      }, 
+      data: updateData,
     });
 
     return res.status(200).json({
       message: 'Profile promotion updated successfully',
-      profilePromotion: updatedProfilePromotion,
+      data: updated,
     });
   } catch (error) {
     console.error('Error updating profile promotion:', error);
     return res.status(500).json({
-      message: 'An error occurred while updating the profile promotion',
+      message: 'Failed to update profile promotion',
       error: error.message,
     });
   }

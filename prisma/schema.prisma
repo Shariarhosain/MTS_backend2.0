@@ -103,14 +103,18 @@ model profile_ranking {
 }
 
 
-model  profile_promotion {
-  id             Int          @id @default(autoincrement())
-  profile_id     Int
-  promotion_amount Decimal?     @db.Decimal(65, 0)
-  profile        profile      @relation(fields: [profile_id], references: [id])
-  created_date   DateTime?
-  update_at      DateTime?
+model profile_promotion {
+  id               Int       @id @default(autoincrement())
+  profile_id       Int
+  promotion_amount Decimal? @db.Decimal(65, 0)
+  actual_increase  Decimal? @db.Decimal(65, 0) // ✅ প্রতিদিন বাড়া অংশ
+  clicks           Int?      // ✅ নতুন
+  impressions      Int?      // ✅ নতুন
+  created_date     DateTime?
+  update_at        DateTime?
+  profile          profile   @relation(fields: [profile_id], references: [id])
 }
+
 
 model team_member {
   id                  Int                   @id @default(autoincrement())
