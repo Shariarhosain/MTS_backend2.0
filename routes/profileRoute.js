@@ -16,11 +16,29 @@ const {
   getProjectSpecialOrder,
   createProjectSpecialOrder,
   getProfileCurrentMonthWeeklyDetails,
-  getMonthlyProfileActivityChart
+  getMonthlyProfileActivityChart,
+  createProfile,
+  getAllProfiles,
+  updateProfile,
 } = require('../controllers/profileController'); // Import the controller functions
 const verifyToken = require('../middlewares/jwt'); // Import the JWT verification middleware
 
 const router = express.Router();
+
+// Profile Routes
+router.post('/create', verifyToken, createProfile); // Create a new profile
+router.get('/', verifyToken, getAllProfiles); // Get all profiles
+router.put('/update/:id', verifyToken, updateProfile); // Update a specific profile
+
+
+
+
+
+
+
+
+
+
 
 // Existing routes (from your example)
 router.get('/', selesView_recent_month); // Example, adjust if it's for a different base path

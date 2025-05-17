@@ -79,6 +79,107 @@ exports.selesView_recent_month = async (req, res) => {
 
 
 
+
+
+
+
+
+
+
+//////////////////////profile create 
+
+
+exports.createProfile = async (req, res) => {
+  try {
+    const { profile_name, department_id } = req.body;
+
+    if (!profile_name) {
+      return res.status(400).json({ message: 'Profile name is required' });
+    }
+
+    const data = {
+      profile_name,
+    };
+
+    // Connect to department if department_id is provided
+    if (department_id) {
+      data.department = {
+        connect: { id: parseInt(department_id) },
+      };
+    }
+
+    const newProfile = await prisma.profile.create({ data });
+
+    return res.status(201).json({ message: 'Profile created successfully', profile: newProfile });
+  } catch (error) {
+    console.error('Error creating profile:', error);
+    return res.status(500).json({ message: 'An error occurred while creating the profile', error: error.message });
+  }
+};
+
+
+exports.getAllProfiles = async (req, res) => {
+  try {
+    const profiles = await prisma.profile.findMany({
+      include: {
+        department: true, // Include the related department
+        projects: true, // Include the related projects
+        profile_promotion: true, // Include the related promotions
+        profile_ranking: true, // Include the related rankings
+        profile_special_order: true, // Include the related special order
+      },
+    });
+
+    return res.status(200).json({ message: 'Profiles retrieved successfully', profiles });
+  } catch (error) {
+    console.error('Error retrieving profiles:', error);
+    return res.status(500).json({ message: 'An error occurred while retrieving profiles', error: error.message });
+  }
+};
+
+
+exports.updateProfile = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { profile_name, department_id } = req.body;
+
+    if (!profile_name) {
+      return res.status(400).json({ message: 'Profile name is required' });
+    }
+
+    const data = {
+      profile_name,
+    };
+
+    // Only update department if provided
+    if (department_id) {
+      data.department = {
+        connect: { id: department_id }
+      };
+    }
+
+    const updatedProfile = await prisma.profile.update({
+      where: { id: parseInt(id) },
+      data,
+    });
+
+    return res.status(200).json({ message: 'Profile updated successfully', profile: updatedProfile });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    return res.status(500).json({ message: 'An error occurred while updating the profile', error: error.message });
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
 exports.announcement = async (req, res) => {
   try {
     // 1️⃣ Fetch announcements where is_done is false

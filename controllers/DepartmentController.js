@@ -24,12 +24,14 @@ const department = await prisma.department.create({
 };
 exports.updateDepartment = async (req, res) => {
     const { id } = req.params;
-    const { department_name } = req.body;
+    const { department_name , department_target } = req.body;
     try {
+        
         const updatedDepartment = await prisma.department.update({
             where: { id: parseInt(id, 10) },
             data: {
                 department_name,
+                department_target: Number(department_target)
             },
         });
         return res.status(200).json({ message: 'Department updated successfully', department: updatedDepartment });
@@ -38,6 +40,19 @@ exports.updateDepartment = async (req, res) => {
         return res.status(500).json({ message: 'An error occurred while updating the department', error: error.message });
     }
 };
+
+
+exports.getAllDepartments = async (req, res) => {
+    try {
+        const departments = await prisma.department.findMany();
+        return res.status(200).json({ message: 'Departments retrieved successfully', departments });
+    } catch (error) {
+        console.error('Error retrieving departments:', error);
+        return res.status(500).json({ message: 'An error occurred while retrieving the departments', error: error.message });
+    }
+};
+
+
 
 exports.deleteDepartment = async (req, res) => {
     const { id } = req.params;
