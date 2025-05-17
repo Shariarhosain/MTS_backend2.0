@@ -702,361 +702,326 @@ exports.updateProjectAssignments = async (req, res) => {
   }
 };
 
+
+
+
+
+
+
 // /**
-//  * Fetches member distribution records, grouped by project, based on user role.
-//  * - Operation Leaders: See all distributions for projects within their team.
-//  * - Operation Members (and other non-leader operational roles): See only their own distributions.
-//  */
+//  * Fetches member distribution records, grouped by project, based on user role.
+//  * - Operation Leaders: See all distributions for DELIVERED projects within their team.
+//  * - Operation Members (and other non-leader operational roles): See only their own distributions for DELIVERED projects.
+//  * A project is considered delivered if 'is_delivered' is true and 'delivery_date' is not null.
+//  */
 // exports.getAllmemberDistribution = async (req, res) => {
-//   try {
-//     const { uid } = req.user;
-//     if (!uid) {
-//       return res.status(401).json({ error: 'User not authenticated' });
-//     }
+//   try {
+//     const { uid } = req.user;
+//     if (!uid) {
+//       return res.status(401).json({ error: 'User not authenticated' });
+//     }
 
-//     const currentUser = await prisma.team_member.findUnique({
-//       where: { uid },
-//       select: { id: true, role: true, team_id: true },
-//     });
+//     const currentUser = await prisma.team_member.findUnique({
+//       where: { uid },
+//       select: { id: true, role: true, team_id: true },
+//     });
 
-//     if (!currentUser) {
-//       return res.status(403).json({ error: 'User profile not found' });
-//     }
-//     if (!currentUser.role || !currentUser.role.startsWith('operation_')) {
-//       return res.status(403).json({ error: 'Access denied. User does not have an operational role.' });
-//     }
+//     if (!currentUser) {
+//       return res.status(403).json({ error: 'User profile not found' });
+//     }
+// //or  start with hod_
 
-//     let whereClause = {};
-//     if (currentUser.role === 'operation_leader') {
-//       if (!currentUser.team_id) {
-//         console.warn(`Operation leader ${currentUser.id} (uid: ${uid}) does not have a team_id. No distributions will be fetched.`);
-//         return res.status(403).json({ error: 'Access denied. Leader not associated with a team.' });
-//       }
-//       whereClause = { project: { team_id: currentUser.team_id } };
-//     } else {
-//       whereClause = { team_member_id: currentUser.id };
-//     }
+//     if (!currentUser.role || !currentUser.role.startsWith('operation_')) {
+//       return res.status(403).json({ error: 'Access denied. User does not have an operational role.' });
+//     }
 
-//     const flatDistributions = await prisma.member_distribution.findMany({
-//       where: whereClause,
-//       select: { // Select all necessary fields for grouping and display
-//         id: true,
-//         amount: true,
-//         project_id: true,
-//         team_member_id: true,
-//         team_member: {
-//           select: { id: true, first_name: true, last_name: true, email: true, role: true },
-//         },
-//         project: { // Select project details that will be top-level in the group
-//           select: {
-//             id: true,
-//             // name: true, // Uncomment if your project model has a 'name' field
-//             // client_name: true, // Uncomment if your project model has 'client_name'
-//             update_at: true,
-//             deli_last_date: true,
-//             is_delivered: true,
-//             // Add other relevant project fields as per your schema
-//           },
-//         },
-//       },
-//       orderBy: [ // It's good to sort by project_id to help with grouping if processing very large datasets sequentially
-//         { project_id: 'asc' },
-//         { project: { update_at: 'desc' } }, // Secondary sort for distributions within a project if needed
-//         { team_member_id: 'asc' },
-//       ],
-//     });
+//     // Define the mandatory delivery condition for projects
+//     const projectDeliveryCondition = {
+//       is_delivered: true,
+//       delivery_date: { not: null },
+//     };
 
-//     if (!flatDistributions || flatDistributions.length === 0) {
-//       return res.json([]); // Return empty array if no distributions found
-//     }
+//     let whereClause = {};
+//     if (currentUser.role === 'operation_leader' ) {
+//       if (!currentUser.team_id) {
+//         console.warn(`Operation leader ${currentUser.id} (uid: ${uid}) does not have a team_id. No distributions will be fetched.`);
+//         return res.status(403).json({ error: 'Access denied. Leader not associated with a team.' });
+//       }
+//       whereClause = {
+//         project: {
+//           team_id: currentUser.team_id,
+//           ...projectDeliveryCondition, // Spread the delivery conditions
+//         },
+//       };
+//     } else { // Operation Members and other non-leader operational roles
+//       whereClause = {
+//         team_member_id: currentUser.id,
+//         project: {
+//           ...projectDeliveryCondition, // Spread the delivery conditions
+//         },
+//       };
+//     }
 
-//     // Grouping logic
-//     const groupedByProjectMap = new Map();
+//     const flatDistributions = await prisma.member_distribution.findMany({
+//       where: whereClause,
+//       select: {
+//         id: true,
+//         amount: true,
+//         project_id: true,
+//         team_member_id: true,
+//         team_member: {
+//           select: { id: true, first_name: true, last_name: true, email: true, role: true },
+//         },
+//         project: {
+//           select: {
+//             id: true,
+//             project_name: true, // Added based on schema, uncomment if needed
+//             update_at: true,
+// after_fiverr_amount: true, // This is likely your 'after_fiverr_amount' as per schema 'after_fiverr_amount Decimal? @db.Decimal(65,0)'
+// after_Fiverr_bonus  : true, // This is likely your 'after_Fiverr_bonus' as per schema 'after_Fiverr_bonus Decimal? @db.Decimal(65,0)'
+//             deli_last_date: true, // This is likely your 'delivery_date' as per schema 'delivery_date DateTime? @db.Date'
+//                                 // but your schema also has 'deli_last_date DateTime? @db.Date'. Clarify which one to use for display.
+//                                 // Using 'delivery_date' for filtering logic as per prompt.
+//             delivery_date: true, // Selected for display and for sorting logic
+//             is_delivered: true,
+//             // Add other relevant project fields as per your schema, e.g., project_name
+//           },
+//         },
+//       },
+//       orderBy: [
+//         { project_id: 'asc' },
+//         { project: { update_at: 'desc' } }, // Consider sorting by project.delivery_date if more relevant
+//         { team_member_id: 'asc' },
+//       ],
+//     });
 
-//     flatDistributions.forEach(dist => {
-//       const projectId = dist.project_id;
-//       if (!groupedByProjectMap.has(projectId)) {
-//         groupedByProjectMap.set(projectId, {
-//           project_id: projectId,
-//           project_details: dist.project, // Contains all selected project fields
-//           distributions: [],
-//         });
-//       }
+//     if (!flatDistributions || flatDistributions.length === 0) {
+//       return res.json([]);
+//     }
 
-//       groupedByProjectMap.get(projectId).distributions.push({
-//         id: dist.id,
-//         amount: dist.amount,
-//         team_member_id: dist.team_member_id,
-//         team_member_details: dist.team_member, // Contains all selected team_member fields
-//       });
-//     });
+//     // Grouping logic
+//     const groupedByProjectMap = new Map();
 
-//     // Convert map to array
-//     const groupedByProjectArray = Array.from(groupedByProjectMap.values());
+//     flatDistributions.forEach(dist => {
+//       const projectId = dist.project_id;
+//       if (!groupedByProjectMap.has(projectId)) {
+//         groupedByProjectMap.set(projectId, {
+//           project_id: projectId,
+//      client_name: dist.project.project_name.split('-')[0] || null,
+//         amount:
+//         Number(dist.project.after_fiverr_amount || 0) +
+//         Number(dist.project.after_fiverr_bonus || 0),
+//           project_details: dist.project,
+//           distributions: [],
+//         });
+//       }
 
-//     // Optional: Sort the final array of projects, e.g., by project's last update date (descending)
-//     groupedByProjectArray.sort((a, b) => {
-//         const dateA = a.project_details.update_at ? new Date(a.project_details.update_at) : null;
-//         const dateB = b.project_details.update_at ? new Date(b.project_details.update_at) : null;
+//       groupedByProjectMap.get(projectId).distributions.push({
+//         id: dist.id,
+//         amount: Number(dist.amount || 0),
+//         team_member_id: dist.team_member_id,
+//         team_member_details: dist.team_member,
+//       });
+//     });
 
-//         if (!dateA && !dateB) return 0; // Both null or invalid
-//         if (!dateA) return 1;  // Place projects with null/invalid update_at at the end
-//         if (!dateB) return -1; // Place projects with null/invalid update_at at the end
-//         return dateB - dateA; // Sort by date descending
-//     });
+//     const groupedByProjectArray = Array.from(groupedByProjectMap.values());
 
-//     return res.json(groupedByProjectArray);
+//     // Optional: Sort the final array of projects, e.g., by project's delivery date or last update date
+//     groupedByProjectArray.sort((a, b) => {
+//       // Sort by project's delivery_date descending, then by update_at as a fallback
+//       const dateA = a.project_details.delivery_date ? new Date(a.project_details.delivery_date) : (a.project_details.update_at ? new Date(a.project_details.update_at) : null);
+//       const dateB = b.project_details.delivery_date ? new Date(b.project_details.delivery_date) : (b.project_details.update_at ? new Date(b.project_details.update_at) : null);
 
-//   } catch (err) {
-//     console.error('getAllmemberDistribution Error →', err);
-//     return res.status(500).json({ error: 'Internal server error while fetching member distributions.' });
-//   }
+//       if (!dateA && !dateB) return 0;
+//       if (!dateA) return 1;
+//       if (!dateB) return -1;
+//       return dateB - dateA; // Sort by date descending
+//     });
+
+//     return res.json(groupedByProjectArray);
+
+//   } catch (err) {
+//     console.error('getAllmemberDistribution Error →', err);
+//     return res.status(500).json({ error: 'Internal server error while fetching member distributions.' });
+//   }
 // };
+async function getDepartmentTeamIdsForHOD(hodUserId) {
+    // 1. Find the department_id of the HOD user
+    const hodTeamMember = await prisma.team_member.findUnique({
+        where: { id: hodUserId },
+        select: { department_id: true }
+    });
 
+    // If the HOD user is not found or not linked to a department, return an empty array
+    if (!hodTeamMember || !hodTeamMember.department_id) {
+        console.warn(`HOD User ID ${hodUserId} not found or not linked to a department.`);
+        return [];
+    }
 
-// /**
-//  * Updates the amount of a specific member_distribution record.
-//  * Only accessible by 'operation_leader' for distributions within their team's projects.
-//  */
-// exports.updateMemberDistribution = async (req, res) => {
-//   try {
-//     const { uid } = req.user; // Assuming req.user is populated
-//     const distributionIdParam = req.params.id; // ID from URL path e.g., /distributions/:id
-//     const { amount } = req.body; // Expecting 'amount' in the request body
+    const departmentId = hodTeamMember.department_id;
 
-//     if (!uid) {
-//       return res.status(401).json({ error: 'User not authenticated' });
-//     }
+    // 2. Find all teams associated with this department_id
+    const teamsInDepartment = await prisma.team.findMany({
+        where: {
+            department_id: departmentId
+        },
+        select: { id: true } // Select only the team ID
+    });
 
-//     const distributionId = parseInt(distributionIdParam, 10);
-//     if (isNaN(distributionId)) {
-//       return res.status(400).json({ error: 'Invalid distribution ID format in URL.' });
-//     }
+    // 3. Extract and return the team IDs
+    return teamsInDepartment.map(team => team.id);
+}
 
-//     // Validate amount: must be provided and be a number.
-//     // Note: `amount` can be 0.
-//     if (amount === undefined || amount === null) {
-//       return res.status(400).json({ error: 'Amount is required in the request body.' });
-//     }
-//     const numericAmount = parseFloat(amount); // Or use a more robust decimal library if precision is critical
-//     if (isNaN(numericAmount)) {
-//       return res.status(400).json({ error: 'Invalid amount format. Amount must be a number.' });
-//     }
-
-//     // Fetch current user details
-//     const currentUser = await prisma.team_member.findUnique({
-//       where: { uid },
-//       select: { id: true, role: true, team_id: true },
-//     });
-
-//     if (!currentUser) {
-//       return res.status(403).json({ error: 'User profile not found' });
-//     }
-
-//     // Authorization: Check if user is an operation leader
-//     if (currentUser.role !== 'operation_leader') {
-//       return res.status(403).json({ error: 'Access denied. You do not have permission to update distributions.' });
-//     }
-//     if (!currentUser.team_id) {
-//       // Leader must be associated with a team to have a scope for updates
-//       return res.status(403).json({ error: 'Access denied. Leader not associated with a team.' });
-//     }
-
-//     // Fetch the member_distribution record to verify existence and its project's team_id
-//     const distributionToUpdate = await prisma.member_distribution.findUnique({
-//       where: { id: distributionId },
-//       include: {
-//         project: { // Need project to check its team_id for authorization
-//           select: { team_id: true },
-//         },
-//       },
-//     });
-
-//     if (!distributionToUpdate) {
-//       return res.status(404).json({ error: 'Member distribution record not found.' });
-//     }
-
-//     // Authorization: Leader can only update distributions for projects belonging to their own team.
-//     if (distributionToUpdate.project.team_id !== currentUser.team_id) {
-//       return res.status(403).json({ error: 'Access denied. You can only update distributions for projects within your assigned team.' });
-//     }
-
-//     // Perform the update
-//     const updatedDistribution = await prisma.member_distribution.update({
-//       where: { id: distributionId },
-//       data: {
-//         amount: numericAmount, // Prisma handles conversion to Decimal type in DB
-//       },
-//       select: { // Select desired fields for the response
-//         id: true,
-//         amount: true,
-//         project_id: true,
-//         team_member_id: true,
-//         team_member: {
-//           select: { id: true, first_name: true, last_name: true, email: true },
-//         },
-//         project: {
-//           select: {
-//             id: true,
-//             // name: true, // Example project name
-//             update_at: true,
-//           },
-//         },
-//       },
-//     });
-
-//     return res.json(updatedDistribution);
-
-//   } catch (err) {
-//     console.error('updateMemberDistribution Error →', err);
-//     // Handle specific Prisma errors if needed
-//     if (err.code === 'P2025') { // Prisma error: "Record to update not found."
-//       return res.status(404).json({ error: 'Failed to update. Member distribution record not found.' });
-//     }
-//     return res.status(500).json({ error: 'Internal server error while updating member distribution.' });
-//   }
-// };
-
-
-
-
-
-/**
- * Fetches member distribution records, grouped by project, based on user role.
- * - Operation Leaders: See all distributions for DELIVERED projects within their team.
- * - Operation Members (and other non-leader operational roles): See only their own distributions for DELIVERED projects.
- * A project is considered delivered if 'is_delivered' is true and 'delivery_date' is not null.
- */
 exports.getAllmemberDistribution = async (req, res) => {
-  try {
-    const { uid } = req.user;
-    if (!uid) {
-      return res.status(401).json({ error: 'User not authenticated' });
-    }
+  try {
+    const { uid } = req.user;
+    if (!uid) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
 
-    const currentUser = await prisma.team_member.findUnique({
-      where: { uid },
-      select: { id: true, role: true, team_id: true },
-    });
+    const currentUser = await prisma.team_member.findUnique({
+      where: { uid },
+      select: { id: true, role: true, team_id: true /* You might need to select a department_id here if your schema supports it */ },
+    });
 
-    if (!currentUser) {
-      return res.status(403).json({ error: 'User profile not found' });
-    }
-    if (!currentUser.role || !currentUser.role.startsWith('operation_')) {
-      return res.status(403).json({ error: 'Access denied. User does not have an operational role.' });
-    }
+    if (!currentUser) {
+      return res.status(403).json({ error: 'User profile not found' });
+    }
 
-    // Define the mandatory delivery condition for projects
-    const projectDeliveryCondition = {
-      is_delivered: true,
-      delivery_date: { not: null },
-    };
+    // Allow roles starting with 'operation_' or 'hod_'
+    if (!currentUser.role || (!currentUser.role.startsWith('operation_') && !currentUser.role.startsWith('hod_'))) {
+      return res.status(403).json({ error: 'Access denied. User does not have an authorized operational or HOD role.' });
+    }
 
-    let whereClause = {};
-    if (currentUser.role === 'operation_leader') {
-      if (!currentUser.team_id) {
-        console.warn(`Operation leader ${currentUser.id} (uid: ${uid}) does not have a team_id. No distributions will be fetched.`);
-        return res.status(403).json({ error: 'Access denied. Leader not associated with a team.' });
-      }
-      whereClause = {
-        project: {
-          team_id: currentUser.team_id,
-          ...projectDeliveryCondition, // Spread the delivery conditions
-        },
-      };
-    } else { // Operation Members and other non-leader operational roles
-      whereClause = {
-        team_member_id: currentUser.id,
-        project: {
-          ...projectDeliveryCondition, // Spread the delivery conditions
-        },
-      };
-    }
+    // Define the mandatory delivery condition for projects
+    const projectDeliveryCondition = {
+      is_delivered: true,
+      delivery_date: { not: null },
+    };
 
-    const flatDistributions = await prisma.member_distribution.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        amount: true,
-        project_id: true,
-        team_member_id: true,
-        team_member: {
-          select: { id: true, first_name: true, last_name: true, email: true, role: true },
-        },
-        project: {
-          select: {
-            id: true,
-            project_name: true, // Added based on schema, uncomment if needed
-            update_at: true,
-after_fiverr_amount: true, // This is likely your 'after_fiverr_amount' as per schema 'after_fiverr_amount Decimal? @db.Decimal(65,0)'
-after_Fiverr_bonus  : true, // This is likely your 'after_Fiverr_bonus' as per schema 'after_Fiverr_bonus Decimal? @db.Decimal(65,0)'
-            deli_last_date: true, // This is likely your 'delivery_date' as per schema 'delivery_date DateTime? @db.Date'
-                                // but your schema also has 'deli_last_date DateTime? @db.Date'. Clarify which one to use for display.
-                                // Using 'delivery_date' for filtering logic as per prompt.
-            delivery_date: true, // Selected for display and for sorting logic
-            is_delivered: true,
-            // Add other relevant project fields as per your schema, e.g., project_name
-          },
-        },
-      },
-      orderBy: [
-        { project_id: 'asc' },
-        { project: { update_at: 'desc' } }, // Consider sorting by project.delivery_date if more relevant
-        { team_member_id: 'asc' },
-      ],
-    });
+    let whereClause = {};
 
-    if (!flatDistributions || flatDistributions.length === 0) {
-      return res.json([]);
-    }
+    if (currentUser.role === 'operation_leader') {
+      // Operation Leaders still require a single team_id
+      if (!currentUser.team_id) {
+        console.warn(`Operation leader ${currentUser.id} (uid: ${uid}) does not have a team_id. No distributions will be fetched.`);
+        return res.status(403).json({ error: 'Access denied. Leader not associated with a team.' });
+      }
+      whereClause = {
+        project: {
+          team_id: currentUser.team_id, // Filter by the leader's single team_id
+          ...projectDeliveryCondition,
+        },
+      };
+    } else if (currentUser.role.startsWith('hod_')) {
+       // HODs need to see distributions for ALL teams in their department
+       // >>>>>>>>>>>>>> START: HOD Specific Logic <<<<<<<<<<<<<<
+       // You need to implement this function/logic based on your database schema
+       // This function should take the HOD's user ID (or department ID) and return
+       // an array of team IDs belonging to their department.
+       const teamIdsForDepartment = await getDepartmentTeamIdsForHOD(currentUser.id /* or currentUser.department_id */); // Placeholder
 
-    // Grouping logic
-    const groupedByProjectMap = new Map();
+       if (!teamIdsForDepartment || teamIdsForDepartment.length === 0) {
+           console.warn(`HOD ${currentUser.id} (uid: ${uid}) is not associated with any teams in a department.`);
+           return res.status(403).json({ error: 'Access denied. HOD not associated with any teams in a department.' });
+       }
 
-    flatDistributions.forEach(dist => {
-      const projectId = dist.project_id;
-      if (!groupedByProjectMap.has(projectId)) {
-        groupedByProjectMap.set(projectId, {
-          project_id: projectId,
-     client_name: dist.project.project_name.split('-')[0] || null,
-        amount:
-        Number(dist.project.after_fiverr_amount || 0) +
-        Number(dist.project.after_fiverr_bonus || 0),
-          project_details: dist.project,
-          distributions: [],
-        });
-      }
+       whereClause = {
+           project: {
+               team_id: { in: teamIdsForDepartment }, // Filter by the list of team IDs
+               ...projectDeliveryCondition,
+           },
+       };
+       // >>>>>>>>>>>>>> END: HOD Specific Logic <<<<<<<<<<<<<<
 
-      groupedByProjectMap.get(projectId).distributions.push({
-        id: dist.id,
-        amount: Number(dist.amount || 0),
-        team_member_id: dist.team_member_id,
-        team_member_details: dist.team_member,
-      });
-    });
+    } else { // Operation Members and other non-leader operational roles
+      whereClause = {
+        team_member_id: currentUser.id, // Filter by the member's own ID
+        project: {
+          ...projectDeliveryCondition,
+        },
+      };
+    }
 
-    const groupedByProjectArray = Array.from(groupedByProjectMap.values());
+    const flatDistributions = await prisma.member_distribution.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        amount: true,
+        project_id: true,
+        team_member_id: true,
+        team_member: {
+          select: { id: true, first_name: true, last_name: true, email: true, role: true },
+        },
+        project: {
+          select: {
+            id: true,
+            project_name: true,
+            update_at: true,
+            after_fiverr_amount: true,
+            after_Fiverr_bonus: true,
+            deli_last_date: true,
+            delivery_date: true,
+            is_delivered: true,
+          },
+        },
+      },
+      orderBy: [
+        { project_id: 'asc' },
+        { project: { update_at: 'desc' } },
+        { team_member_id: 'asc' },
+      ],
+    });
 
-    // Optional: Sort the final array of projects, e.g., by project's delivery date or last update date
-    groupedByProjectArray.sort((a, b) => {
-      // Sort by project's delivery_date descending, then by update_at as a fallback
+    if (!flatDistributions || flatDistributions.length === 0) {
+      return res.json([]);
+    }
+
+    // Grouping logic (remains the same - grouping by project)
+    const groupedByProjectMap = new Map();
+
+    flatDistributions.forEach(dist => {
+      const projectId = dist.project_id;
+      if (!groupedByProjectMap.has(projectId)) {
+        groupedByProjectMap.set(projectId, {
+          project_id: projectId,
+          client_name: dist.project.project_name ? dist.project.project_name.split('-')[0] : null,
+          amount:
+          Number(dist.project.after_fiverr_amount || 0) +
+          Number(dist.project.after_Fiverr_bonus || 0),
+          project_details: dist.project,
+          distributions: [],
+        });
+      }
+
+      groupedByProjectMap.get(projectId).distributions.push({
+        id: dist.id,
+        amount: Number(dist.amount || 0),
+        team_member_id: dist.team_member_id,
+        team_member_details: dist.team_member,
+      });
+    });
+
+    const groupedByProjectArray = Array.from(groupedByProjectMap.values());
+
+    // Optional: Sort the final array of projects
+    groupedByProjectArray.sort((a, b) => {
       const dateA = a.project_details.delivery_date ? new Date(a.project_details.delivery_date) : (a.project_details.update_at ? new Date(a.project_details.update_at) : null);
       const dateB = b.project_details.delivery_date ? new Date(b.project_details.delivery_date) : (b.project_details.update_at ? new Date(b.project_details.update_at) : null);
 
-      if (!dateA && !dateB) return 0;
-      if (!dateA) return 1;
-      if (!dateB) return -1;
-      return dateB - dateA; // Sort by date descending
-    });
+      if (!dateA && !dateB) return 0;
+      if (!dateA) return 1;
+      if (!dateB) return -1;
+      return dateB - dateA;
+    });
 
-    return res.json(groupedByProjectArray);
+    return res.json(groupedByProjectArray);
 
-  } catch (err) {
-    console.error('getAllmemberDistribution Error →', err);
-    return res.status(500).json({ error: 'Internal server error while fetching member distributions.' });
-  }
+  } catch (err) {
+    console.error('getAllmemberDistribution Error →', err);
+    return res.status(500).json({ error: 'Internal server error while fetching member distributions.' });
+  }
 };
-
 /**
  * Updates the amount of a specific member_distribution record.
  * Only accessible by 'operation_leader' for distributions within their team's projects.
