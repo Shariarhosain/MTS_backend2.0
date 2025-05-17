@@ -1032,6 +1032,7 @@ async function teamwiseDeliveryGraph(io) {
         io.emit("teamwiseGraph", { error: 'Internal server error fetching weekly team data.' });
     }
 }
+
 async function eachTeamChart(io, user) {
   try {
     const me = await prisma.team_member.findUnique({

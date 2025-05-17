@@ -44,7 +44,13 @@ exports.updateDepartment = async (req, res) => {
 
 exports.getAllDepartments = async (req, res) => {
     try {
-        const departments = await prisma.department.findMany();
+       //just send department name
+        const departments = await prisma.department.findMany({
+            select: {
+                id: true,
+                department_name: true,
+            },
+        });
         return res.status(200).json({ message: 'Departments retrieved successfully', departments });
     } catch (error) {
         console.error('Error retrieving departments:', error);
