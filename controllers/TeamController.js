@@ -176,7 +176,9 @@ exports.teamCreate = async (req, res) => {
 
     // Input validation
     if (!team_name || !department_id) {
-        return res.status(400).json({ message: 'Team name and department ID are required.' });
+        return res.status(400).json({ message: 
+            'Team name and department ID are required.' 
+        });
     }
 
     try {
