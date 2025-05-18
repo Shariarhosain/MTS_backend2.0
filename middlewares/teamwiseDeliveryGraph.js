@@ -1987,6 +1987,9 @@ async function eachTeamChart(io, user) {
   }
 
 }
+
+
+// This function is called when a specific team ID is provided
 async function eachTeamChartForTeamId(io, teamIdToQuery) {
   try {
     if (!teamIdToQuery) {
