@@ -894,6 +894,408 @@ exports.deleteProjectSpecialOrder = async (req, res) => {
 
 
 
+// Helper function to get the start and end dates of a quarter
+function getQuarterDates(year, quarter) {
+    let startDate, endDate;
+    switch (quarter) {
+        case 1: // Q1: Jan - Mar
+            startDate = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0));
+            endDate = new Date(Date.UTC(year, 2, 31, 23, 59, 59, 999));
+            break;
+        case 2: // Q2: Apr - Jun
+            startDate = new Date(Date.UTC(year, 3, 1, 0, 0, 0, 0));
+            endDate = new Date(Date.UTC(year, 5, 30, 23, 59, 59, 999));
+            break;
+        case 3: // Q3: Jul - Sep
+            startDate = new Date(Date.UTC(year, 6, 1, 0, 0, 0, 0));
+            endDate = new Date(Date.UTC(year, 8, 30, 23, 59, 59, 999));
+            break;
+        case 4: // Q4: Oct - Dec
+            startDate = new Date(Date.UTC(year, 9, 1, 0, 0, 0, 0));
+            endDate = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
+            break;
+        default:
+            throw new Error('Invalid quarter number');
+    }
+    return { startDate, endDate };
+}
+
+// Helper function to get the current quarter and year
+function getCurrentQuarterAndYear() {
+    const now = new Date();
+    const month = now.getUTCMonth(); // 0-indexed
+    const year = now.getUTCFullYear();
+    const quarter = Math.floor(month / 3) + 1;
+    return { year, quarter };
+}
+
+// API endpoint handler to get quarterly performance based on user role
+exports.getQuarterlyPerformance = async (req, res) => {
+    let user;
+    try {
+        // Fetch user details from the database using the uid from the authenticated request
+        // This assumes your auth middleware guarantees req.user and req.user.uid exist
+        if (!req.user || !req.user.uid) {
+             console.log('Authentication failed: req.user or req.user.uid is missing.');
+             return res.status(401).json({ error: 'Unauthorized: Authentication data missing' });
+        }
+
+        user = await prisma.team_member.findUnique({
+            where: { uid: req.user.uid },
+            select: {
+                role: true,
+                id: true,
+                team_id: true, // Assuming you have a team_id field in your user model
+            }
+        });
+        console.log('User details fetched:', user);
+
+    } catch (fetchUserError) {
+        console.error('Error fetching user details from DB:', fetchUserError);
+         // This catch handles DB errors during the user lookup.
+        return res.status(500).json({ error: 'Internal server error fetching user data' });
+    }
+
+
+    const userRole = user?.role?.toLowerCase();
+    const userId = user?.id;
+    const userTeamId = user?.team_id; // Assuming user object has team_id
+
+    // Log received user info for debugging
+    console.log('User Role:', userRole);
+    console.log('User ID:', userId);
+    console.log('User Team ID:', userTeamId);
+
+
+    if (!user || !userRole || !userId) {
+        // This check is still valuable if the DB lookup somehow returns null or incomplete data
+        console.log('Unauthorized access attempt: User fetched but missing role or id');
+        return res.status(401).json({ error: 'Unauthorized: User data incomplete in DB' });
+    }
+
+    // Determine the quarter to query (e.g., current quarter, or allow query param)
+    // Allow specifying year and quarter via query parameters, default to current quarter
+    const queryYear = parseInt(req.query.year);
+    const queryQuarter = parseInt(req.query.quarter);
+
+    let targetYear, targetQuarter;
+
+    if (!isNaN(queryYear) && !isNaN(queryQuarter) && queryQuarter >= 1 && queryQuarter <= 4) {
+        targetYear = queryYear;
+        targetQuarter = queryQuarter;
+    } else {
+        // Default to current quarter if no valid query params
+        const { year, quarter } = getCurrentQuarterAndYear();
+        targetYear = year;
+        targetQuarter = quarter;
+    }
+
+    console.log(`Workspaceing data for Quarter ${targetQuarter}, Year ${targetYear}`);
+
+    const { startDate, endDate } = getQuarterDates(targetYear, targetQuarter);
+
+    try {
+        let responseData = {
+            quarter: targetQuarter,
+            year: targetYear,
+            periodStart: startDate.toISOString(),
+            periodEnd: endDate.toISOString(),
+            // WARNING: Calculations use standard JavaScript numbers which may have
+            // floating-point precision issues for monetary values.
+            precisionWarning: "Calculations use standard JavaScript numbers, potentially leading to minor precision issues."
+        };
+
+        // --- Role-based Data Fetching and Aggregation ---
+
+        if (userRole.startsWith('hod_')) {
+            // HOD: See all team quarter-wise performance
+            console.log('Role: HOD. Fetching all teams quarterly performance.');
+
+            // Fetch all teams to get their current targets
+            const allTeams = await prisma.team.findMany({
+                 select: {
+                    id: true,
+                    team_name: true,
+                    team_target: true, // Get current monthly target
+                },
+            });
+
+            const allTeamsQuarterly = [];
+
+            for (const team of allTeams) {
+                 // Calculate quarterly target based on current monthly target * 3
+                 const quarterlyTargetBasedOnCurrent = parseFloat(team.team_target || '0') * 3;
+
+                 // Fetch historical monthly records for this team in the quarter
+                 const teamMonthlyHistory = await prisma.TeamTargetHistory.findMany({
+                    where: {
+                        team_id: team.id,
+                        start_date: {
+                            gte: startDate,
+                            lte: endDate,
+                        },
+                    },
+                    select: {
+                        team_target: true, // Monthly target from history
+                        total_achived: true, // Monthly achieved from history
+                    },
+                });
+
+                console.log(`HOD: Fetched ${teamMonthlyHistory.length} monthly history records for team ${team.team_name} in the quarter.`);
+
+                // Aggregate historical monthly targets and achievements
+                const aggregatedHistory = teamMonthlyHistory.reduce((acc, monthlyRecord) => {
+                    acc.historicalTargetSum += parseFloat(monthlyRecord.team_target || '0');
+                    acc.achievedSum += parseFloat(monthlyRecord.total_achived || '0');
+                    return acc;
+                }, { historicalTargetSum: 0, achievedSum: 0 });
+
+
+                allTeamsQuarterly.push({
+                    team_id: team.id,
+                    team_name: team.team_name,
+                    target: quarterlyTargetBasedOnCurrent, // Target based on current monthly * 3
+                    achieved: aggregatedHistory.achievedSum, // Sum of historical achieved
+                    historical_quarterly_target: aggregatedHistory.historicalTargetSum, // Sum of historical targets
+                    difference: aggregatedHistory.achievedSum - aggregatedHistory.historicalTargetSum, // Difference based on historical target
+                });
+            }
+
+            responseData.allTeamsQuarterly = allTeamsQuarterly;
+             console.log(`HOD: Calculated quarterly performance for ${responseData.allTeamsQuarterly.length} teams.`);
+
+
+        } else if (userRole.endsWith('_leader')) {
+            // Operation Leader or Sales Leader: See own quarter performance and team performance
+            console.log('Role: Leader. Fetching own and team quarterly performance.');
+
+            // 1. Fetch Own Quarter Performance
+             console.log('Leader: Fetching own current target and quarterly history...');
+             const ownMember = await prisma.team_member.findUnique({
+                where: { id: userId },
+                select: {
+                    target: true, // Get current monthly target
+                }
+             });
+
+             const ownQuarterlyTargetBasedOnCurrent = parseFloat(ownMember?.target || '0') * 3; // Calculate quarterly target based on current
+
+
+            const memberMonthlyHistory = await prisma.TeamMemberTargetHistory.findMany({
+                where: {
+                    team_member_id: userId,
+                     // Filter by the date range of the target quarter
+                    start_date: {
+                        gte: startDate,
+                        lte: endDate,
+                    },
+                },
+                select: {
+                    target_amount: true, // Monthly target from history
+                    total_achived: true, // Monthly achieved from history
+                },
+            });
+            console.log(`Leader: Fetched ${memberMonthlyHistory.length} monthly own history records for the quarter.`);
+
+            // Aggregate historical monthly targets and achievements
+             const aggregatedOwnHistory = memberMonthlyHistory.reduce((acc, monthlyRecord) => {
+                 acc.historicalTargetSum += parseFloat(monthlyRecord.target_amount || '0');
+                 acc.achievedSum += parseFloat(monthlyRecord.total_achived || '0');
+                 return acc;
+             }, { historicalTargetSum: 0, achievedSum: 0 });
+
+
+            responseData.ownQuarterlyPerformance = {
+                target: ownQuarterlyTargetBasedOnCurrent, // Target based on current monthly * 3
+                achieved: aggregatedOwnHistory.achievedSum, // Sum of historical achieved
+                historical_quarterly_target: aggregatedOwnHistory.historicalTargetSum, // Sum of historical targets
+                difference: aggregatedOwnHistory.achievedSum - aggregatedOwnHistory.historicalTargetSum, // Difference based on historical target
+            };
+            console.log('Leader: Own quarterly performance calculated.');
+
+
+            // 2. Fetch Team Quarter Performance (only if the leader is part of a team)
+            if (userTeamId) {
+                console.log(`Leader: Fetching team (ID: ${userTeamId}) current target and quarterly history...`);
+                 const team = await prisma.team.findUnique({
+                    where: { id: userTeamId },
+                     select: {
+                        team_name: true, // To get the team name
+                        team_target: true, // Get current monthly target
+                    },
+                });
+
+                const teamQuarterlyTargetBasedOnCurrent = parseFloat(team?.team_target || '0') * 3; // Calculate quarterly target based on current
+
+                 const teamMonthlyHistory = await prisma.TeamTargetHistory.findMany({
+                    where: {
+                        team_id: userTeamId,
+                         // Filter by the date range of the target quarter
+                        start_date: {
+                            gte: startDate,
+                            lte: endDate,
+                        },
+                    },
+                     select: {
+                         team_target: true, // Monthly target from history
+                         total_achived: true, // Monthly achieved from history
+                     },
+                });
+                 console.log(`Leader: Fetched ${teamMonthlyHistory.length} monthly team history records for the quarter.`);
+
+                 // Aggregate historical monthly targets and achievements
+                 const aggregatedTeamHistory = teamMonthlyHistory.reduce((acc, monthlyRecord) => {
+                     acc.historicalTargetSum += parseFloat(monthlyRecord.team_target || '0');
+                     acc.achievedSum += parseFloat(monthlyRecord.total_achived || '0');
+                     return acc;
+                 }, { historicalTargetSum: 0, achievedSum: 0 });
+
+                const teamName = team?.team_name || 'Unknown Team';
+
+                responseData.teamQuarterlyPerformance = {
+                    team_id: userTeamId,
+                    team_name: teamName,
+                    target: teamQuarterlyTargetBasedOnCurrent, // Target based on current monthly * 3
+                    achieved: aggregatedTeamHistory.achievedSum, // Sum of historical achieved
+                    historical_quarterly_target: aggregatedTeamHistory.historicalTargetSum, // Sum of historical targets
+                    difference: aggregatedTeamHistory.achievedSum - aggregatedTeamHistory.historicalTargetSum, // Difference based on historical target
+                };
+                console.log('Leader: Team quarterly performance calculated.');
+
+
+                 // 3. Fetch Member Performance within the leader's team for the quarter
+                 console.log(`Leader: Fetching team members' current targets and quarterly history for team (ID: ${userTeamId})...`);
+
+                const teamMembers = await prisma.team_member.findMany({
+                    where: { team_id: userTeamId },
+                    select: {
+                        id: true,
+                        first_name: true,
+                        last_name: true,
+                        target: true, // Get current monthly target for each member
+                    }
+                });
+
+                 const teamMembersQuarterly = [];
+
+                 for (const member of teamMembers) {
+                     const memberQuarterlyTargetBasedOnCurrent = parseFloat(member.target || '0') * 3; // Calculate quarterly target based on current
+
+                     const memberMonthlyHistory = await prisma.TeamMemberTargetHistory.findMany({
+                        where: {
+                            team_member_id: member.id,
+                            start_date: {
+                                gte: startDate,
+                                lte: endDate,
+                            },
+                        },
+                         select: {
+                             target_amount: true, // Monthly target from history
+                             total_achived: true, // Monthly achieved from history
+                         },
+                         orderBy: {
+                            start_date: 'asc'
+                         }
+                     });
+                     console.log(`Leader: Fetched ${memberMonthlyHistory.length} monthly history records for team member ${member.first_name || member.id} in the quarter.`);
+
+
+                    // Aggregate historical monthly targets and achievements
+                    const aggregatedMemberHistory = memberMonthlyHistory.reduce((acc, monthlyRecord) => {
+                        acc.historicalTargetSum += parseFloat(monthlyRecord.target_amount || '0');
+                        acc.achievedSum += parseFloat(monthlyRecord.total_achived || '0');
+                        return acc;
+                    }, { historicalTargetSum: 0, achievedSum: 0 });
+
+
+                     teamMembersQuarterly.push({
+                        team_member_id: member.id,
+                        team_member_name: `${member.first_name || ''} ${member.last_name || ''}`.trim(),
+                        quarterly_target: memberQuarterlyTargetBasedOnCurrent, // Target based on current monthly * 3
+                        achieved: aggregatedMemberHistory.achievedSum, // Sum of historical achieved
+                        historical_quarterly_target: aggregatedMemberHistory.historicalTargetSum, // Sum of historical targets
+                        difference: aggregatedMemberHistory.achievedSum - aggregatedMemberHistory.historicalTargetSum, // Difference based on historical target
+                    });
+                 }
+
+                 responseData.teamMembersQuarterly = teamMembersQuarterly;
+                 console.log(`Leader: Calculated quarterly performance for ${responseData.teamMembersQuarterly.length} team members.`);
+
+
+            } else {
+                 console.log('Leader does not have a team_id. Skipping team and team member performance fetch.');
+            }
+
+
+        } else if (userRole.endsWith('_member')) {
+             // Operation Member or Sales Member: See only own quarter performance
+             console.log('Role: Member. Fetching own current target and quarterly history.');
+
+             const ownMember = await prisma.team_member.findUnique({
+                where: { id: userId },
+                select: {
+                    target: true, // Get current monthly target
+                }
+             });
+
+             const ownQuarterlyTargetBasedOnCurrent = parseFloat(ownMember?.target || '0') * 3; // Calculate quarterly target based on current
+
+
+             const memberMonthlyHistory = await prisma.TeamMemberTargetHistory.findMany({
+                where: {
+                    team_member_id: userId,
+                     // Filter by the date range of the target quarter
+                    start_date: {
+                        gte: startDate,
+                        lte: endDate,
+                    },
+                },
+                select: {
+                    target_amount: true, // Monthly target from history
+                    total_achived: true, // Monthly achieved from history
+                },
+            });
+             console.log(`Member: Fetched ${memberMonthlyHistory.length} monthly own history records for the quarter.`);
+
+
+             // Aggregate historical monthly targets and achievements
+            const aggregatedOwnHistory = memberMonthlyHistory.reduce((acc, monthlyRecord) => {
+                acc.historicalTargetSum += parseFloat(monthlyRecord.target_amount || '0');
+                acc.achievedSum += parseFloat(monthlyRecord.total_achived || '0');
+                return acc;
+            }, { historicalTargetSum: 0, achievedSum: 0 });
+
+
+            responseData.ownQuarterlyPerformance = {
+                target: ownQuarterlyTargetBasedOnCurrent, // Target based on current monthly * 3
+                achieved: aggregatedOwnHistory.achievedSum, // Sum of historical achieved
+                historical_quarterly_target: aggregatedOwnHistory.historicalTargetSum, // Sum of historical targets
+                difference: aggregatedOwnHistory.achievedSum - aggregatedOwnHistory.historicalTargetSum, // Difference based on historical target
+            };
+            console.log('Member: Own quarterly performance calculated.');
+
+        } else {
+            // Handle other roles or no role found
+            console.log(`Access denied for role: ${userRole}`);
+            return res.status(403).json({ error: 'Access denied for this role.' });
+        }
+
+        res.json(responseData);
+
+    } catch (error) {
+        console.error('Error fetching quarterly performance:', error);
+        // Added error.message to provide more details in the response
+        res.status(500).json({ error: 'Failed to fetch performance data', details: error.message });
+    }
+};
+
+
+
+
+
+
+
+
 
 
 

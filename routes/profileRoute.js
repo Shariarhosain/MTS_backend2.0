@@ -20,7 +20,8 @@ const {
   createProfile,
   getAllProfiles,
   updateProfile,
-  getProfileOverviewById
+  getProfileOverviewById,
+  getQuarterlyPerformance
 } = require('../controllers/profileController'); // Import the controller functions
 const verifyToken = require('../middlewares/jwt'); // Import the JWT verification middleware
 
@@ -85,6 +86,22 @@ router.get('/profileRanking/monthly-activity-chart', getMonthlyProfileActivityCh
 
 router.get('/singleprofile/:profileId', verifyToken, getProfileOverviewById); // Get profile overview by ID
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+router.get('/quarterly-performance', verifyToken, getQuarterlyPerformance); // Get quarterly performance by profile ID
 
 
 
