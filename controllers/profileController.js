@@ -574,7 +574,6 @@ exports.AllprofilePromotionGet = async (req, res) => {
   }
 };
 
-
 exports.updateprofile_promotion = async (req, res) => {
   try {
     const id = req.params.id;
@@ -597,10 +596,72 @@ exports.updateprofile_promotion = async (req, res) => {
       update_at: new Date(),
     };
 
-    if (promotion_amount != null) updateData.promotion_amount = promotion_amount;
+    // Fetch the current promotion entry before updating
+    const currentPromotion = await prisma.profile_promotion.findUnique({
+      where: { id: Number(id) },
+      select: { // Select necessary fields
+        profile_id: true,
+        promotion_amount: true,
+        created_date: true,
+      }
+    });
+
+    if (!currentPromotion) {
+        return res.status(404).json({
+            message: 'Profile promotion entry not found',
+        });
+    }
+
+    // If promotion_amount is being updated, recalculate actual_increase
+    if (promotion_amount != null) {
+      updateData.promotion_amount = promotion_amount;
+
+      // Find the previous promotion entry for the same profile, ordered by creation date descending
+      const previousPromotion = await prisma.profile_promotion.findFirst({
+        where: {
+          profile_id: currentPromotion.profile_id,
+          created_date: {
+            lt: currentPromotion.created_date, // Find entries created before the current one
+          },
+          // Optionally, you might want to exclude the current ID in case of identical timestamps,
+          // though ordering by date and taking the first should generally suffice.
+          // NOT: {
+          //     id: Number(id)
+          // }
+        },
+        orderBy: {
+          created_date: 'desc',
+        },
+      });
+
+      const today = new Date();
+      const currentMonth = today.getMonth();
+      const currentYear = today.getFullYear();
+
+      let actual_increase = promotion_amount; // Default if no previous or monthly reset
+
+      if (previousPromotion && previousPromotion.promotion_amount != null) {
+        const previousMonth = new Date(previousPromotion.created_date).getMonth();
+        const previousYear = new Date(previousPromotion.created_date).getFullYear();
+
+        // Check for monthly reset condition
+        if (previousMonth === currentMonth && previousYear === currentYear) {
+            // If in the same month and year, calculate difference from previous
+            actual_increase = promotion_amount - Number(previousPromotion.promotion_amount);
+        } else {
+            // If in a different month/year, it's a monthly reset, so actual_increase is the new amount
+             actual_increase = promotion_amount;
+        }
+      }
+      
+      updateData.actual_increase = actual_increase;
+
+    }
+
     if (clicks != null) updateData.clicks = clicks;
     if (impressions != null) updateData.impressions = impressions;
 
+    // Perform the update
     const updated = await prisma.profile_promotion.update({
       where: { id: Number(id) },
       data: updateData,
