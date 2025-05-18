@@ -90,7 +90,7 @@ exports.selesView_recent_month = async (req, res) => {
 
 exports.createProfile = async (req, res) => {
   try {
-    const { profile_name, department_id } = req.body;
+    const { profile_name, department_id, team_member_id } = req.body;
 
     if (!profile_name) {
       return res.status(400).json({ message: 'Profile name is required' });
@@ -101,13 +101,53 @@ exports.createProfile = async (req, res) => {
       created_date: new Date(),
     };
 
-    // Connect to department if department_id is provided
+    // --- Validation Checks ---
+
+    // Check if department exists if department_id is provided
     if (department_id) {
+      const department = await prisma.department.findUnique({
+        where: { id: parseInt(department_id) },
+      });
+
+      if (!department) {
+        return res.status(404).json({ message: `Department with ID ${department_id} not found.` });
+      }
+
       data.department = {
         connect: { id: parseInt(department_id) },
-        
       };
     }
+
+    // Check if team member exists if team_member_id is provided
+    if (team_member_id) {
+      // Note: The schema shows team_members on profile as a many-to-many relation.
+      // If you intend to connect a single team member during creation,
+      // the 'connect' syntax for many-to-many is slightly different.
+      // Assuming you want to connect a single team member initially:
+      const teamMember = await prisma.team_member.findUnique({
+        where: { id: parseInt(team_member_id) },
+      });
+
+      if (!teamMember) {
+        return res.status(404).json({ message: `Team member with ID ${team_member_id} not found.` });
+      }
+
+      // For a many-to-many relation, 'connect' expects an array
+      data.team_members = {
+         connect: [{ id: parseInt(team_member_id) }],
+      };
+      // If 'team_member_id' could be an array of IDs from the request body,
+      // you would iterate and build the connect array accordingly.
+      // For example:
+      // if (Array.isArray(team_member_id)) {
+      //   const connectTeamMembers = team_member_id.map(id => ({ id: parseInt(id) }));
+      //   data.team_members = { connect: connectTeamMembers };
+      // } else {
+      //   data.team_members = { connect: [{ id: parseInt(team_member_id) }] };
+      // }
+    }
+
+    // --- End Validation Checks ---
 
     const newProfile = await prisma.profile.create({
       data,
@@ -116,6 +156,7 @@ exports.createProfile = async (req, res) => {
     return res.status(201).json({ message: 'Profile created successfully', profile: newProfile });
   } catch (error) {
     console.error('Error creating profile:', error);
+    // Catch potential remaining Prisma errors or other issues
     return res.status(500).json({ message: 'An error occurred while creating the profile', error: error.message });
   }
 };
@@ -126,6 +167,7 @@ exports.getAllProfiles = async (req, res) => {
       include: {
         department: true, // Include the related department
         projects: true, // Include the related projects
+     team_members: true, // Include the related team members
         profile_promotion: true, // Include the related promotions
         profile_ranking: true, // Include the related rankings
         profile_special_order: true, // Include the related special order
