@@ -88,7 +88,6 @@ exports.selesView_recent_month = async (req, res) => {
 
 //////////////////////profile create 
 
-
 exports.createProfile = async (req, res) => {
   try {
     const { profile_name, department_id } = req.body;
@@ -120,7 +119,6 @@ exports.createProfile = async (req, res) => {
     return res.status(500).json({ message: 'An error occurred while creating the profile', error: error.message });
   }
 };
-
 
 exports.getAllProfiles = async (req, res) => {
   try {
@@ -1356,5 +1354,403 @@ exports.getProfileCurrentMonthWeeklyDetails = async (req, res) => {
   } catch (error) {
     console.error('Error generating profile current month weekly details:', error);
     res.status(500).json({ error: 'Failed to generate current month weekly details report' });
+  }
+};
+
+
+
+
+
+// Presuming this code would be in a controller file, e.g., profileController.js
+
+// You would import Prisma at the top of this file
+// import prisma from '../lib/prisma'; // Adjust path as necessary
+
+// exports.getProfileOverviewById = async (req, res) => {
+//   try {
+//     const { profileId } = req.params; // Assuming ID comes from route parameters like /api/profiles/:profileId
+
+//     if (!profileId || isNaN(parseInt(profileId))) {
+//       return res.status(400).json({ message: 'Valid Profile ID is required as a route parameter.' });
+//     }
+
+//     const id = parseInt(profileId);
+
+//     const today = new Date();
+//     const currentYear = today.getFullYear();
+//     const currentMonth = today.getMonth();
+
+//     const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+//     const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+
+//     const todayStart = new Date(currentYear, currentMonth, today.getDate(), 0, 0, 0, 0);
+//     const todayEnd = new Date(currentYear, currentMonth, today.getDate(), 23, 59, 59, 999);
+
+//     // 1. Profile Name and Basic Info
+//     const profile = await prisma.profile.findUnique({
+//       where: { id: id },
+//       include: {
+//         department: true, // For category
+//       },
+//     });
+
+//     if (!profile) {
+//       return res.status(404).json({ message: 'Profile not found' });
+//     }
+
+//     // 2. Category (Department Name)
+//     const categories = profile.department && profile.department.length > 0
+//       ? profile.department.map(dep => dep.department_name).join(', ')
+//       : 'N/A';
+
+//     // 3. Total Earnings (All time delivered projects)
+//     const totalEarningsResult = await prisma.project.aggregate({
+//       _sum: {
+//         after_fiverr_amount: true,
+//         after_Fiverr_bonus: true,
+//       },
+//       where: {
+//         profile_id: id,
+//         is_delivered: true,
+//         // status: 'Completed' // Consider if a 'Completed' status is more accurate
+//       },
+//     });
+//     // Ensure conversion to Number before arithmetic and toFixed
+//     const sumOfTotalEarnings = (Number(totalEarningsResult._sum.after_fiverr_amount) || 0) + (Number(totalEarningsResult._sum.after_Fiverr_bonus) || 0);
+
+//     // 4. Promotion Amount (Today's Date)
+//     const todaysPromotion = await prisma.profile_promotion.findFirst({
+//       where: {
+//         profile_id: id,
+//         created_date: {
+//           gte: todayStart,
+//           lte: todayEnd,
+//         },
+//       },
+//       orderBy: {
+//         created_date: 'desc',
+//       },
+//     });
+//     // promotion_amount is Decimal?, convert to Number
+//     const promotionAmountTodayValue = todaysPromotion ? Number(todaysPromotion.promotion_amount) : 0;
+
+//     // 5. This Month's Special Orders (Count)
+//     const thisMonthSpecialOrdersCount = await prisma.project_special_order.count({
+//       where: {
+//         profile_id: id,
+//         created_date: { // Assuming this date field determines "this month's"
+//           gte: firstDayOfMonth,
+//           lte: lastDayOfMonth,
+//         },
+//       },
+//     });
+
+//     // 6. This Month's Earnings (Delivered this month)
+//     const thisMonthEarningsResult = await prisma.project.aggregate({
+//       _sum: {
+//         after_fiverr_amount: true,
+//         after_Fiverr_bonus: true,
+//       },
+//       where: {
+//         profile_id: id,
+//         is_delivered: true,
+//         delivery_date: {
+//           gte: firstDayOfMonth,
+//           lte: lastDayOfMonth,
+//         },
+//       },
+//     });
+//     // Ensure conversion to Number before arithmetic and toFixed
+//     const sumOfThisMonthEarnings = (Number(thisMonthEarningsResult._sum.after_fiverr_amount) || 0) + (Number(thisMonthEarningsResult._sum.after_Fiverr_bonus) || 0);
+
+//     // 7. Rank Keywords (Today's Keywords)
+//     const todaysRankingEntry = await prisma.profile_ranking.findFirst({
+//       where: {
+//         profile_id: id,
+//         created_date: {
+//           gte: todayStart,
+//           lte: todayEnd,
+//         },
+//       },
+//       orderBy: {
+//         created_date: 'desc',
+//       },
+//     });
+//     const rankKeywordsToday = todaysRankingEntry ? todaysRankingEntry.keywords : 'N/A';
+
+//     // 8. Total Projects
+//     const totalProjectsCount = await prisma.project.count({
+//       where: {
+//         profile_id: id,
+//       },
+//     });
+
+//     // 9. Average Rating
+//     let averageRating = 0;
+//     // profile.total_rating and profile.complete_count are Decimal? and Int? respectively
+//     if (profile.total_rating !== null && profile.complete_count !== null && Number(profile.complete_count) > 0) {
+//         averageRating = Number(profile.total_rating) / Number(profile.complete_count);
+//     } else {
+//         const ratingAggregation = await prisma.project.aggregate({
+//             _sum: { rating: true }, // rating is Int?
+//             _count: { rating: true },
+//             where: {
+//                 profile_id: id,
+//                 is_delivered: true,
+//                 rating: { not: null }
+//             }
+//         });
+//         if (ratingAggregation._count.rating > 0) {
+//             averageRating = (Number(ratingAggregation._sum.rating) || 0) / ratingAggregation._count.rating;
+//         }
+//     }
+
+//     // 10. Current Ranking (Today's Ranking Page and Row)
+//     const currentRankingInfo = todaysRankingEntry
+//         ? `Page: ${todaysRankingEntry.ranking_page || 'N/A'}, Row: ${todaysRankingEntry.row || 'N/A'}`
+//         : 'N/A';
+
+//     // 11. Total Cancelled
+//     const totalCancelledCount = await prisma.project.count({
+//       where: {
+//         profile_id: id,
+//         status: 'cancelled', // Ensure 'cancelled' is the exact status string
+//       },
+//     });
+
+//     const permission = profile.role || "N/A"; // Assuming a 'role' field for permission
+
+//     const profileOverview = {
+//       profileId: profile.id,
+//       profileName: profile.profile_name,
+//       category: categories,
+//       permission: permission,
+//       totalEarnings: parseFloat(sumOfTotalEarnings.toFixed(2)),
+//       // Removed totalSettedPromotionName and promotionStatus as per request
+//       promotionAmountToday: promotionAmountTodayValue > 0 ? parseFloat(promotionAmountTodayValue.toFixed(2)) : "N/A",
+//       thisMonthSpecialOrdersCount,
+//       thisMonthEarnings: parseFloat(sumOfThisMonthEarnings.toFixed(2)),
+//       rankKeywordsToday,
+//       totalProjectsCount,
+//       averageRating: averageRating > 0 ? parseFloat(averageRating.toFixed(2)) : "N/A",
+//       currentRanking: currentRankingInfo,
+//       totalCancelledCount,
+//     };
+
+//     return res.status(200).json({ message: 'Profile overview retrieved successfully', data: profileOverview });
+
+//   } catch (error) {
+//     console.error(`Error fetching profile overview for ID ${req.params.profileId}:`, error);
+//     // In development, you might want to send the full error, otherwise a generic message
+//     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+//     return res.status(500).json({
+//       message: 'Failed to retrieve profile overview',
+//       error: process.env.NODE_ENV === 'development' ? errorMessage : 'Internal server error',
+//     });
+//   }
+// };
+
+
+
+
+exports.getProfileOverviewById = async (req, res) => {
+  try {
+    const { profileId } = req.params; // Assuming ID comes from route parameters like /api/profiles/:profileId
+
+    if (!profileId || isNaN(parseInt(profileId))) {
+      return res.status(400).json({ message: 'Valid Profile ID is required as a route parameter.' });
+    }
+
+    const id = parseInt(profileId);
+
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+
+    const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+    // Setting the date to the last day of the current month
+    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999); // Include end of the day
+
+    const todayStart = new Date(currentYear, currentMonth, today.getDate(), 0, 0, 0, 0);
+    const todayEnd = new Date(currentYear, currentMonth, today.getDate(), 23, 59, 59, 999);
+
+    // 1. Profile Name and Basic Info
+    const profile = await prisma.profile.findUnique({
+      where: { id: id },
+      include: {
+        department: true, // For category
+      },
+    });
+
+    if (!profile) {
+      return res.status(404).json({ message: 'Profile not found' });
+    }
+
+    // 2. Category (Department Name)
+    const categories = profile.department && profile.department.length > 0
+      ? profile.department.map(dep => dep.department_name).join(', ')
+      : 'N/A';
+
+    // 3. Total Earnings (All time delivered projects)
+    const totalEarningsResult = await prisma.project.aggregate({
+      _sum: {
+        after_fiverr_amount: true,
+        after_Fiverr_bonus: true,
+      },
+      where: {
+        profile_id: id,
+        is_delivered: true,
+        // status: 'Completed' // Consider if a 'Completed' status is more accurate
+      },
+    });
+    // Ensure conversion to Number before arithmetic and toFixed
+    const sumOfTotalEarnings = (Number(totalEarningsResult._sum.after_fiverr_amount) || 0) + (Number(totalEarningsResult._sum.after_Fiverr_bonus) || 0);
+
+    // 4. Promotion Amount (Today's Date)
+    const todaysPromotion = await prisma.profile_promotion.findFirst({
+      where: {
+        profile_id: id,
+        created_date: {
+          gte: todayStart,
+          lte: todayEnd,
+        },
+      },
+      orderBy: {
+        created_date: 'desc',
+      },
+    });
+    // promotion_amount is Decimal?, convert to Number
+    const promotionAmountTodayValue = todaysPromotion ? Number(todaysPromotion.promotion_amount) : 0;
+
+    // 5. This Month's Special Orders (Count and Amount)
+    const thisMonthSpecialOrdersCount = await prisma.project_special_order.count({
+      where: {
+        profile_id: id,
+        created_date: { // Assuming this date field determines "this month's"
+          gte: firstDayOfMonth,
+          lte: lastDayOfMonth,
+        },
+      },
+    });
+
+    // Corrected: Using 'special_order_amount' based on your schema
+    const thisMonthSpecialOrdersAmountResult = await prisma.project_special_order.aggregate({
+        _sum: {
+            special_order_amount: true, // <-- Corrected field name
+        },
+        where: {
+            profile_id: id,
+            created_date: {
+                gte: firstDayOfMonth,
+                lte: lastDayOfMonth,
+            },
+        },
+    });
+    console.log('thisMonthSpecialOrdersAmountResult:', thisMonthSpecialOrdersAmountResult);
+    const thisMonthSpecialOrdersAmount = Number(thisMonthSpecialOrdersAmountResult._sum.special_order_amount) || 0;
+
+
+    // 6. This Month's Earnings (Delivered this month)
+    const thisMonthEarningsResult = await prisma.project.aggregate({
+      _sum: {
+        after_fiverr_amount: true,
+        after_Fiverr_bonus: true,
+      },
+      where: {
+        profile_id: id,
+        is_delivered: true,
+        delivery_date: {
+          gte: firstDayOfMonth,
+          lte: lastDayOfMonth,
+        },
+      },
+    });
+    // Ensure conversion to Number before arithmetic and toFixed
+    const sumOfThisMonthEarnings = (Number(thisMonthEarningsResult._sum.after_fiverr_amount) || 0) + (Number(thisMonthEarningsResult._sum.after_Fiverr_bonus) || 0);
+
+    // 7. Rank Keywords (Today's Keywords)
+    const todaysRankingEntry = await prisma.profile_ranking.findFirst({
+      where: {
+        profile_id: id,
+        created_date: {
+          gte: todayStart,
+          lte: todayEnd,
+        },
+      },
+      orderBy: {
+        created_date: 'desc',
+      },
+    });
+    const rankKeywordsToday = todaysRankingEntry ? todaysRankingEntry.keywords : 'N/A';
+
+    // 8. Total Projects
+    const totalProjectsCount = await prisma.project.count({
+      where: {
+        profile_id: id,
+      },
+    });
+
+    // 9. Average Rating
+    let averageRating = 0;
+    // profile.total_rating and profile.complete_count are Decimal? and Int? respectively
+    if (profile.total_rating !== null && profile.complete_count !== null && Number(profile.complete_count) > 0) {
+        averageRating = Number(profile.total_rating) / Number(profile.complete_count);
+    } else {
+        const ratingAggregation = await prisma.project.aggregate({
+            _sum: { rating: true }, // rating is Int?
+            _count: { rating: true },
+            where: {
+                profile_id: id,
+                is_delivered: true,
+                rating: { not: null }
+            }
+        });
+        if (ratingAggregation._count.rating > 0) {
+            averageRating = (Number(ratingAggregation._sum.rating) || 0) / ratingAggregation._count.rating;
+        }
+    }
+
+    // 10. Current Ranking (Today's Ranking Page and Row)
+    const currentRankingInfo = todaysRankingEntry
+        ? `Page: ${todaysRankingEntry.ranking_page || 'N/A'}, Row: ${todaysRankingEntry.row || 'N/A'}`
+        : 'N/A';
+
+    // 11. Total Cancelled
+    const totalCancelledCount = await prisma.project.count({
+      where: {
+        profile_id: id,
+        status: 'cancelled', // Ensure 'cancelled' is the exact status string
+      },
+    });
+
+    // Removed permission as requested
+
+
+    const profileOverview = {
+      profileId: profile.id,
+      profileName: profile.profile_name,
+      category: categories,
+      totalEarnings: parseFloat(sumOfTotalEarnings.toFixed(2)),
+      promotionAmountToday: promotionAmountTodayValue > 0 ? parseFloat(promotionAmountTodayValue.toFixed(2)) : "N/A",
+      thisMonthSpecialOrdersCount,
+      thisMonthSpecialOrdersAmount: parseFloat(thisMonthSpecialOrdersAmount.toFixed(2)), // Added amount with correct field name
+      thisMonthEarnings: parseFloat(sumOfThisMonthEarnings.toFixed(2)),
+      rankKeywordsToday,
+      totalProjectsCount,
+      averageRating: averageRating > 0 ? parseFloat(averageRating.toFixed(2)) : "N/A",
+      currentRanking: currentRankingInfo,
+      totalCancelledCount,
+    };
+
+    return res.status(200).json({ message: 'Profile overview retrieved successfully', data: profileOverview });
+
+  } catch (error) {
+    console.error(`Error fetching profile overview for ID ${req.params.profileId}:`, error);
+    // In development, you might want to send the full error, otherwise a generic message
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    return res.status(500).json({
+      message: 'Failed to retrieve profile overview',
+      error: process.env.NODE_ENV === 'development' ? errorMessage : 'Internal server error',
+    });
   }
 };
