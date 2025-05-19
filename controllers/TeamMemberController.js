@@ -522,8 +522,7 @@ exports.login = async (req, res) => {
     const { email } = req.body;
     try {
         const teamMember = await prisma.team_member.findUnique({
-            where: { email },
-            select: { id: true, email: true, emp_code: true, account_status: true, uid: true, first_name: true, last_name: true /* add other necessary fields */ }
+            where: { email }
         });
 
         if (!teamMember) {
@@ -544,7 +543,7 @@ exports.login = async (req, res) => {
         res.status(200).json({
             message: "Login successful. Initiating daily attendance processing in the background.", // Update message
             token,
-            teamMember: teamMemberWithoutPassword,
+            teamMember: { ...teamMember, password: undefined }, // Exclude password from response
         });
 
         // --- Initiate Daily Attendance Processing in the Background ---
