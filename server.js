@@ -41,6 +41,7 @@ app.use('/api/profile', ProfileRoute);
 app.use('/api/today-task', verifyToken, todayTaskRoute); // Ensure todayTaskRoute is returning a function
 app.use('/api/department', DepartmentRoute); // Ensure DepartmentRoute is returning a function
 app.use('/api/team', verifyToken, TeamRoute); // Ensure TeamRoute is returning a function
+app.use('/api/attendance', verifyToken, require('./routes/test')); // Ensure attendance route is returning a function
 
 // --- Cron Job Definition ---
 // Function to calculate and record monthly targets and achievements

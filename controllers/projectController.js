@@ -577,7 +577,13 @@ exports.getProjectById = async (req, res) => {
 };
 
 exports.updateProject = async (req, res, io) => {
+
+
+
   const { id } = req.params;
+
+  //find all details by using id
+
   console.log("Incoming update body:", req.body);
 
   try {
@@ -602,6 +608,75 @@ exports.updateProject = async (req, res, io) => {
       if (!existingProject.delivery_date) {
         req.body.delivery_date = delivery_date;
         existingProject.ops_status = "delivered";
+        
+    // --- Add Member Distribution Logic Triggered by "delivered" status ---
+    // Trigger this logic *after* the project is updated, using the final project object
+    let newDistributionsCount = 0;
+        // Only proceed if the project is assigned to a team
+        if (existingProject.team_id) {
+            try {
+                // Step 6: Fetch all team members of the project's team
+                const allProjectTeamMembers = await prisma.team_member.findMany({
+                    where: { team_id: existingProject.team_id }, // Use the updated existingProject.team_id
+                    select: { id: true },
+                });
+
+                if (!allProjectTeamMembers || allProjectTeamMembers.length === 0) {
+                    console.warn(`updateProject: No team members found for project's team_id: ${existingProject.team_id}. No new member_distribution records considered upon 'delivered' status.`);
+                } else {
+                    // Step 7: Identify which of these team members do NOT already have a member_distribution record for this project
+                    const allProjectTeamMemberIds = allProjectTeamMembers.map(member => member.id);
+                    const existingDistributions = await prisma.member_distribution.findMany({
+                        where: {
+                            project_id: existingProject.id, // Use the updated existingProject.id
+                            team_member_id: {
+                                in: allProjectTeamMemberIds,
+                            },
+                        },
+                        select: {
+                            team_member_id: true,
+                        },
+                    });
+
+                    const existingMemberIdsWithDistribution = new Set(
+                        existingDistributions.map(dist => dist.team_member_id)
+                    );
+
+                    const distributionCreatePromises = [];
+                    allProjectTeamMemberIds.forEach(memberId => {
+                        if (!existingMemberIdsWithDistribution.has(memberId)) {
+                            // This member does not have a distribution record for this project yet. Create one.
+                            distributionCreatePromises.push(
+                                prisma.member_distribution.create({
+                                    data: {
+                                        team_member_id: memberId,
+                                        project_id: existingProject.id,
+                                        amount: 0, // Default amount as Decimal
+                                    },
+                                })
+                            );
+                        }
+                    });
+
+                    // Step 8: Execute new member_distribution inserts in a transaction, if any
+                    if (distributionCreatePromises.length > 0) {
+                        await prisma.$transaction(distributionCreatePromises);
+                        newDistributionsCount = distributionCreatePromises.length;
+                        console.log(`updateProject: ${newDistributionsCount} new member_distribution records created for project ${existingProject.id} upon 'delivered' status.`);
+                    } else {
+                        console.log(`updateProject: All relevant team members for project ${existingProject.id} already have member_distribution records, or no new members to add distribution for, upon 'delivered' status.`);
+                    }
+                }
+            } catch (distErr) {
+                 console.error('updateProject (distribution logic) →', distErr);
+                 // Re-throw the error so the main catch block handles it
+                 throw distErr;
+            }
+        } else {
+             console.warn(`updateProject: Project ${existingProject.id} is marked 'delivered' but has no team_id. Skipping member_distribution processing.`);
+        }
+
+
       } else {
         req.body.delivery_date = existingProject.delivery_date;
         
@@ -771,7 +846,302 @@ if (req.body.team_id) {
     res.status(500).json({ error: "An error occurred while updating the project." });
   }
 };
-// Function to send paginated project data to the connected client in real-time
+
+
+
+
+
+
+
+// exports.updateProject = async (req, res, io) => {
+//   const { id } = req.params;
+//   console.log("Incoming update body:", req.body);
+
+//   try {
+//     // 1. Check if project exists
+//     const existingProject = await prisma.project.findUnique({
+//       where: { id: Number(id) },
+//     });
+
+//     if (!existingProject) {
+//       return res.status(404).json({ error: "Project not found." });
+//     }
+
+//     // 2. Prevent updating projectName
+//     if (req.body.projectName) {
+//       return res.status(400).json({ error: "Updating projectName is not allowed." });
+//     }
+
+//     // --- Existing logic for handling delivered status (setting ops_status/delivery_date before main update) ---
+//     // Note: This block currently only updates ops_status *before* the main update.
+//     // The member distribution logic will be triggered based on the *final* status after the main update.
+//     // This existing block might be slightly redundant if the main update also sets status/ops_status.
+//     // Let's keep it for now as per the original code structure, but be aware the distribution check is later.
+//     if (req.body.status === "delivered") {
+//        // This part seems slightly off - it updates ops_status directly but doesn't update the project with the delivery_date from req.body yet.
+//        // The main update later handles applying req.body properties.
+//        // We'll trigger distribution based on the *final* status from the project object returned by the main update.
+//     }
+//     // --- End existing logic ---
+
+
+//     // 4. Parse deli_last_date if needed
+//     if (req.body.deli_last_date) {
+//       const parsedDate = new Date(req.body.deli_last_date);
+//       if (isNaN(parsedDate)) {
+//         return res.status(400).json({ error: "Invalid deli_last_date format." });
+//       }
+//       req.body.deli_last_date = parsedDate;
+//     }
+
+//     // 5. Calculate after_fiverr_amount if order_amount is present
+//     if (req.body.order_amount !== undefined) { // Check explicitly for undefined to allow 0
+//       req.body.after_fiverr_amount = parseFloat(req.body.order_amount) * 0.8;
+//     }
+
+//     // 6. Calculate after_Fiverr_bonus if bonus is present
+//      if (req.body.bonus !== undefined) { // Check explicitly for undefined to allow 0
+//       req.body.after_Fiverr_bonus = parseFloat(req.body.bonus) * 0.8;
+//     }
+
+
+//     // 7. If team_id present, set assigned date (only if it's a new assignment?)
+//     // This logic might need refinement: should it only set Assigned_date the *first* time a team_id is assigned?
+//     // Current code sets it every time team_id is in the body. Assuming current behavior is intended.
+//     if (req.body.team_id !== undefined) {
+//        // Ensure team_id is a number or null
+//        const teamId = req.body.team_id === null ? null : Number(req.body.team_id);
+//        if (req.body.team_id !== null && isNaN(teamId)) {
+//            return res.status(400).json({ error: "Invalid team_id format." });
+//        }
+//        req.body.team_id = teamId; // Use the validated number/null
+
+//        // Set assigned date only if a team is being assigned (not unassigned)
+//        if (teamId !== null) {
+//            const assignedDate = new Date();
+//            assignedDate.setHours(0, 0, 0, 0);
+//            req.body.Assigned_date = assignedDate;
+//        } else {
+//             // If team is being unassigned, potentially clear Assigned_date?
+//             // Depending on desired behavior, you might set req.body.Assigned_date = null;
+//             // For now, keeping existing behavior which only sets it when team_id is provided and not null.
+//        }
+//     }
+
+
+//     // 8. Set update_at if relevant fields are changed
+//     const update_status =['revision', 'realrevision', 'submitted', 'delivered', 'completed'];
+//     const shouldSetUpdateAt = req.body.deli_last_date || (req.body.status && update_status.includes(req.body.status));
+
+//     // 8.1 Prepare update data, including `update_at` if needed
+//     const updateData = { ...req.body };
+//     if (shouldSetUpdateAt) {
+//        updateData.update_at = new Date();
+//     }
+
+//     // 8.2 Destructure relation IDs from the *original* req.body, not the potentially modified updateData
+//     const {
+//       department_id,
+//       team_id, // team_id is handled separately for validation and Assigned_date
+//       profile_id,
+//       ordered_by,
+//       status, // status is handled separately for update_at and distribution trigger
+//       deli_last_date, // Already parsed and added to updateData if present
+//       order_amount, // Calculated and added to updateData if present
+//       bonus, // Calculated and added to updateData if present
+//       delivery_date, // If delivered, delivery_date might be in req.body and handled by updateData
+//       // remove any other fields already processed or added to updateData
+//       ...filteredBody
+//     } = req.body; // Destructure from original body
+
+//     // Reconstruct filteredBody using updateData, excluding IDs that are handled via `connect`
+//      const finalUpdateData = { ...updateData };
+//      delete finalUpdateData.department_id;
+//      delete finalUpdateData.team_id;
+//      delete finalUpdateData.profile_id;
+//      delete finalUpdateData.ordered_by;
+
+
+//     // 9. Update project (main update)
+//     const project = await prisma.project.update({
+//       where: { id: Number(id) },
+//       data: {
+//         ...finalUpdateData, // Use the data including calculated/parsed fields and update_at
+//         department: department_id !== undefined ? (department_id === null ? { disconnect: true } : { connect: { id: Number(department_id) } }) : undefined,
+//         team: team_id !== undefined ? (team_id === null ? { disconnect: true } : { connect: { id: Number(team_id) } }) : undefined,
+//         profile: profile_id !== undefined ? (profile_id === null ? { disconnect: true } : { connect: { id: Number(profile_id) } }) : undefined,
+//         team_member: ordered_by !== undefined ? (ordered_by === null ? { disconnect: true } : { connect: { id: Number(ordered_by) } }) : undefined,
+//          // Ensure status from req.body is included if present, potentially overriding what was set in filteredBody
+//          ...(req.body.status !== undefined && { status: req.body.status }),
+//          // Ensure delivery_date from req.body is included if present
+//          ...(req.body.delivery_date !== undefined && { delivery_date: new Date(req.body.delivery_date) }),
+
+//       },
+//     });
+
+//     // --- Add Member Distribution Logic Triggered by "delivered" status ---
+//     // Trigger this logic *after* the project is updated, using the final project object
+//     let newDistributionsCount = 0;
+//     if (project.status === "delivered") { // Check the status on the *updated* project object
+//         // Only proceed if the project is assigned to a team
+//         if (project.team_id) {
+//             try {
+//                 // Step 6: Fetch all team members of the project's team
+//                 const allProjectTeamMembers = await prisma.team_member.findMany({
+//                     where: { team_id: project.team_id }, // Use the updated project.team_id
+//                     select: { id: true },
+//                 });
+
+//                 if (!allProjectTeamMembers || allProjectTeamMembers.length === 0) {
+//                     console.warn(`updateProject: No team members found for project's team_id: ${project.team_id}. No new member_distribution records considered upon 'delivered' status.`);
+//                 } else {
+//                     // Step 7: Identify which of these team members do NOT already have a member_distribution record for this project
+//                     const allProjectTeamMemberIds = allProjectTeamMembers.map(member => member.id);
+//                     const existingDistributions = await prisma.member_distribution.findMany({
+//                         where: {
+//                             project_id: project.id, // Use the updated project.id
+//                             team_member_id: {
+//                                 in: allProjectTeamMemberIds,
+//                             },
+//                         },
+//                         select: {
+//                             team_member_id: true,
+//                         },
+//                     });
+
+//                     const existingMemberIdsWithDistribution = new Set(
+//                         existingDistributions.map(dist => dist.team_member_id)
+//                     );
+
+//                     const distributionCreatePromises = [];
+//                     allProjectTeamMemberIds.forEach(memberId => {
+//                         if (!existingMemberIdsWithDistribution.has(memberId)) {
+//                             // This member does not have a distribution record for this project yet. Create one.
+//                             distributionCreatePromises.push(
+//                                 prisma.member_distribution.create({
+//                                     data: {
+//                                         team_member_id: memberId,
+//                                         project_id: project.id,
+//                                         amount: 0, // Default amount as Decimal
+//                                     },
+//                                 })
+//                             );
+//                         }
+//                     });
+
+//                     // Step 8: Execute new member_distribution inserts in a transaction, if any
+//                     if (distributionCreatePromises.length > 0) {
+//                         await prisma.$transaction(distributionCreatePromises);
+//                         newDistributionsCount = distributionCreatePromises.length;
+//                         console.log(`updateProject: ${newDistributionsCount} new member_distribution records created for project ${project.id} upon 'delivered' status.`);
+//                     } else {
+//                         console.log(`updateProject: All relevant team members for project ${project.id} already have member_distribution records, or no new members to add distribution for, upon 'delivered' status.`);
+//                     }
+//                 }
+//             } catch (distErr) {
+//                  console.error('updateProject (distribution logic) →', distErr);
+//                  // Re-throw the error so the main catch block handles it
+//                  throw distErr;
+//             }
+//         } else {
+//              console.warn(`updateProject: Project ${project.id} is marked 'delivered' but has no team_id. Skipping member_distribution processing.`);
+//         }
+//     }
+//     // --- End of Member Distribution Logic Trigger ---
+
+
+//     // --- Existing logic for today_task parent row (if team_id changed) ---
+//     // This block is distinct from the member_distribution logic and handles
+//     // the neutral/parent today_task row creation/update when a team is assigned.
+//     // It should likely remain as is.
+//     if (req.body.team_id !== undefined && project.team_id) { // Check against the potentially updated team_id
+//       const teamId = project.team_id; // Use the team_id from the updated project
+//       // Assuming teamwiseDeliveryGraph and emitSalesData/totalOrdersCardData are defined elsewhere
+//       await teamwiseDeliveryGraph(io); // This might need to be called after project update but potentially before final response/emits
+
+//       /* 1️⃣  look for the neutral (parent) row */
+//       const parentRow = await prisma.today_task.findFirst({
+//         where: { project_id: project.id, team_member_id: null },
+//       });
+
+//       /* 2️⃣  create it if missing, otherwise just update the team_id */
+//       if (!parentRow) {
+//         await prisma.today_task.create({
+//           data: {
+//             project_id: project.id,
+//             client_name: project.project_name.split('-')[0] || null,
+//             team_id: teamId,
+//             team_member_id: null,     // neutral / parent row
+//             expected_finish_time: null,
+//             ops_status: null, // Or perhaps 'not started'? Depends on your flow.
+//           },
+//         });
+//       } else if (parentRow.team_id !== teamId) {
+//          // If parent row exists but team_id is different, update it
+//          // Note: If you allow changing the team of an *already assigned* project,
+//          // you might need to consider deleting existing team_member specific today_tasks
+//          // before creating new ones for the new team members. This logic is complex
+//          // and not currently in the provided code, so sticking to just updating the parent.
+//         await prisma.today_task.update({
+//           where: { id: parentRow.id },
+//           data:  { team_id: teamId },
+//         });
+//       }
+
+//       /* 3️⃣  keep the FK on the project record in sync */
+//       // This step is redundant if the main project update already sets team_id correctly
+//       // based on req.body.team_id. Let's remove it to avoid unnecessary DB write.
+//       // await prisma.project.update({
+//       //   where: { id: project.id },
+//       //   data:  { team_id: teamId },
+//       // });
+//     }
+//     // --- End existing today_task parent row logic ---
+
+
+//     // 10. Format date fields for response
+//     const formatDate = (date) =>
+//       date ? new Date(date).toISOString().split("T")[0] : null;
+
+//     // Re-fetch or use the updated project object to ensure all fields are formatted correctly
+//     // (the 'project' object from the update call should be sufficient, but formatting is needed)
+//     const formattedProject = {
+//       ...project,
+//       date: formatDate(project.date),
+//       deli_last_date: formatDate(project.deli_last_date),
+//       delivery_date: formatDate(project.delivery_date),
+//       createdAt: project.createdAt, // Assuming these exist and you want them formatted
+//       updatedAt: project.updatedAt,
+//       Assigned_date: formatDate(project.Assigned_date), // Assuming Assigned_date might be on project
+//     };
+
+
+//     // 11. Emit update and other socket events
+//     io.emit("projectUpdated", formattedProject); // Emit the formatted project
+//     // Ensure these functions are defined elsewhere
+//     await emitSalesData(io);
+//     await totalOrdersCardData(io);
+
+
+//     // 12. Respond
+//     return res.status(200).json({
+//       message: "Project updated successfully.",
+//       project: formattedProject, // Respond with the formatted project
+//        ...(project.status === "delivered" && project.team_id && { // Include distribution count if triggered
+//             new_member_distribution_records_created: newDistributionsCount,
+//         })
+//     });
+
+//   } catch (error) {
+//     console.error("Error updating project:", error);
+//     // Add specific P2002 check from assignProjectToTeam
+//     if (error.code === 'P2002') { // Prisma unique constraint violation code
+//         // This might happen during member_distribution creation
+//         return res.status(409).json({ error: 'Conflict: A unique constraint violation occurred during project update or member distribution processing. This might happen if trying to create duplicate member_distribution entries and the DB constraint is active.'});
+//     }
+//     return res.status(500).json({ error: "An error occurred while updating the project." });
+//   }
+// };
 exports.sendPaginatedProjectData = async (socket, page = 1, limit = 10) => {
   try {
     const pageNumber = parseInt(page, 10) || 1;

@@ -7,6 +7,33 @@ datasource db {
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
+
+
+
+
+
+
+// New model to store daily attendance punches
+model DailyAttendance {
+  id                        Int       @id @default(autoincrement())
+  teamMemberId              Int       // Foreign key linking to the team_member model
+  teamMember                team_member @relation(fields: [teamMemberId], references: [id]) // Relation to the team_member
+  date                      DateTime  @db.Date // The date of this attendance record
+  firstPunchTime            DateTime? // Time of the first check-in (optional)
+  lastPunchAfter530Time   DateTime? // Time of the last check-out after 5:30 PM (optional)
+  isLate                    Boolean?  // Whether the first punch was after the standard start time (optional)
+
+  createdAt                 DateTime  @default(now()) // Timestamp when the record was created
+  updatedAt                 DateTime  @updatedAt    // Timestamp when the record was last updated
+
+  // *** ADD THIS LINE ***
+  // Ensure only one attendance record per employee per day
+  @@unique([teamMemberId, date]) 
+
+  // Optional: Add the map if you want a specific table name, e.g., "daily_attendance"
+  // @@map("daily_attendance") 
+}
+
 model project {
   id                   Int           @id @default(autoincrement())
   order_id             String?
@@ -142,6 +169,7 @@ model team_member {
   password            String?               @db.VarChar(400)
   designation         String?
   uid                 String?               @unique
+  emp_code           String?               @unique
   branch             branch?
   member_distribution member_distribution[]
   project             project[]
@@ -151,6 +179,7 @@ model team_member {
   profile             profile[]             @relation("profileToteam_member")
   department_id          Int?
   department              department? @relation(fields: [department_id], references: [id], onDelete: Cascade)
+  dailyAttendance    DailyAttendance[]
 }
 
 model member_distribution {

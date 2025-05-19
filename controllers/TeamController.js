@@ -930,20 +930,18 @@ exports.teamWisechart = async (req, res) => {
               };
     
             });
-    
-    
-    
-            const resultArray = {
-    
-              teamTarget,
-    
-              teamAchievement,
-    
-              teamCancelled,
-    
-              teamTotalCarry,
-    
-              submitted,
+
+
+
+       res.status(200).json({ message: 'Team data retrieved successfully', teamTarget,
+
+         teamAchievement,
+
+         teamCancelled,
+
+         teamTotalCarry,
+
+         submitted,
     
               totalAssign,
     
@@ -951,11 +949,7 @@ exports.teamWisechart = async (req, res) => {
     
               memberTarget,
     
-              weeklyAchievementBreakdown,
-    
-            };
-    
-            res.status(200).json({ message: 'Team data retrieved successfully', resultArray });
+              weeklyAchievementBreakdown, });
     
           }
     

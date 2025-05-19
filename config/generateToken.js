@@ -6,7 +6,11 @@ const JWT_SECRET = 'your_secret_key';  // Store this securely, preferably in a .
 // Middleware to generate and attach the JWT token
 const generateToken = (user) => {
     return jwt.sign(
-        { uid: user },  // Payload
+        { uid: user.uid,
+            email: user.email,
+            role: user.role,
+            emp_code: user.emp_code,
+         },  // Payload
         JWT_SECRET,  // Secret key
         { expiresIn: '12h' }  // Token expiration time
     );
