@@ -19,19 +19,16 @@ model DailyAttendance {
   teamMemberId              Int       // Foreign key linking to the team_member model
   teamMember                team_member @relation(fields: [teamMemberId], references: [id]) // Relation to the team_member
   date                      DateTime  @db.Date // The date of this attendance record
-  firstPunchTime            DateTime? // Time of the first check-in (optional)
-  lastPunchAfter530Time   DateTime? // Time of the last check-out after 5:30 PM (optional)
+  firstPunchTime             String? // Time of the first check-in (optional)
+  lastPunchAfter530Time   String? // Time of the last check-out after 5:30 PM (optional)
   isLate                    Boolean?  // Whether the first punch was after the standard start time (optional)
 
   createdAt                 DateTime  @default(now()) // Timestamp when the record was created
   updatedAt                 DateTime  @updatedAt    // Timestamp when the record was last updated
 
-  // *** ADD THIS LINE ***
-  // Ensure only one attendance record per employee per day
+
   @@unique([teamMemberId, date]) 
 
-  // Optional: Add the map if you want a specific table name, e.g., "daily_attendance"
-  // @@map("daily_attendance") 
 }
 
 model project {
