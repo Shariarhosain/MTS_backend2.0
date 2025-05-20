@@ -21,7 +21,8 @@ const {
   getAllProfiles,
   updateProfile,
   getProfileOverviewById,
-  getQuarterlyPerformance
+  getQuarterlyPerformance,
+  getAllConsolidatedReports
 } = require('../controllers/profileController'); // Import the controller functions
 const verifyToken = require('../middlewares/jwt'); // Import the JWT verification middleware
 
@@ -104,6 +105,8 @@ router.get('/singleprofile/:profileId', verifyToken, getProfileOverviewById); //
 router.get('/quarterly-performance', verifyToken, getQuarterlyPerformance); // Get quarterly performance by profile ID
 
 
+// Consolidated Report Route
+router.get('/reports/all', verifyToken, getAllConsolidatedReports);
 
 module.exports = router; // Export the router for use in other files
 

@@ -1173,49 +1173,49 @@ exports.sendPaginatedProjectData = async (socket, page = 1, limit = 10) => {
   }
 };
 
-exports.getClientSuggestionsFromProjects = async (req, res) => {
-  const query = req.query.query;
+// exports.getClientSuggestionsFromProjects = async (req, res) => {
+//   const query = req.query.query;
 
-  if (!query || query.trim().length < 1) {
-    return res.status(400).json({ error: 'Query parameter is required.' });
-  }
+//   if (!query || query.trim().length < 1) {
+//     return res.status(400).json({ error: 'Query parameter is required.' });
+//   }
 
-  try {
-    const projects = await prisma.project.findMany({
-      where: {
-        project_name: {
-          startsWith: query, // Or use `contains` for more flexible search
-          mode: 'insensitive',
-        }
-      },
-    select: {
-        project_name: true,
-        order_id: true,
-        id: true,
-    },
-      take: 100
-    });
+//   try {
+//     const projects = await prisma.project.findMany({
+//       where: {
+//         project_name: {
+//           startsWith: query, // Or use `contains` for more flexible search
+//           mode: 'insensitive',
+//         }
+//       },
+//     select: {
+//         project_name: true,
+//         order_id: true,
+//         id: true,
+//     },
+//       take: 100
+//     });
 
-    const clientNames = projects.map(project => {
-      const [clientName] = project.project_name.split('-');
-      return clientName;
-    });
-//clientname with id 
-    const uniqueClientNames = [...new Set(clientNames)].map((clientName, index) => {
-      return {
-        clientName,
-        order_id: projects[index].order_id, // Assuming projects[index] has the id
-        id: projects[index].id // Assuming projects[index] has the id
-      };
-    });
+//     const clientNames = projects.map(project => {
+//       const [clientName] = project.project_name.split('-');
+//       return clientName;
+//     });
+// //clientname with id 
+//     const uniqueClientNames = [...new Set(clientNames)].map((clientName, index) => {
+//       return {
+//         clientName,
+//         order_id: projects[index].order_id, // Assuming projects[index] has the id
+//         id: projects[index].id // Assuming projects[index] has the id
+//       };
+//     });
 
-    return res.status(200).json({ uniqueClientNames });
+//     return res.status(200).json({ uniqueClientNames });
 
-  } catch (error) {
-    console.error('Error fetching client suggestions:', error);
-    return res.status(500).json({ error: 'An error occurred while fetching client suggestions.' });
-  }
-};
+//   } catch (error) {
+//     console.error('Error fetching client suggestions:', error);
+//     return res.status(500).json({ error: 'An error occurred while fetching client suggestions.' });
+//   }
+// };
 
 exports.new_revision = async (req, res) => {
   const { id: project_id } = req.params;
@@ -1417,4 +1417,190 @@ exports.showallStatusRevisionProjects = async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
     
+};
+
+
+
+
+
+
+
+
+
+
+// Helper to determine if a value is a valid number
+const isNumeric = (value) => {
+  return /^\d+$/.test(value); // Checks if string contains only digits
+};
+
+// --- Client Name Functions ---
+
+exports.getClientSuggestionsFromProjects = async (req, res) => {
+  const query = req.body.query; // Expecting 'query' in the request body
+
+  if (!query || query.trim().length < 1) {
+    return res.status(400).json({ error: 'Query parameter is required.' });
+  }
+
+  try {
+    const projects = await prisma.project.findMany({
+      where: {
+        project_name: {
+          startsWith: query, // Use startsWith for name suggestions
+          mode: 'insensitive',
+        }
+      },
+      select: {
+        project_name: true,
+        order_id: true, // **IMPORTANT: Include order_id here**
+      },
+      take: 100 // Limit results
+    });
+
+    const uniqueClientNames = [];
+    const seenClientNames = new Set();
+
+    projects.forEach(project => {
+      // Assuming project_name is like "ClientName-ProjectDetails"
+      const [clientNamePart] = project.project_name.split('-');
+      if (clientNamePart && !seenClientNames.has(clientNamePart)) {
+        uniqueClientNames.push({
+          clientName: clientNamePart,
+          order_id: project.order_id // Include the order_id for display
+        });
+        seenClientNames.add(clientNamePart);
+      }
+    });
+
+    return res.status(200).json({ uniqueClientNames });
+
+  } catch (error) {
+    console.error('Error fetching client suggestions:', error);
+    return res.status(500).json({ error: 'An error occurred while fetching client suggestions.' });
+  }
+};
+
+// Alternative for controllers/projectController.js
+exports.getProjectsByClientName = async (req, res) => {
+  const clientName = req.query.clientName;
+
+  if (!clientName || clientName.trim().length < 1) {
+    return res.status(400).json({ error: "Client name is required" });
+  }
+
+  try {
+    const projects = await prisma.project.findMany({
+      where: {
+        OR: [
+          {
+            project_name: {
+              startsWith: `${clientName}-`, // Matches "ClientName-..."
+              mode: "insensitive",
+            },
+          },
+          {
+            project_name: {
+              equals: clientName, // Matches exact "ClientName"
+              mode: "insensitive",
+            },
+          },
+        ],
+      },
+      take: 100,
+    });
+
+    return res.json({ projects });
+  } catch (err) {
+    console.error("Error fetching projects by client name:", err);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// --- Order ID Functions (No Changes) ---
+
+exports.getOrderSuggestionsFromProjects = async (req, res) => {
+  const query = req.body.query;
+  console.log("Query for order ID suggestions:", query);
+
+  if (!query || query.trim().length < 1) {
+    return res.status(400).json({ error: 'Order ID query is required.' });
+  }
+
+  try {
+    const projects = await prisma.project.findMany({
+      where: {
+        order_id: {
+          contains: query,
+          mode: 'insensitive',
+        }
+      },
+      select: {
+        id: true,
+        project_name: true,
+        order_id: true,
+      },
+      take: 100
+    });
+
+    return res.status(200).json({ projects });
+  } catch (error) {
+    console.error('Error fetching order ID suggestions:', error);
+    return res.status(500).json({ error: 'An error occurred while fetching order ID suggestions.' });
+  }
+};
+
+exports.getProjectsByOrderId = async (req, res) => {
+  const orderId = req.query.orderId;
+  console.log("Order ID for fetching projects:", orderId);
+
+  if (!orderId || orderId.trim().length < 1) {
+    return res.status(400).json({ error: "Order ID is required" });
+  }
+
+  try {
+    if (!isNumeric(orderId) && !/^FO[0-9A-F]{10,}/i.test(orderId)) { // Added check for FO... format
+        return res.status(400).json({ error: "Invalid Order ID format." });
+    }
+    // add # to order id
+    const formattedOrderId = orderId.startsWith("#") ? orderId : `#${orderId}`; 
+
+
+    const projects = await prisma.project.findMany({
+      where: {
+        order_id: formattedOrderId,
+      },
+    });
+
+    return res.json({ projects });
+  } catch (err) {
+    console.error("Error fetching projects by order ID:", err);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// --- Revision Update Function (No Changes) ---
+
+exports.updateRevision = async (req, res) => {
+  const projectId = req.params.id;
+  const { revision_comments, delivery_date, metting_link, metting_date } = req.body;
+
+  if (!projectId || !revision_comments || !delivery_date) {
+    return res.status(400).json({ error: "Project ID, revision comments, and delivery date are required." });
+  }
+
+  try {
+    const updatedProject = await prisma.project.update({
+      where: { id: projectId },
+      data: {
+        revision_comments,
+        delivery_date: new Date(delivery_date),
+        metting_link,
+        metting_date: metting_date ? new Date(metting_date) : null,
+      },
+    });
+    return res.status(200).json({ message: "Revision updated successfully!", project: updatedProject });
+  } catch (error) {
+    console.error("Error updating revision:", error);
+    return res.status(500).json({ error: "Failed to update revision." });
+  }
 };

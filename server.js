@@ -35,7 +35,7 @@ app.use(cookieParser()); // This should be before your routes
 
 // Routes
 // Pass the getIO function where needed
-app.use('/api/project', verifyToken, ProjectRoute(getIO)); // Ensure ProjectRoute is returning a function
+app.use('/api/project',verifyToken, ProjectRoute(getIO)); // Ensure ProjectRoute is returning a function
 app.use('/api/teamMember', require('./routes/teamMemberRoute'));
 app.use('/api/profile', ProfileRoute);
 app.use('/api/today-task', verifyToken, todayTaskRoute); // Ensure todayTaskRoute is returning a function
@@ -224,10 +224,7 @@ async function recordMonthlyTargetsAndAchievements() {
     // Removed prisma.$disconnect() as it's a long-running server
 }
 
-// Schedule the cron job
-// This will run the job every day at 23:59 UTC.
-// The date check inside the function ensures the main logic
-// only executes on the last day of the month at that time.
+
 cron.schedule('59 23 * * *', recordMonthlyTargetsAndAchievements, {
   scheduled: true,
   timezone: "UTC" // Use UTC timezone for cron schedule

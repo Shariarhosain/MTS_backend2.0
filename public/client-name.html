@@ -100,13 +100,12 @@
 </head>
 <body>
 <div class="container">
-  <h2>Client Name Search</h2>
-  <input type="text" id="query" placeholder="Search for a client..." oninput="fetchClientSuggestions()">
+  <h2>Client Name / Order ID Search</h2>
+  <input type="text" id="query" placeholder="Search for a client or Order ID (e.g., #123)..." oninput="fetchSuggestions()">
   <ul class="result" id="result-list"></ul>
   <div class="project-list" id="project-list"></div>
 </div>
 
-<!-- Modal for Add Revision -->
 <div id="revisionModal" class="modal">
   <div class="modal-content">
     <span class="close" onclick="closeModal()">&times;</span>
@@ -122,121 +121,254 @@
 <script>
   let currentProjectId = null;
 
-  // Function to fetch client suggestions
-  async function fetchClientSuggestions() {
-  const query = document.getElementById('query').value.trim();
-  const projectList = document.getElementById('project-list');
-  projectList.innerHTML = '';
-  // If input is empty, clear the previous suggestions, but keep the projects visible if previously fetched
-  if (!query) {
-    document.getElementById('result-list').innerHTML = ''; // Clear client suggestions
-    return;
+  // Helper to check if a string is numeric (only digits)
+  function isNumeric(value) {
+    return /^\d+$/.test(value);
   }
 
-  try {
-    const response = await fetch(`/api/project/clientSuggestions/?query=${query}`);
-    const data = await response.json();
-    console.log(data); // Debugging log
+  // Unified function to fetch suggestions and handle direct searches
+  async function fetchSuggestions() {
+    let query = document.getElementById('query').value.trim();
+    const projectList = document.getElementById('project-list');
+    const resultList = document.getElementById('result-list');
+    projectList.innerHTML = ''; // Clear project list on new input
+    resultList.innerHTML = ''; // Clear suggestions on new input
 
-    // If client names are found, show them
-    if (data.uniqueClientNames && data.uniqueClientNames.length > 0) {
-      displayClientSuggestions(data.uniqueClientNames);
-    } else {
-      document.getElementById('result-list').innerHTML = '<li>No matching clients found.</li>';
+    if (!query) {
+      // If query is empty, clear results and return
+      return;
     }
-  } catch (error) {
-    console.error('Error fetching suggestions:', error);
-  }
-}
 
-// Function to display client suggestions
-function displayClientSuggestions(clients) {
-  const resultList = document.getElementById('result-list');
-  resultList.innerHTML = ''; // Clear previous suggestions
+    const isOrderIdSearch = query.startsWith('#');
+    let actualQuery = query;
 
-  if (clients.length === 0) {
-    resultList.innerHTML = '<li>No matching clients found.</li>';
-    return;
-  }
+    if (isOrderIdSearch) {
+      actualQuery = query.substring(1); // Remove the '#'
+      // Define what a "complete" order ID means for you
+      // For alphanumeric IDs like 'FO626E80EA3C6hj', a simple length check is often sufficient.
+      // Or you can use a more specific regex like /^FO[0-9A-Z]{10,}$/i
+      const isCompleteOrderId = actualQuery.length > 0 && actualQuery.length >= 5; // Example: at least 5 chars
 
-  clients.forEach(client => {
-    const li = document.createElement('li');
-    li.innerHTML = `<strong>${client.clientName}</strong> (ID: ${client.id})`; // Show name and ID
-    li.onclick = () => {
-      document.getElementById('query').value = client.clientName; // Only set clientName on selection
-      resultList.innerHTML = '';
-      fetchProjectsByClient(client.clientName); // Send only the name to fetch
-    };
-    resultList.appendChild(li);
-  });
-}
-
-
-// Function to fetch and display projects based on selected client name
-async function fetchProjectsByClient(clientName) {
-  const projectList = document.getElementById('project-list');
-  projectList.innerHTML = ''; // Clear previous project list
-
-  if (!clientName) {
-    alert('Please enter a valid client name.');
-    return;
-  }
-
-  try {
-    const response = await fetch(`/api/project/byClient?clientName=${clientName}`);
-    const data = await response.json();
-    console.log(data); // Debugging log
-
-    if (data.projects && data.projects.length > 0) {
-      displayProjects(data.projects); // Display the list of projects
-    } else {
-      projectList.innerHTML = '<p>No projects found for this client.</p>';
+      if (isCompleteOrderId) {
+        console.log('Directly fetching project by complete Order ID:', actualQuery);
+        fetchProjectsByOrderId(actualQuery); // Directly fetch projects without '#'
+        return; // Stop here, no suggestions needed
+      }
     }
-  } catch (error) {
-    console.error('Error fetching projects:', error);
+
+    // If not a complete order ID for direct fetch, proceed with suggestions
+    try {
+      let response;
+      let data;
+
+      if (isOrderIdSearch) {
+        console.log('Fetching partial order ID suggestions for:', actualQuery);
+        response = await fetch(`/api/project/orderSuggestions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: actualQuery })
+        });
+      } else {
+        console.log('Fetching client suggestions by Client Name for:', actualQuery);
+        response = await fetch(`/api/project/clientSuggestions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: actualQuery })
+        });
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      data = await response.json();
+      console.log('Suggestions data received:', data);
+
+      if (isOrderIdSearch) {
+        if (data.projects && data.projects.length > 0) {
+          displayOrderSuggestions(data.projects);
+        } else {
+          resultList.innerHTML = '<li>No matching Order IDs found.</li>';
+        }
+      } else {
+        if (data.uniqueClientNames && data.uniqueClientNames.length > 0) {
+          displayClientSuggestions(data.uniqueClientNames);
+        } else {
+          resultList.innerHTML = '<li>No matching clients found.</li>';
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching suggestions:', error);
+      resultList.innerHTML = '<li>Error loading suggestions. Please try again.</li>';
+    }
   }
-}
 
-// Function to display projects
-function displayProjects(projects) {
-  const projectList = document.getElementById('project-list');
-  projectList.innerHTML = ''; // Clear previous projects before displaying new ones
+  // Function to display client suggestions
+  function displayClientSuggestions(clients) {
+    const resultList = document.getElementById('result-list');
+    resultList.innerHTML = '';
 
-  const ul = document.createElement('ul');
-  projects.forEach(project => {
-    const li = document.createElement('li');
-    li.innerHTML = `
-      <strong>Project Name:</strong> ${project.project_name}<br>
-      <strong>Order ID:</strong> ${project.order_id}<br>
-      <strong>Status:</strong> ${project.status}<br>
-      <strong>Sales Comments:</strong> ${project.sales_comments || '—'}<br>
-      <strong>Ops Leader Comments:</strong> ${project.opsleader_comments || '—'}<br>
-      <strong>Order Amount:</strong> $${project.order_amount || 0}<br>
-      <a href="${project.sheet_link}" target="_blank">View Sheet</a><br>
-      <button class="add-revision-btn" onclick="openModal('${project.id}')">Add Revision</button>
-    `;
-    ul.appendChild(li);
-  });
+    if (clients.length === 0) {
+      resultList.innerHTML = '<li>No matching clients found.</li>';
+      return;
+    }
 
-  projectList.appendChild(ul);
-}
+    clients.forEach(client => {
+      const li = document.createElement('li');
+      // Display client name and associated order ID for clarity in suggestions
+      li.textContent = `${client.clientName} (Order ID: ${client.order_id || 'N/A'})`;
 
+      li.onclick = () => {
+        // When clicked, populate the input with the EXACT client name from the suggestion
+        document.getElementById('query').value = client.clientName;
+        resultList.innerHTML = ''; // Clear suggestions
+        // Then, fetch all projects for that specific client name.
+        fetchProjectsByClient(client.clientName);
+      };
+      resultList.appendChild(li);
+    });
+  }
+
+  // Function to display order ID suggestions
+  function displayOrderSuggestions(projects) {
+    const resultList = document.getElementById('result-list');
+    resultList.innerHTML = '';
+
+    if (projects.length === 0) {
+      resultList.innerHTML = '<li>No matching Order IDs found.</li>';
+      return;
+    }
+
+    projects.forEach(project => {
+      const li = document.createElement('li');
+      li.textContent = `Order ID: ${project.order_id} - ${project.project_name}`;
+
+      li.onclick = () => {
+        document.getElementById('query').value = `#${project.order_id}`; // Keep '#' for display in input
+        resultList.innerHTML = '';
+        fetchProjectsByOrderId(project.order_id); // Pass the ID WITHOUT '#' to the server
+      };
+      resultList.appendChild(li);
+    });
+  }
+
+  // Function to fetch and display projects based on selected client name
+  async function fetchProjectsByClient(clientName) {
+    const projectList = document.getElementById('project-list');
+    projectList.innerHTML = '';
+    document.getElementById('result-list').innerHTML = ''; // Clear suggestions when displaying projects
+
+    if (!clientName.trim()) {
+      projectList.innerHTML = '';
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/project/byClient?clientName=${encodeURIComponent(clientName)}`);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Projects data by client:', data);
+
+      if (data.projects && data.projects.length > 0) {
+        displayProjects(data.projects);
+      } else {
+        projectList.innerHTML = '<p>No projects found for this client.</p>';
+      }
+    } catch (error) {
+      console.error('Error fetching projects by client:', error);
+      projectList.innerHTML = '<p>Error loading projects. Please try again.</p>';
+    }
+  }
+
+  // Function to fetch and display projects based on selected order ID
+  async function fetchProjectsByOrderId(orderId) {
+    const projectList = document.getElementById('project-list');
+    projectList.innerHTML = '';
+    document.getElementById('result-list').innerHTML = ''; // Clear suggestions when directly fetching
+
+    if (!orderId.trim()) {
+      alert('Order ID cannot be empty.');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/project/byOrderId?orderId=${encodeURIComponent(orderId)}`);
+ 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Projects data by order ID:', data);
+
+      if (data.projects && data.projects.length > 0) {
+        displayProjects(data.projects);
+      } else {
+        projectList.innerHTML = '<p>No projects found for this Order ID.</p>';
+      }
+    } catch (error) {
+      console.error('Error fetching projects by order ID:', error);
+      projectList.innerHTML = '<p>Error loading projects. Please try again.</p>';
+    }
+  }
+
+  // Function to display projects (reused for both client and order ID searches)
+  function displayProjects(projects) {
+    const projectList = document.getElementById('project-list');
+    projectList.innerHTML = '';
+
+    const ul = document.createElement('ul');
+    projects.forEach(project => {
+      const li = document.createElement('li');
+      li.innerHTML = `
+        <strong>Project Name:</strong> ${project.project_name}<br>
+        <strong>Order ID:</strong> ${project.order_id}<br>
+        <strong>Status:</strong> ${project.status}<br>
+        <strong>Sales Comments:</strong> ${project.sales_comments || '—'}<br>
+        <strong>Ops Leader Comments:</strong> ${project.opsleader_comments || '—'}<br>
+        <strong>Order Amount:</strong> $${project.order_amount ? parseFloat(project.order_amount).toFixed(2) : '0.00'}<br>
+        ${project.sheet_link ? `<a href="${project.sheet_link}" target="_blank">View Sheet</a><br>` : ''}
+        <button class="add-revision-btn" onclick="openModal('${project.id}')">Add Revision</button>
+      `;
+      ul.appendChild(li);
+    });
+
+    projectList.appendChild(ul);
+  }
 
   // Open the revision modal
   function openModal(projectId) {
     currentProjectId = projectId;
     document.getElementById('revisionModal').style.display = 'block';
+    document.getElementById('revision_comments').focus();
   }
 
   // Close the revision modal
   function closeModal() {
     document.getElementById('revisionModal').style.display = 'none';
     clearModalInputs();
-    const projectList = document.getElementById('project-list');
-    projectList.innerHTML = '';
-
-    document.getElementById('query').value = ''; // Clear the search input
-    document.getElementById('result-list').innerHTML = ''; // Clear client suggestions
+    const queryInput = document.getElementById('query');
+    if (queryInput.value.trim() !== '') {
+      // Re-fetch based on current search input after modal close
+      // This will ensure the project list is refreshed if the input is not empty
+      if (queryInput.value.startsWith('#')) {
+        fetchProjectsByOrderId(queryInput.substring(1));
+      } else {
+        fetchProjectsByClient(queryInput.value);
+      }
+    } else {
+      // If input is empty, clear both suggestions and project list
+      document.getElementById('project-list').innerHTML = '';
+      document.getElementById('result-list').innerHTML = '';
+      queryInput.value = '';
+    }
   }
 
   // Clear the modal input fields
@@ -249,9 +381,9 @@ function displayProjects(projects) {
 
   // Submit revision for the selected project
   async function submitRevision() {
-    const revision_comments = document.getElementById('revision_comments').value;
+    const revision_comments = document.getElementById('revision_comments').value.trim();
     const delivery_date = document.getElementById('delivery_date').value;
-    const metting_link = document.getElementById('metting_link').value;
+    const metting_link = document.getElementById('metting_link').value.trim();
     const metting_date = document.getElementById('metting_date').value;
 
     if (!revision_comments || !delivery_date) {
@@ -263,7 +395,7 @@ function displayProjects(projects) {
       revision_comments,
       delivery_date,
       metting_link: metting_link || null,
-      metting_date: metting_date || null
+      metting_date: metting_date ? new Date(metting_date).toISOString() : null
     };
 
     try {
@@ -276,13 +408,13 @@ function displayProjects(projects) {
       const result = await response.json();
       if (response.ok) {
         alert("Revision added successfully.");
-        closeModal();
+        closeModal(); // This will trigger a re-fetch of projects based on current input
       } else {
-        alert("Error: " + result.error);
+        alert("Error: " + (result.error || "Failed to update revision."));
       }
     } catch (error) {
       console.error("Error submitting revision:", error);
-      alert("Failed to add revision.");
+      alert("Failed to add revision. Please check your connection.");
     }
   }
 
