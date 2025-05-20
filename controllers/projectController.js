@@ -1558,12 +1558,10 @@ exports.getProjectsByOrderId = async (req, res) => {
   }
 
   try {
-    if (!isNumeric(orderId) && !/^FO[0-9A-F]{10,}/i.test(orderId)) { // Added check for FO... format
-        return res.status(400).json({ error: "Invalid Order ID format." });
-    }
+  
     // add # to order id
     const formattedOrderId = orderId.startsWith("#") ? orderId : `#${orderId}`; 
-
+ console.log("Formatted Order ID:", formattedOrderId);
 
     const projects = await prisma.project.findMany({
       where: {

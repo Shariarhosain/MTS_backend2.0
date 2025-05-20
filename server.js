@@ -35,7 +35,7 @@ app.use(cookieParser()); // This should be before your routes
 
 // Routes
 // Pass the getIO function where needed
-app.use('/api/project',verifyToken, ProjectRoute(getIO)); // Ensure ProjectRoute is returning a function
+app.use('/api/project', ProjectRoute(getIO)); // Ensure ProjectRoute is returning a function
 app.use('/api/teamMember', require('./routes/teamMemberRoute'));
 app.use('/api/profile', ProfileRoute);
 app.use('/api/today-task', verifyToken, todayTaskRoute); // Ensure todayTaskRoute is returning a function

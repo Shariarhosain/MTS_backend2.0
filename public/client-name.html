@@ -162,12 +162,12 @@
       let data;
 
       if (isOrderIdSearch) {
-        console.log('Fetching partial order ID suggestions for:', actualQuery);
-        response = await fetch(`/api/project/orderSuggestions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: actualQuery })
-        });
+        // console.log('Fetching partial order ID suggestions for:', actualQuery);
+        // response = await fetch(`/api/project/orderSuggestions`, {
+        //   method: 'POST',
+        //   headers: { 'Content-Type': 'application/json' },
+        //   body: JSON.stringify({ query: actualQuery })
+        // });
       } else {
         console.log('Fetching client suggestions by Client Name for:', actualQuery);
         response = await fetch(`/api/project/clientSuggestions`, {
