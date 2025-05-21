@@ -2052,6 +2052,42 @@ exports.getAllConsolidatedReports = async (req, res) => {
             }))
         };
 
+        // --- 10) Projects Needing Assignment ---
+        const projectsNeedingAssignment = await prisma.project.findMany({
+            where: {
+                team_id: null,
+                // Consider adding more filters here if needed, e.g.,
+                // status: { notIn: ['cancelled', 'delivered'] }, // Only active projects
+            },
+            include: {
+                profile: { select: { profile_name: true } },
+                team_member: { select: { first_name: true, last_name: true } },
+            },
+        });
+
+        const countNeedingAssignment = projectsNeedingAssignment.length;
+        const totalAfterFiverrAndBonusNeedingAssignment = projectsNeedingAssignment.reduce((sum, project) => {
+            const fiverrAmount = project.after_fiverr_amount ? parseFloat(project.after_fiverr_amount) : 0;
+            const bonusAmount = project.after_Fiverr_bonus ? parseFloat(project.after_Fiverr_bonus) : 0;
+            return sum + fiverrAmount + bonusAmount;
+        }, 0);
+
+        reports.projectsNeedingAssignment = {
+            count: countNeedingAssignment,
+            total_after_fiverr_and_bonus: totalAfterFiverrAndBonusNeedingAssignment.toFixed(2),
+            project_details: projectsNeedingAssignment.map(project => ({
+                project_name: project.project_name,
+                order_id: project.order_id,
+                profile_name: project.profile ? project.profile.profile_name : 'N/A',
+                order_amount: project.order_amount,
+                after_fiverr_amount: project.after_fiverr_amount,
+                after_Fiverr_bonus: project.after_Fiverr_bonus,
+                project_date: project.date,
+                ordered_by: project.team_member ? `${project.team_member.first_name} ${project.team_member.last_name}` : 'N/A',
+                status: project.status,
+            })),
+        };
+
         res.status(200).json(reports);
 
     } catch (error) {
@@ -2059,7 +2095,6 @@ exports.getAllConsolidatedReports = async (req, res) => {
         res.status(500).json({ error: 'An error occurred while fetching consolidated reports.' });
     }
 };
-
 
 
 // --- Report Controller Functions ---
@@ -2696,7 +2731,47 @@ exports.getSalesPerformance = async (req, res) => {
     }
 };
 
+// 8. Projects Needing Assignment Report
+exports.getProjectsNeedingAssignment = async (req, res) => {
+    try {
+        const projectsNeedingAssignment = await prisma.project.findMany({
+            where: {
+                team_id: null,
+            },
+            include: {
+                profile: { select: { profile_name: true } },
+                team_member: { select: { first_name: true, last_name: true } } // Who created the project if applicable
+            },
+        });
 
+        const countNeedingAssignment = projectsNeedingAssignment.length;
+        const totalAfterFiverrAndBonusNeedingAssignment = projectsNeedingAssignment.reduce((sum, project) => {
+            const fiverrAmount = project.after_fiverr_amount ? parseFloat(project.after_fiverr_amount) : 0;
+            const bonusAmount = project.after_Fiverr_bonus ? parseFloat(project.after_Fiverr_bonus) : 0;
+            return sum + fiverrAmount + bonusAmount;
+        }, 0);
+
+        res.status(200).json({
+            count: countNeedingAssignment,
+            total_after_fiverr_and_bonus: totalAfterFiverrAndBonusNeedingAssignment.toFixed(2),
+            project_details: projectsNeedingAssignment.map(project => ({
+                project_name: project.project_name,
+                order_id: project.order_id,
+                profile_name: project.profile ? project.profile.profile_name : 'N/A',
+                order_amount: project.order_amount,
+                after_fiverr_amount: project.after_fiverr_amount,
+                after_Fiverr_bonus: project.after_Fiverr_bonus,
+                project_date: project.date, // Original order date
+                ordered_by: project.team_member ? `${project.team_member.first_name} ${project.team_member.last_name}` : 'N/A',
+                status: project.status,
+            })),
+        });
+
+    } catch (error) {
+        console.error('Error fetching projects needing assignment:', error);
+        res.status(500).json({ error: 'An error occurred while fetching projects that need assignment.' });
+    }
+};
 
 
 

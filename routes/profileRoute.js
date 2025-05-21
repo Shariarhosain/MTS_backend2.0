@@ -34,6 +34,7 @@ const {
   getSalesPerformance,
   getMonthlyOrders,
   getTodaysOrders,
+  getProjectsNeedingAssignment,
 
 } = require('../controllers/profileController'); // Import the controller functions
 const verifyToken = require('../middlewares/jwt'); // Import the JWT verification middleware
@@ -146,6 +147,8 @@ router.get('/operational-performance', verifyToken, getOperationalPerformance);
 
 // Sales Performance Reports
 router.get('/sales-performance', verifyToken, getSalesPerformance);
+// 8. Projects Needing Assignment Report
+router.get('/projects/unassigned', verifyToken, getProjectsNeedingAssignment);
 
 
 module.exports = router; // Export the router for use in other files

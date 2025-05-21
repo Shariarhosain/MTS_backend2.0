@@ -1127,3 +1127,247 @@ exports.updateMemberDistribution = async (req, res) => {
     return res.status(500).json({ error: 'Internal server error while updating member distribution.' });
   }
 };
+
+
+
+
+
+exports.getOperationsDashboard = async (req, res) => {
+  try {
+    const { uid } = req.user; // Get the user's UID from the request object. Assumes auth middleware sets req.user.uid
+    console.log('User UID:', uid);
+
+    const today = new Date();
+    console.log('Today (start of day):', today);
+
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1); // Set to the beginning of tomorrow (00:00:00)
+    console.log('Tomorrow (start of day):', tomorrow);
+
+    // 1. Get the current user's team_id, role, and department information
+    const currentUser = await prisma.team_member.findUnique({
+      where: { uid: uid },
+      select: { team_id: true, role: true, department: { select: { department_name: true, id: true } } },
+    });
+    console.log('Current User:', currentUser);
+
+    // Basic authorization check: Must be an operation role (corrected role string: 'operation_leader' with underscore)
+    if (!currentUser || (currentUser.role !== 'operation_leader' && currentUser.role !== 'operation_member')) {
+      return res.status(403).json({ message: 'Unauthorized access or not an operation team member.' });
+    }
+
+    // Sales Department Exclusion: No access for Sales department members (standardizing 'Sales' capitalization)
+    if (currentUser.department && currentUser.department.department_name === 'Sales') {
+        return res.status(403).json({ message: 'Sales department members do not have access to this dashboard.' });
+    }
+
+    const userTeamId = currentUser.team_id;
+
+    let teamIdsToQuery;
+    // Corrected role string in this conditional check as well: 'operation_leader' with underscore
+    if (currentUser.role === 'operation_leader') {
+      // If operation-leader, they can see data for all teams within their department (excluding Sales dept teams)
+      const departmentTeams = await prisma.team.findMany({
+        where: {
+            department: {
+                id: currentUser.department?.id, // Filter by their department ID
+                NOT: { department_name: 'Sales' } // Ensure the team is not in the Sales department (standardizing 'Sales' capitalization)
+            }
+        },
+        select: { id: true }, // Select only the team IDs
+      });
+      teamIdsToQuery = departmentTeams.map(team => team.id);
+    } else {
+      // If operation_member, they can only see data for their own team
+      teamIdsToQuery = [userTeamId];
+    }
+    console.log('Teams to Query:', teamIdsToQuery);
+
+    // --- Query for Today Assign ---
+    const todayAssignRaw = await prisma.project.groupBy({ // Renamed to _Raw for clarity in aggregation
+      by: ['team_id'],
+      where: {
+        Assigned_date: {
+          gte: today,
+          lt: tomorrow,
+        },
+        team_id: { in: teamIdsToQuery },
+        department: { NOT: { department_name: 'Sales' } } // Standardizing 'Sales' capitalization
+      },
+      _sum: {
+        after_fiverr_amount: true,
+        bonus: true,
+        after_Fiverr_bonus: true,
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    let totalTodayAssignAmount = 0;
+    todayAssignRaw.forEach(item => {
+        const afterFiverr = item._sum.after_fiverr_amount ? item._sum.after_fiverr_amount.toNumber() : 0;
+        const bonus = item._sum.bonus ? item._sum.bonus.toNumber() : 0;
+        const afterFiverrBonus = item._sum.after_Fiverr_bonus ? item._sum.after_Fiverr_bonus.toNumber() : 0;
+        totalTodayAssignAmount += afterFiverr + bonus + afterFiverrBonus;
+    });
+    // Format to a whole number string as requested
+    const formattedTodayAssign = totalTodayAssignAmount.toFixed(0);
+    console.log('Formatted Today Assign (Total Amount):', formattedTodayAssign);
+
+
+    // --- Query for Today Cancel ---
+    const todayCancelRaw = await prisma.project.groupBy({ // Renamed to _Raw for clarity in aggregation
+      by: ['team_id'],
+      where: {
+        update_at: {
+          gte: today,
+          lt: tomorrow,
+        },
+        status: 'Cancelled',
+        team_id: { in: teamIdsToQuery },
+        department: { NOT: { department_name: 'Sales' } } // Standardizing 'Sales' capitalization
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    let totalTodayCancelCount = 0;
+    todayCancelRaw.forEach(item => {
+        totalTodayCancelCount += item._count.id;
+    });
+    const formattedTodayCancel = totalTodayCancelCount; // Keeping as number, not array
+    console.log('Formatted Today Cancel (Total Count):', formattedTodayCancel);
+
+
+    // --- Query for Today Delivery ---
+    const todayDeliveryRaw = await prisma.project.groupBy({ // Renamed to _Raw for clarity in aggregation
+      by: ['team_id'],
+      where: {
+        delivery_date: {
+          gte: today,
+          lt: tomorrow,
+        },
+        is_delivered: true,
+        team_id: { in: teamIdsToQuery },
+        department: { NOT: { department_name: 'Sales' } } // Standardizing 'Sales' capitalization
+      },
+      _sum: {
+        after_fiverr_amount: true,
+        bonus: true,
+        after_Fiverr_bonus: true,
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    let totalTodayDeliveryAmount = 0;
+    todayDeliveryRaw.forEach(item => {
+        const afterFiverr = item._sum.after_fiverr_amount ? item._sum.after_fiverr_amount.toNumber() : 0;
+        const bonus = item._sum.bonus ? item._sum.bonus.toNumber() : 0;
+        const afterFiverrBonus = item._sum.after_Fiverr_bonus ? item._sum.after_Fiverr_bonus.toNumber() : 0;
+        totalTodayDeliveryAmount += afterFiverr + bonus + afterFiverrBonus;
+    });
+    const formattedTodayDelivery = totalTodayDeliveryAmount.toFixed(0);
+    console.log('Formatted Today Delivery (Total Amount):', formattedTodayDelivery);
+
+
+    // --- Query for Total Submit ---
+    const totalSubmitRaw = await prisma.project.groupBy({ // Renamed to _Raw for clarity in aggregation
+      by: ['team_id'],
+      where: {
+        status: 'Submitted',
+        team_id: { in: teamIdsToQuery },
+        department: { NOT: { department_name: 'Sales' } } // Standardizing 'Sales' capitalization
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    let totalSubmittedCount = 0;
+    totalSubmitRaw.forEach(item => {
+        totalSubmittedCount += item._count.id;
+    });
+    const formattedTotalSubmit = totalSubmittedCount; // Keeping as number
+    console.log('Formatted Total Submit (Total Count):', formattedTotalSubmit);
+
+
+    // --- Query for Total Short Time ---
+    const totalShortTimeProjects = await prisma.project.findMany({
+      where: {
+        team_id: { in: teamIdsToQuery },
+        department: { NOT: { department_name: 'Sales' } },
+        deli_last_date: {
+          gte: today, // Only consider projects where delivery date is today or in the future
+        },
+        is_delivered: false, // <--- ADDED THIS LINE: Exclude already delivered projects
+      },
+      select: {
+        team_id: true,
+        project_name: true,
+        Assigned_date: true,
+        deli_last_date: true,
+        after_fiverr_amount: true,
+        bonus: true,
+        after_Fiverr_bonus: true,
+      },
+    });
+
+    let totalShortTimeProjectCount = 0;
+    let totalShortTimeSumAmount = 0;
+    const SHORT_TIME_THRESHOLD_DAYS = 3; // Define your threshold for "short time" here (e.g., within the next 3 days)
+
+    totalShortTimeProjects.forEach(project => {
+      if (project.deli_last_date) { // Only proceed if deli_last_date exists
+        const deliveryLastDate = new Date(project.deli_last_date);
+        
+        // Calculate the difference in days between TODAY (start of day) and deli_last_date
+        const diffTime = deliveryLastDate.getTime() - today.getTime(); 
+        // Convert milliseconds to days, rounding up. e.g., 2025-05-23 (deli) - 2025-05-21 (today) = 2 days
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+        // A project is "short time" if its delivery date is within the next SHORT_TIME_THRESHOLD_DAYS (inclusive of today)
+        // diffDays >= 0 ensures we only count current/future projects.
+        // diffDays <= SHORT_TIME_THRESHOLD_DAYS defines the window.
+        if (diffDays >= 0 && diffDays <= SHORT_TIME_THRESHOLD_DAYS) { 
+          const afterFiverr = project.after_fiverr_amount ? project.after_fiverr_amount.toNumber() : 0;
+          const bonus = project.bonus ? project.bonus.toNumber() : 0;
+          const afterFiverrBonus = project.after_Fiverr_bonus ? project.after_Fiverr_bonus.toNumber() : 0;
+          const totalAmount = afterFiverr + bonus + afterFiverrBonus;
+
+          totalShortTimeProjectCount++;
+          totalShortTimeSumAmount += totalAmount;
+        }
+      }
+    });
+
+    // Format totalShortTime as an object with count and amount
+    const formattedTotalShortTime = {
+        project_count: totalShortTimeProjectCount,
+        total_amount: totalShortTimeSumAmount.toFixed(0),
+    };
+    console.log('Formatted Total Short Time:', formattedTotalShortTime);
+
+
+    // Send the aggregated data as a JSON response
+    res.status(200).json({
+      todayAssign: formattedTodayAssign,
+      todayCancel: formattedTodayCancel,
+      todayDelivery: formattedTodayDelivery,
+      totalSubmit: formattedTotalSubmit,
+      totalShortTime: formattedTotalShortTime,
+    });
+
+  } catch (error) {
+    console.error('Error fetching dashboard data:', error);
+    res.status(500).json({ message: 'Internal server error', error: error.message });
+  } finally {
+    // It's generally good practice to disconnect Prisma client in a serverless function
+    // or if you want to explicitly manage connections. For a long-running Node.js app,
+    // you might not need to disconnect on every request if Prisma is global.
+    // await prisma.$disconnect();
+  }
+};
