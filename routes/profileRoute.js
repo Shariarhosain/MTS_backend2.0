@@ -22,7 +22,19 @@ const {
   updateProfile,
   getProfileOverviewById,
   getQuarterlyPerformance,
-  getAllConsolidatedReports
+  getAllConsolidatedReports,
+  getMonthlyDeliveries,
+  getTodaysDeliveries,
+  getMonthlyCancellations,
+  getTodaysPromotionCosts,
+  getMonthlyPromotionCosts,
+  getTodaysSpecialOrders,
+  getMonthlySpecialOrders,
+  getOperationalPerformance,
+  getSalesPerformance,
+  getMonthlyOrders,
+  getTodaysOrders,
+
 } = require('../controllers/profileController'); // Import the controller functions
 const verifyToken = require('../middlewares/jwt'); // Import the JWT verification middleware
 
@@ -105,8 +117,36 @@ router.get('/singleprofile/:profileId', verifyToken, getProfileOverviewById); //
 router.get('/quarterly-performance', verifyToken, getQuarterlyPerformance); // Get quarterly performance by profile ID
 
 
+
+
 // Consolidated Report Route
 router.get('/reports/all', verifyToken, getAllConsolidatedReports);
+
+// Project Delivery Reports
+router.get('/projects/delivered/month', verifyToken, getMonthlyDeliveries);
+router.get('/projects/delivered/today', verifyToken, getTodaysDeliveries);
+
+// Project Order Reports
+router.get('/projects/ordered/month', verifyToken, getMonthlyOrders);
+router.get('/projects/ordered/today', verifyToken, getTodaysOrders);
+
+// Project Cancellation Reports
+router.get('/projects/cancelled/month', verifyToken, getMonthlyCancellations);
+
+// Promotion Cost Reports
+router.get('/promotions/today', verifyToken, getTodaysPromotionCosts);
+router.get('/promotions/month', verifyToken, getMonthlyPromotionCosts);
+
+// Special Order Reports
+router.get('/special-orders/today', verifyToken, getTodaysSpecialOrders);
+router.get('/special-orders/month', verifyToken, getMonthlySpecialOrders);
+
+// Operational Performance Reports
+router.get('/operational-performance', verifyToken, getOperationalPerformance);
+
+// Sales Performance Reports
+router.get('/sales-performance', verifyToken, getSalesPerformance);
+
 
 module.exports = router; // Export the router for use in other files
 

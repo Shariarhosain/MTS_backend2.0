@@ -160,7 +160,8 @@ exports.getTodayTask = async (req, res) => {
 
     const rows = await prisma.today_task.findMany({
       where: {
-        project: { is_delivered: false },
+        project: {
+          OR: [{ is_delivered: false }, { status: 'revision' }] }, // Include both delivered and not delivered projects
         ...(me.role === 'operation_leader'
           ? { team_id: me.team_id }
           : { team_member_id: me.id }),
