@@ -58,6 +58,17 @@ model project {
   revision             Int?
   delivery_date        DateTime?     @db.Date
   update_at            DateTime?     @db.Date
+  order_page_link       String?
+  conversion_page_link String?
+  client_login_info_link String?
+  client_login_info_username String?
+  client_login_info_password String?
+  user_login_info_link String?
+  user_login_info_username String?
+  user_login_info_password String?
+  cpanel_link        String?
+  cpanel_username    String?
+  cpanel_password    String?
   branch               branch?
   department           department    @relation(fields: [department_id], references: [id], onDelete: Cascade)
   team_member          team_member   @relation(fields: [ordered_by], references: [id])

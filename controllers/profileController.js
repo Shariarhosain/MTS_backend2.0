@@ -1519,6 +1519,7 @@ exports.getMonthlyProfileActivityChart = async (req, res) => {
 const getTodayDateRange = () => {
   const now = new Date();
   const startOfToday = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0));
+
   const endOfToday = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999));
   return { startOfToday, endOfToday };
 };
@@ -1529,6 +1530,14 @@ const getMonthDateRange = () => {
   const endOfMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999));
   return { startOfMonth, endOfMonth };
 };
+
+const previousMonthDateRange = () => {
+  const now = new Date();
+  const startOfLastMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0));
+  const endOfLastMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999));
+  return { startOfLastMonth, endOfLastMonth };
+};
+
 const getDaysInMonth = (year, month) => {
     return new Date(year, month + 1, 0).getDate();
 };
@@ -1537,7 +1546,14 @@ const getDaysInMonth = (year, month) => {
 exports.getAllConsolidatedReports = async (req, res) => {
     try {
         const { startOfToday, endOfToday } = getTodayDateRange();
+        console.log('Start of today:', startOfToday);
+        console.log('End of today:', endOfToday);
         const { startOfMonth, endOfMonth } = getMonthDateRange();
+        console.log('Start of month:', startOfMonth);
+        console.log('End of month:', endOfMonth);
+        const { startOfLastMonth, endOfLastMonth } = previousMonthDateRange();
+        console.log('Start of last month:', startOfLastMonth);
+        console.log('End of last month:', endOfLastMonth);
         const SALES_DEPARTMENT_NAME = 'sales'; // Or from config
 
         const reports = {};
@@ -2088,11 +2104,166 @@ exports.getAllConsolidatedReports = async (req, res) => {
             })),
         };
 
+        // --- 11) Total Projects Not Delivered ---
+        const projectsNotDelivered = await prisma.project.findMany({
+            where: {
+                is_delivered: false,
+                status: { not: 'cancelled' }, // Exclude cancelled projects
+            },
+            include: {
+                profile: { select: { profile_name: true } },
+                team: { select: { team_name: true } },
+            },
+        });
+
+        const countNotDelivered = projectsNotDelivered.length;
+        const totalAmountNotDelivered = projectsNotDelivered.reduce((sum, project) => {
+            const fiverrAmount = project.after_fiverr_amount ? parseFloat(project.after_fiverr_amount) : 0;
+            const bonusAmount = project.after_Fiverr_bonus ? parseFloat(project.after_Fiverr_bonus) : 0;
+            return sum + fiverrAmount + bonusAmount;
+        }, 0);
+
+        reports.totalProjectsNotDelivered = {
+            count: countNotDelivered,
+            total_after_fiverr_and_bonus: totalAmountNotDelivered.toFixed(2),
+            project_details: projectsNotDelivered.map(project => ({
+                project_name: project.project_name,
+                order_id: project.order_id,
+                profile_name: project.profile ? project.profile.profile_name : 'N/A',
+                team_name: project.team ? project.team.team_name : 'N/A',
+                after_fiverr_amount: project.after_fiverr_amount,
+                after_Fiverr_bonus: project.after_Fiverr_bonus,
+                status: project.status,
+            })),
+        };
+
+        // --- 12) Carry Forward Projects ---
+        // This logic is now extracted into its own function, but kept here for the consolidated report if needed.
+        const carryForwardProjects = await prisma.project.findMany({
+            where: {
+                is_delivered: false,
+                date: { // Using 'date' field to check if order date is before current month
+                    
+                },
+                status: { not: 'cancelled' }, // Not cancelled
+            },
+            include: {
+                profile: { select: { profile_name: true } },
+                team: { select: { team_name: true } },
+            },
+        });
+
+        const countCarryForward = carryForwardProjects.length;
+        const totalAmountCarryForward = carryForwardProjects.reduce((sum, project) => {
+            const fiverrAmount = project.after_fiverr_amount ? parseFloat(project.after_fiverr_amount) : 0;
+            const bonusAmount = project.after_Fiverr_bonus ? parseFloat(project.after_Fiverr_bonus) : 0;
+            return sum + fiverrAmount + bonusAmount;
+        }, 0);
+
+        reports.carryForwardProjects = {
+            count: countCarryForward,
+            total_after_fiverr_and_bonus: totalAmountCarryForward.toFixed(2),
+            project_details: carryForwardProjects.map(project => ({
+                project_name: project.project_name,
+                order_id: project.order_id,
+                profile_name: project.profile ? project.profile.profile_name : 'N/A',
+                team_name: project.team ? project.team.team_name : 'N/A',
+                after_fiverr_amount: project.after_fiverr_amount,
+                after_Fiverr_bonus: project.after_Fiverr_bonus,
+                order_date: project.date, // Changed to order_date for clarity
+                status: project.status,
+            })),
+        };
+
         res.status(200).json(reports);
 
     } catch (error) {
         console.error('Error fetching all consolidated reports:', error);
         res.status(500).json({ error: 'An error occurred while fetching consolidated reports.' });
+    }
+};
+
+// --- New Exported Function for Total Projects Not Delivered ---
+exports.getTotalProjectsNotDelivered = async (req, res) => {
+    try {
+        const projectsNotDelivered = await prisma.project.findMany({
+            where: {
+                is_delivered: false,
+                status: { not: 'cancelled' }, // Exclude cancelled projects
+            },
+            include: {
+                profile: { select: { profile_name: true } },
+                team: { select: { team_name: true } },
+            },
+        });
+
+        const countNotDelivered = projectsNotDelivered.length;
+        const totalAmountNotDelivered = projectsNotDelivered.reduce((sum, project) => {
+            const fiverrAmount = project.after_fiverr_amount ? parseFloat(project.after_fiverr_amount) : 0;
+            const bonusAmount = project.after_Fiverr_bonus ? parseFloat(project.after_Fiverr_bonus) : 0;
+            return sum + fiverrAmount + bonusAmount;
+        }, 0);
+
+        res.status(200).json({
+            count: countNotDelivered,
+            total_after_fiverr_and_bonus: totalAmountNotDelivered.toFixed(2),
+            project_details: projectsNotDelivered.map(project => ({
+                project_name: project.project_name,
+                order_id: project.order_id,
+                profile_name: project.profile ? project.profile.profile_name : 'N/A',
+                team_name: project.team ? project.team.team_name : 'N/A',
+                after_fiverr_amount: project.after_fiverr_amount,
+                after_Fiverr_bonus: project.after_Fiverr_bonus,
+                status: project.status,
+            })),
+        });
+    } catch (error) {
+        console.error('Error fetching total projects not delivered:', error);
+        res.status(500).json({ error: 'An error occurred while fetching projects not delivered.' });
+    }
+};
+
+// --- New Exported Function for Carry Forward Projects ---
+exports.getCarryForwardProjects = async (req, res) => {
+    try {
+        const carryForwardProjects = await prisma.project.findMany({
+            where: {
+                is_delivered: false,
+                date: { // Using 'date' field to check if order date is before current month
+                    lt: new Date(new Date().getFullYear(), new Date().getMonth(), 1), // Date not this month
+                },
+                status: { not: 'cancelled' }, // Not cancelled
+            },
+            include: {
+                profile: { select: { profile_name: true } },
+                team: { select: { team_name: true } },
+            },
+        });
+
+        const countCarryForward = carryForwardProjects.length;
+        const totalAmountCarryForward = carryForwardProjects.reduce((sum, project) => {
+            const fiverrAmount = project.after_fiverr_amount ? parseFloat(project.after_fiverr_amount) : 0;
+            const bonusAmount = project.after_Fiverr_bonus ? parseFloat(project.after_Fiverr_bonus) : 0;
+            return sum + fiverrAmount + bonusAmount;
+        }, 0);
+
+        res.status(200).json({
+            count: countCarryForward,
+            total_after_fiverr_and_bonus: totalAmountCarryForward.toFixed(2),
+            project_details: carryForwardProjects.map(project => ({
+                project_name: project.project_name,
+                order_id: project.order_id,
+                profile_name: project.profile ? project.profile.profile_name : 'N/A',
+                team_name: project.team ? project.team.team_name : 'N/A',
+                after_fiverr_amount: project.after_fiverr_amount,
+                after_Fiverr_bonus: project.after_Fiverr_bonus,
+                order_date: project.date, // Changed to order_date for clarity
+                status: project.status,
+            })),
+        });
+    } catch (error) {
+        console.error('Error fetching carry forward projects:', error);
+        res.status(500).json({ error: 'An error occurred while fetching carry forward projects.' });
     }
 };
 

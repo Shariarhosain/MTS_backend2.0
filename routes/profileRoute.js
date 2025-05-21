@@ -35,6 +35,8 @@ const {
   getMonthlyOrders,
   getTodaysOrders,
   getProjectsNeedingAssignment,
+  getTotalProjectsNotDelivered,
+  getCarryForwardProjects,
 
 } = require('../controllers/profileController'); // Import the controller functions
 const verifyToken = require('../middlewares/jwt'); // Import the JWT verification middleware
@@ -149,6 +151,11 @@ router.get('/operational-performance', verifyToken, getOperationalPerformance);
 router.get('/sales-performance', verifyToken, getSalesPerformance);
 // 8. Projects Needing Assignment Report
 router.get('/projects/unassigned', verifyToken, getProjectsNeedingAssignment);
+// 9. Total Projects Not Delivered
+router.get('/projects/not-delivered', verifyToken, getTotalProjectsNotDelivered);
+
+// 10. Carry Forward Projects
+router.get('/projects/carry-forward', verifyToken, getCarryForwardProjects);
 
 
 module.exports = router; // Export the router for use in other files
