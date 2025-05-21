@@ -726,29 +726,65 @@ exports.updateProject = async (req, res, io) => {
       });
     }
     
+    /*  order_page_link       String?
+  conversion_page_link String?
+  client_login_info_link String?
+  client_login_info_username String?
+  client_login_info_password String?
+  user_login_info_link String?
+  user_login_info_username String?
+  user_login_info_password String?
+  cpanel_link        String?
+  cpanel_username    String?
+  cpanel_password    String?
+  branch               branch? */
+// 8. Destructure relation IDs and other direct project fields
+const {
+  department_id,
+  team_id,
+  profile_id,
+  ordered_by,
+  order_page_link,
+  conversion_page_link,
+  client_login_info_link,
+  client_login_info_username,
+  client_login_info_password,
+  user_login_info_link,
+  user_login_info_username,
+  user_login_info_password,
+  cpanel_link,
+  cpanel_username, // <--- Keep this destructured if you want to explicitly handle it
+  cpanel_password,
+  branch,
+  ...filteredBody // This will now contain even fewer fields if you move some to be explicitly handled
+} = req.body;
 
-    // 8. Destructure relation IDs
-    const {
-      department_id,
-      team_id,
-      profile_id,
-      ordered_by,
-      ...filteredBody
-    } = req.body;
-
-    // 9. Update project
-    const project = await prisma.project.update({
-      where: { id: Number(id) },
-      data: {
-        ...filteredBody,
-        department: department_id ? { connect: { id: Number(department_id) } } : undefined,
-        team: team_id ? { connect: { id: Number(team_id) } } : undefined,
-        profile: profile_id ? { connect: { id: Number(profile_id) } } : undefined,
-        team_member: ordered_by ? { connect: { id: Number(ordered_by) } } : undefined,
-      },
-    });
-
-
+// 9. Update project
+const project = await prisma.project.update({
+  where: { id: Number(id) },
+  data: {
+    ...filteredBody, // This will cover any fields NOT explicitly listed below
+    // Explicitly add any fields that were destructured but are direct properties
+    // For example, if you want to update cpanel_username:
+    cpanel_username: cpanel_username, // Add this line
+    order_page_link: order_page_link, // Add this if you want to update it
+    conversion_page_link: conversion_page_link, // Add this if you want to update it
+    client_login_info_link: client_login_info_link,
+    client_login_info_username: client_login_info_username,
+    client_login_info_password: client_login_info_password,
+    user_login_info_link: user_login_info_link,
+    user_login_info_username: user_login_info_username,
+    user_login_info_password: user_login_info_password,
+    cpanel_link: cpanel_link,
+    cpanel_password: cpanel_password,
+    branch: branch,
+    // ... continue for all other direct fields you want to potentially update
+    department: department_id ? { connect: { id: Number(department_id) } } : undefined,
+    team: team_id ? { connect: { id: Number(team_id) } } : undefined,
+    profile: profile_id ? { connect: { id: Number(profile_id) } } : undefined,
+    team_member: ordered_by ? { connect: { id: Number(ordered_by) } } : undefined,
+  },
+});
 
 
 if (req.body.team_id) {
