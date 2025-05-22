@@ -2037,7 +2037,7 @@ exports.getAllConsolidatedReports = async (req, res) => {
         let totalTodaySalesAchievement = 0;
 
         for (const project of salesOrderedProjectsToday) {
-            if (project.team_member && project.team_member.team && project.team_member.department && project.team_member.team.department.department_name === SALES_DEPARTMENT_NAME) {
+            if (project.team_member && project.team_member.team && project.team_member.department && project.team_member.department.department_name === SALES_DEPARTMENT_NAME) {
                 const teamName = project.team_member.team.team_name || 'N/A_Sales_Team';
                 if (!todaySalesAchievementByTeam[teamName]) {
                     todaySalesAchievementByTeam[teamName] = {
@@ -2863,7 +2863,8 @@ exports.getSalesPerformance = async (req, res) => {
         let totalTodaySalesAchievement = 0;
 
         for (const project of salesOrderedProjectsToday) {
-            if (project.team_member && project.team_member.team && project.team_member.department && project.team_member.team.department.department_name === SALES_DEPARTMENT_NAME) {
+   console.log(project.team_member?.department?.department_name);
+            if (project.team_member && project.team_member.team && project.team_member.department && project.team_member.department.department_name === SALES_DEPARTMENT_NAME) {
                 const teamName = project.team_member.team.team_name || 'N/A_Sales_Team';
                 if (!todaySalesAchievementByTeam[teamName]) {
                     todaySalesAchievementByTeam[teamName] = {
