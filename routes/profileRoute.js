@@ -37,6 +37,10 @@ const {
   getProjectsNeedingAssignment,
   getTotalProjectsNotDelivered,
   getCarryForwardProjects,
+  createOtherCost,
+  getAllOtherCosts,
+  updateOtherCost,
+  deleteOtherCost,
 
 } = require('../controllers/profileController'); // Import the controller functions
 const verifyToken = require('../middlewares/jwt'); // Import the JWT verification middleware
@@ -157,6 +161,11 @@ router.get('/projects/not-delivered', verifyToken, getTotalProjectsNotDelivered)
 // 10. Carry Forward Projects
 router.get('/projects/carry-forward', verifyToken, getCarryForwardProjects);
 
+// 11. Other Cost Routes
+router.post('/other-cost/create', verifyToken, createOtherCost); 
+router.get('/other-cost', verifyToken, getAllOtherCosts);
+router.put('/other-cost/:id', verifyToken, updateOtherCost); 
+router.delete('/other-cost/:id', verifyToken, deleteOtherCost); 
 
 module.exports = router; // Export the router for use in other files
 

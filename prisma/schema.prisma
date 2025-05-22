@@ -232,6 +232,16 @@ model anouncement {
 }
 
 
+model othercost {
+  id             Int          @id @default(autoincrement())
+  date           DateTime? @db.Date
+  details       String?
+  cost_amount Decimal?   @db.Decimal(65, 0)
+  created_date DateTime?
+  update_at    DateTime?
+
+}
+
 
 model TeamTargetHistory {
   id             Int       @id @default(autoincrement())

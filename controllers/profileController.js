@@ -2174,6 +2174,49 @@ exports.getAllConsolidatedReports = async (req, res) => {
                 status: project.status,
             })),
         };
+        
+        // --- 13) other cost Report ---  
+        //1) today and 2) this month
+        const todayOtherCosts = await prisma.othercost.findMany({
+            where: {
+                created_date: {
+                    gte: startOfToday,
+                    lte: endOfToday,
+                },
+            },
+        });
+
+        const thisMonthOtherCosts = await prisma.othercost.findMany({
+            where: {
+                created_date: {
+                    gte: startOfMonth,
+                    lte: endOfMonth,
+                },
+            },
+        });
+
+        reports.otherCosts = {
+            today: {
+                count: todayOtherCosts.length,
+                total_cost: todayOtherCosts.reduce((sum, cost) => sum + (cost.cost_amount || 0), 0).toFixed(2),
+                cost_details: todayOtherCosts.map(cost => ({
+                    id: cost.id,
+                    date: cost.date,
+                    details: cost.details,
+                    cost_amount: cost.cost_amount,
+                })),
+            },
+            this_month: {
+                count: thisMonthOtherCosts.length,
+                total_cost: thisMonthOtherCosts.reduce((sum, cost) => sum + (cost.cost_amount || 0), 0).toFixed(2),
+                cost_details: thisMonthOtherCosts.map(cost => ({
+                    id: cost.id,
+                    date: cost.date,
+                    details: cost.details,
+                    cost_amount: cost.cost_amount,
+                })),
+            },
+        };
 
         res.status(200).json(reports);
 
@@ -3536,5 +3579,95 @@ exports.getProfileOverviewById = async (req, res) => {
       message: 'Failed to retrieve profile overview',
       error: process.env.NODE_ENV === 'development' ? errorMessage : 'Internal server error',
     });
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+//crud
+exports.createOtherCost = async (req, res) => {
+  try {
+    const { details, cost_amount } = req.body;
+
+    // Validate required fields
+    if (  !details || cost_amount === undefined) {
+      return res.status(400).json({ message: 'Date, details, and cost amount are required.' });
+    }
+
+    // Create the other cost entry
+    const newOtherCost = await prisma.othercost.create({
+      data: {
+        date: new Date(),
+        details,
+        cost_amount: parseFloat(cost_amount), // Ensure it's a number
+        created_date: new Date(),
+        update_at: new Date(),
+      },
+    });
+
+    res.status(201).json({ message: 'Other cost created successfully', data: newOtherCost });
+  } catch (error) {
+    console.error('Error creating other cost:', error);
+    res.status(500).json({ message: 'Failed to create other cost', error: error.message });
+  }
+};
+exports.getAllOtherCosts = async (req, res) => {
+  try {
+    const otherCosts = await prisma.othercost.findMany({
+      orderBy: {
+        date: 'desc',
+      },
+    });
+
+    res.status(200).json({ message: 'Other costs retrieved successfully', data: otherCosts });
+  } catch (error) {
+    console.error('Error fetching other costs:', error);
+    res.status(500).json({ message: 'Failed to fetch other costs', error: error.message });
+  }
+};
+
+exports.updateOtherCost = async (req, res) => {
+  try {
+    const { id } = req.params;
+  
+
+    // Update the other cost entry
+    const updatedOtherCost = await prisma.othercost.update({
+      where: { id: parseInt(id) },
+      data: {
+        ...req.body,
+        update_at: new Date(),
+      },
+    });
+
+    res.status(200).json({ message: 'Other cost updated successfully', data: updatedOtherCost });
+  } catch (error) {
+    console.error('Error updating other cost:', error);
+    res.status(500).json({ message: 'Failed to update other cost', error: error.message });
+  }
+};
+
+exports.deleteOtherCost = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Delete the other cost entry
+    await prisma.othercost.delete({
+      where: { id: parseInt(id) },
+    });
+
+    res.status(200).json({ message: 'Other cost deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting other cost:', error);
+    res.status(500).json({ message: 'Failed to delete other cost', error: error.message });
   }
 };
