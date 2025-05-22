@@ -2175,48 +2175,57 @@ exports.getAllConsolidatedReports = async (req, res) => {
             })),
         };
         
-        // --- 13) other cost Report ---  
-        //1) today and 2) this month
-        const todayOtherCosts = await prisma.othercost.findMany({
-            where: {
-                created_date: {
-                    gte: startOfToday,
-                    lte: endOfToday,
-                },
-            },
-        });
+// --- 13) other cost Report ---
+const todayOtherCosts = await prisma.othercost.findMany({
+    where: {
+        created_date: {
+            gte: startOfToday,
+            lte: endOfToday,
+        },
+    },
+});
 
-        const thisMonthOtherCosts = await prisma.othercost.findMany({
-            where: {
-                created_date: {
-                    gte: startOfMonth,
-                    lte: endOfMonth,
-                },
-            },
-        });
+const thisMonthOtherCosts = await prisma.othercost.findMany({
+    where: {
+        created_date: {
+            gte: startOfMonth,
+            lte: endOfMonth,
+        },
+    },
+});
 
-        reports.otherCosts = {
-            today: {
-                count: todayOtherCosts.length,
-                total_cost: todayOtherCosts.reduce((sum, cost) => sum + (cost.cost_amount || 0), 0).toFixed(2),
-                cost_details: todayOtherCosts.map(cost => ({
-                    id: cost.id,
-                    date: cost.date,
-                    details: cost.details,
-                    cost_amount: cost.cost_amount,
-                })),
-            },
-            this_month: {
-                count: thisMonthOtherCosts.length,
-                total_cost: thisMonthOtherCosts.reduce((sum, cost) => sum + (cost.cost_amount || 0), 0).toFixed(2),
-                cost_details: thisMonthOtherCosts.map(cost => ({
-                    id: cost.id,
-                    date: cost.date,
-                    details: cost.details,
-                    cost_amount: cost.cost_amount,
-                })),
-            },
-        };
+// Calculate total costs and ensure cost_amount is a number in the details
+const calculateReportData = (costs) => {
+    const totalCost = costs.reduce((sum, cost) => {
+        // Ensure cost_amount is treated as a number for summation
+        // Prisma's Decimal type might need explicit conversion if not configured to return numbers
+        const amount = typeof cost.cost_amount === 'string' ? parseFloat(cost.cost_amount) : cost.cost_amount;
+        return sum + (amount || 0);
+    }, 0);
+
+    const costDetails = costs.map(cost => ({
+        id: cost.id,
+        date: cost.date,
+        details: cost.details,
+        // Ensure cost_amount is a number in the final JSON response
+        cost_amount: typeof cost.cost_amount === 'string' ? parseFloat(cost.cost_amount) : cost.cost_amount,
+    }));
+
+    return {
+        count: costs.length,
+        // Explicitly convert total_cost to a Number to prevent any unintended string conversion
+        total_cost: Number(totalCost),
+        cost_details: costDetails,
+    };
+};
+
+const todayReportData = calculateReportData(todayOtherCosts);
+const thisMonthReportData = calculateReportData(thisMonthOtherCosts);
+
+reports.otherCosts = {
+    today: todayReportData,
+    this_month: thisMonthReportData,
+};
 
         res.status(200).json(reports);
 
