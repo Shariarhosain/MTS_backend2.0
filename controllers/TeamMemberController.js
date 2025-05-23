@@ -20,12 +20,12 @@ const {
     endOfMonth
 } = require('date-fns');
 
-// // Configuration
-// const API_HOST = "192.168.10.252";
-// const API_PORT = "8088";
-// const API_USERNAME = "admin";
-// const API_PASSWORD = "Admin@123";
-// const API_BASE_URL = `http://${API_HOST}:${API_PORT}`;
+// Configuration
+const API_HOST = "192.168.10.252";
+const API_PORT = "8088";
+const API_USERNAME = "admin";
+const API_PASSWORD = "Admin@123";
+const API_BASE_URL = `http://${API_HOST}:${API_PORT}`;
 
 
 
