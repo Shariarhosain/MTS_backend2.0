@@ -343,6 +343,7 @@ exports.deleteTeam = async (req, res) => {
 
 
 
+
 exports.teamWisechart = async (req, res) => {
 
     try {
@@ -509,21 +510,20 @@ exports.teamWisechart = async (req, res) => {
             const projectValue = Number(p.after_fiverr_amount || 0) + Number(p.after_Fiverr_bonus || 0);
     
             if (p.status === 'cancelled') {
-    
+       console.log('Project Value:', projectValue);
               teamCancelled += projectValue;
     
             } else {
-    
+     console.log('Project Value:', projectValue);
               teamAchievement += projectValue;
     
             }
-    
           });
-    
+
          
-    
+
           // ... (teamTotalCarry, submitted, totalAssign/assignedProjectCount calculations as before) ...
-    
+
           // For brevity, assuming they are correct from previous iteration
     
           let teamTotalCarry = 0; // Placeholder for actual calculation
@@ -652,7 +652,7 @@ exports.teamWisechart = async (req, res) => {
     
           });
     
-
+ console.log('Weekly Achievement Breakdown:', teamAchievement);
 
    res.status(200).json({message: 'Team data retrieved successfully',
       teamTarget, teamAchievement, teamCancelled, teamTotalCarry, submitted,
@@ -721,6 +721,7 @@ exports.teamWisechart = async (req, res) => {
     
             });
     
+    console.log('Delivered This Month:', deliveredThisMonth);
     
     
             // Projects cancelled this monthghjo7='ikgbf` qa
@@ -812,7 +813,9 @@ exports.teamWisechart = async (req, res) => {
             let teamTarget     = Number(teamData.team_target || 0);
     
             let teamAchievement = deliveredThisMonth.reduce((sum, p) => sum + Number(p.after_fiverr_amount || 0) + Number(p.after_Fiverr_bonus || 0), 0);
-    
+            
+
+    console.log('Team Achievement:', teamAchievement);  
             let teamCancelled   = cancelledThisMonth.reduce((sum, p) => sum + Number(p.after_fiverr_amount || 0) + Number(p.after_Fiverr_bonus || 0), 0);
     
             let teamTotalCarry  = carryProjects.reduce((sum, p) => sum + Number(p.after_fiverr_amount || 0) + Number(p.after_Fiverr_bonus || 0), 0);
@@ -964,4 +967,5 @@ exports.teamWisechart = async (req, res) => {
        res.status(500).json({ error: "Server error fetching team data." });
 
     }
-}
+
+};
