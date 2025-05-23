@@ -49,7 +49,7 @@ const router = express.Router();
 
 // Profile Routes
 router.post('/create', verifyToken, createProfile); // Create a new profile
-router.get('/', verifyToken, getAllProfiles); // Get all profiles
+router.get('/', verifyToken,getAllProfiles); // Get all profiles
 router.put('/update/:id', verifyToken, updateProfile); // Update a specific profile
 
 
