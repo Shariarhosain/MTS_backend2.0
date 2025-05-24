@@ -889,405 +889,689 @@ exports.deleteProjectSpecialOrder = async (req, res) => {
 
 
 
-
-
-
 // Helper function to get the start and end dates of a quarter
 function getQuarterDates(year, quarter) {
-    let startDate, endDate;
-    switch (quarter) {
-        case 1: // Q1: Jan - Mar
-            startDate = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0));
-            endDate = new Date(Date.UTC(year, 2, 31, 23, 59, 59, 999));
-            break;
-        case 2: // Q2: Apr - Jun
-            startDate = new Date(Date.UTC(year, 3, 1, 0, 0, 0, 0));
-            endDate = new Date(Date.UTC(year, 5, 30, 23, 59, 59, 999));
-            break;
-        case 3: // Q3: Jul - Sep
-            startDate = new Date(Date.UTC(year, 6, 1, 0, 0, 0, 0));
-            endDate = new Date(Date.UTC(year, 8, 30, 23, 59, 59, 999));
-            break;
-        case 4: // Q4: Oct - Dec
-            startDate = new Date(Date.UTC(year, 9, 1, 0, 0, 0, 0));
-            endDate = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
-            break;
-        default:
-            throw new Error('Invalid quarter number');
-    }
-    return { startDate, endDate };
+  let startDate, endDate;
+  switch (quarter) {
+    case 1: // Q1: Jan - Mar
+      startDate = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0));
+      endDate = new Date(Date.UTC(year, 2, 31, 23, 59, 59, 999));
+      break;
+    case 2: // Q2: Apr - Jun
+      startDate = new Date(Date.UTC(year, 3, 1, 0, 0, 0, 0));
+      endDate = new Date(Date.UTC(year, 5, 30, 23, 59, 59, 999));
+      break;
+    case 3: // Q3: Jul - Sep
+      startDate = new Date(Date.UTC(year, 6, 1, 0, 0, 0, 0));
+      endDate = new Date(Date.UTC(year, 8, 30, 23, 59, 59, 999));
+      break;
+    case 4: // Q4: Oct - Dec
+      startDate = new Date(Date.UTC(year, 9, 1, 0, 0, 0, 0));
+      endDate = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
+      break;
+    default:
+      throw new Error('Invalid quarter number');
+  }
+  return { startDate, endDate };
 }
 
 // Helper function to get the current quarter and year
 function getCurrentQuarterAndYear() {
-    const now = new Date();
-    const month = now.getUTCMonth(); // 0-indexed
-    const year = now.getUTCFullYear();
-    const quarter = Math.floor(month / 3) + 1;
-    return { year, quarter };
+  const now = new Date();
+  const month = now.getUTCMonth(); // 0-indexed
+  const year = now.getUTCFullYear();
+  const quarter = Math.floor(month / 3) + 1;
+  return { year, quarter };
+}
+
+// Helper function to get all months in a quarter
+function getMonthsInQuarter(quarter) {
+  switch (quarter) {
+    case 1: return [0, 1, 2]; // Jan, Feb, Mar
+    case 2: return [3, 4, 5]; // Apr, May, Jun
+    case 3: return [6, 7, 8]; // Jul, Aug, Sep
+    case 4: return [9, 10, 11]; // Oct, Nov, Dec
+    default: throw new Error('Invalid quarter');
+  }
+}
+
+// Helper function to get month name
+function getMonthName(monthIndex) {
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+  return monthNames[monthIndex];
+}
+
+// Helper function to get number of days in a month
+function getDaysInMonth(year, monthIndex) {
+  return new Date(year, monthIndex + 1, 0).getDate();
+}
+
+// Helper function to generate week ranges for a month
+function generateWeeklyBreakdown(year, monthIndex, monthlyTarget, monthlyAchievement, memberId, teamId, department) {
+  const daysInMonth = getDaysInMonth(year, monthIndex);
+  const monthName = getMonthName(monthIndex);
+  
+  // Calculate weekly target (monthly target divided by number of weeks)
+  const weeksInMonth = Math.ceil(daysInMonth / 7);
+  const weeklyTarget = monthlyTarget / weeksInMonth;
+  
+  const weeks = [];
+  let weekNumber = 1;
+  
+  for (let startDay = 1; startDay <= daysInMonth; startDay += 7) {
+    const endDay = Math.min(startDay + 6, daysInMonth);
+    
+    weeks.push({
+      week: `Week ${weekNumber}`,
+      range: `${monthName} ${startDay} - ${monthName} ${endDay}`,
+      target: weeklyTarget,
+      achieved: 0, // Will be calculated separately
+      difference: 0, // Will be calculated after achievement
+      startDate: new Date(Date.UTC(year, monthIndex, startDay, 0, 0, 0, 0)),
+      endDate: new Date(Date.UTC(year, monthIndex, endDay, 23, 59, 59, 999))
+    });
+    
+    weekNumber++;
+  }
+  
+  return weeks;
+}
+
+// Helper function to calculate weekly achievements
+async function calculateWeeklyAchievements(weeks, memberId, teamId, department) {
+  for (const week of weeks) {
+    let weeklyAchievement = 0;
+    
+    if (department?.toLowerCase() === 'sales') {
+      if (memberId) {
+        // Sales member achievement: ordered projects by this member
+        const orderedProjects = await prisma.project.findMany({
+          where: {
+            date: {
+              gte: week.startDate,
+              lte: week.endDate,
+            },
+            ordered_by: memberId
+          },
+          select: { order_amount: true }
+        });
+
+        weeklyAchievement = orderedProjects.reduce((sum, project) => {
+          return sum + (parseFloat(project.order_amount) || 0);
+        }, 0);
+      } else if (teamId) {
+        // Sales team achievement: ordered projects by team members
+        const orderedProjects = await prisma.project.findMany({
+          where: {
+            date: {
+              gte: week.startDate,
+              lte: week.endDate,
+            },
+            team_member: {
+              team_id: teamId
+            }
+          },
+          select: { order_amount: true }
+        });
+
+        weeklyAchievement = orderedProjects.reduce((sum, project) => {
+          return sum + (parseFloat(project.order_amount) || 0);
+        }, 0);
+      }
+    } else {
+      if (memberId) {
+        // Non-sales member achievement: Check member_distribution first
+        const memberDistributions = await prisma.member_distribution.findMany({
+          where: {
+            team_member_id: memberId,
+            project: {
+              delivery_date: {
+                gte: week.startDate,
+                lte: week.endDate,
+              },
+              is_delivered: true
+            }
+          },
+          select: { amount: true }
+        });
+
+        if (memberDistributions.length > 0) {
+          weeklyAchievement = memberDistributions.reduce((sum, distribution) => {
+            return sum + (parseFloat(distribution.amount) || 0);
+          }, 0);
+        } else {
+          // Fallback: calculate based on team projects divided by team members
+          const teamDeliveredProjects = await prisma.project.findMany({
+            where: {
+              delivery_date: {
+                gte: week.startDate,
+                lte: week.endDate,
+              },
+              is_delivered: true,
+              team_id: teamId
+            },
+            select: { 
+              after_fiverr_amount: true, 
+              after_Fiverr_bonus: true 
+            }
+          });
+
+          const teamMemberCount = await prisma.team_member.count({
+            where: { team_id: teamId }
+          });
+
+          const teamTotalAchievement = teamDeliveredProjects.reduce((sum, project) => {
+            const afterFiverr = parseFloat(project.after_fiverr_amount) || 0;
+            const bonus = parseFloat(project.after_Fiverr_bonus) || 0;
+            return sum + afterFiverr + bonus;
+          }, 0);
+
+          weeklyAchievement = teamMemberCount > 0 ? teamTotalAchievement / teamMemberCount : 0;
+        }
+      } else if (teamId) {
+        // Non-sales team achievement: delivered projects
+        const deliveredProjects = await prisma.project.findMany({
+          where: {
+            delivery_date: {
+              gte: week.startDate,
+              lte: week.endDate,
+            },
+            is_delivered: true,
+            team_id: teamId
+          },
+          select: { after_fiverr_amount: true, after_Fiverr_bonus: true }
+        });
+
+        weeklyAchievement = deliveredProjects.reduce((sum, project) => {
+          const afterFiverr = parseFloat(project.after_fiverr_amount) || 0;
+          const bonus = parseFloat(project.after_Fiverr_bonus) || 0;
+          return sum + afterFiverr + bonus;
+        }, 0);
+      }
+    }
+    
+    week.achieved = weeklyAchievement;
+    week.difference = weeklyAchievement - week.target;
+    
+    // Remove internal date fields
+    delete week.startDate;
+    delete week.endDate;
+  }
+  
+  return weeks;
 }
 
 // API endpoint handler to get quarterly performance based on user role
 exports.getQuarterlyPerformance = async (req, res) => {
-    let user;
-    try {
-        // Fetch user details from the database using the uid from the authenticated request
-        // This assumes your auth middleware guarantees req.user and req.user.uid exist
-        if (!req.user || !req.user.uid) {
-             console.log('Authentication failed: req.user or req.user.uid is missing.');
-             return res.status(401).json({ error: 'Unauthorized: Authentication data missing' });
-        }
-
-        user = await prisma.team_member.findUnique({
-            where: { uid: req.user.uid },
-            select: {
-                role: true,
-                id: true,
-                team_id: true, // Assuming you have a team_id field in your user model
-            }
-        });
-        console.log('User details fetched:', user);
-
-    } catch (fetchUserError) {
-        console.error('Error fetching user details from DB:', fetchUserError);
-         // This catch handles DB errors during the user lookup.
-        return res.status(500).json({ error: 'Internal server error fetching user data' });
+  let user;
+  try {
+    // Fetch user details from the database using the uid from the authenticated request
+    if (!req.user || !req.user.uid) {
+      console.log('Authentication failed: req.user or req.user.uid is missing.');
+      return res.status(401).json({ error: 'Unauthorized: Authentication data missing' });
     }
 
+    user = await prisma.team_member.findUnique({
+      where: { uid: req.user.uid },
+      include: {
+        team: true,
+        department: true
+      }
+    });
+    console.log('User details fetched:', user);
 
-    const userRole = user?.role?.toLowerCase();
-    const userId = user?.id;
-    const userTeamId = user?.team_id; // Assuming user object has team_id
+  } catch (fetchUserError) {
+    console.error('Error fetching user details from DB:', fetchUserError);
+    return res.status(500).json({ error: 'Internal server error fetching user data' });
+  }
 
-    // Log received user info for debugging
-    console.log('User Role:', userRole);
-    console.log('User ID:', userId);
-    console.log('User Team ID:', userTeamId);
+  if (!user) {
+    console.log('User not found in database');
+    return res.status(401).json({ error: 'User not found' });
+  }
 
+  const userRole = user?.role?.toLowerCase();
+  const userId = user?.id;
+  const userTeamId = user?.team_id;
 
-    if (!user || !userRole || !userId) {
-        // This check is still valuable if the DB lookup somehow returns null or incomplete data
-        console.log('Unauthorized access attempt: User fetched but missing role or id');
-        return res.status(401).json({ error: 'Unauthorized: User data incomplete in DB' });
-    }
+  console.log('User Role:', userRole);
+  console.log('User ID:', userId);
+  console.log('User Team ID:', userTeamId);
 
-    // Determine the quarter to query (e.g., current quarter, or allow query param)
-    // Allow specifying year and quarter via query parameters, default to current quarter
+  // Get quarter and year from query params or default to current
+  let targetYear, targetQuarter;
+
+  if (req.query.year && req.query.quarter) {
     const queryYear = parseInt(req.query.year);
     const queryQuarter = parseInt(req.query.quarter);
-
-    let targetYear, targetQuarter;
-
+    
     if (!isNaN(queryYear) && !isNaN(queryQuarter) && queryQuarter >= 1 && queryQuarter <= 4) {
-        targetYear = queryYear;
-        targetQuarter = queryQuarter;
+      targetYear = queryYear;
+      targetQuarter = queryQuarter;
     } else {
-        // Default to current quarter if no valid query params
-        const { year, quarter } = getCurrentQuarterAndYear();
-        targetYear = year;
-        targetQuarter = quarter;
+      const { year, quarter } = getCurrentQuarterAndYear();
+      targetYear = year;
+      targetQuarter = quarter;
     }
+  } else {
+    const { year, quarter } = getCurrentQuarterAndYear();
+    targetYear = year;
+    targetQuarter = quarter;
+  }
 
-    console.log(`Workspaceing data for Quarter ${targetQuarter}, Year ${targetYear}`);
+  console.log(`Working on data for Quarter ${targetQuarter}, Year ${targetYear}`);
 
-    const { startDate, endDate } = getQuarterDates(targetYear, targetQuarter);
+  const { startDate, endDate } = getQuarterDates(targetYear, targetQuarter);
+  const quarterMonths = getMonthsInQuarter(targetQuarter);
+  const currentDate = new Date();
+  const currentMonth = currentDate.getMonth();
+  const currentYear = currentDate.getFullYear();
 
-    try {
-        let responseData = {
-            quarter: targetQuarter,
-            year: targetYear,
-            periodStart: startDate.toISOString(),
-            periodEnd: endDate.toISOString(),
-            // WARNING: Calculations use standard JavaScript numbers which may have
-            // floating-point precision issues for monetary values.
-            precisionWarning: "Calculations use standard JavaScript numbers, potentially leading to minor precision issues."
-        };
+  try {
+    let responseData = {
+      quarter: targetQuarter,
+      year: targetYear,
+      periodStart: startDate.toISOString(),
+      periodEnd: endDate.toISOString(),
+    };
 
-        // --- Role-based Data Fetching and Aggregation ---
+    // Helper function to calculate monthly data for a team
+    const calculateTeamMonthlyData = async (teamId) => {
+      const monthlyData = [];
+      
+      for (const monthIndex of quarterMonths) {
+        const monthYear = targetYear;
+        const monthStart = new Date(Date.UTC(monthYear, monthIndex, 1));
+        const monthEnd = new Date(Date.UTC(monthYear, monthIndex + 1, 0, 23, 59, 59, 999));
+        const isCurrentMonth = (monthYear === currentYear && monthIndex === currentMonth);
+        const isFutureMonth = (monthYear > currentYear || (monthYear === currentYear && monthIndex > currentMonth));
 
-        if (userRole.startsWith('hod_')) {
-            // HOD: See all team quarter-wise performance
-            console.log('Role: HOD. Fetching all teams quarterly performance.');
+        let monthlyTarget = 0;
+        let monthlyAchievement = 0;
 
-            // Fetch all teams to get their current targets
-            const allTeams = await prisma.team.findMany({
-                 select: {
-                    id: true,
-                    team_name: true,
-                    team_target: true, // Get current monthly target
-                },
-            });
+        // Get team info for department checking
+        const team = await prisma.team.findUnique({
+          where: { id: teamId },
+          include: { department: true }
+        });
 
-            const allTeamsQuarterly = [];
+        if (isFutureMonth) {
+          // Future month - target is 0
+          monthlyTarget = 0;
+        } else if (isCurrentMonth) {
+          // Current month - use current team member targets
+          const currentTeamMembers = await prisma.team_member.findMany({
+            where: { team_id: teamId },
+            select: { target: true }
+          });
 
-            for (const team of allTeams) {
-                 // Calculate quarterly target based on current monthly target * 3
-                 const quarterlyTargetBasedOnCurrent = parseFloat(team.team_target || '0') * 3;
-
-                 // Fetch historical monthly records for this team in the quarter
-                 const teamMonthlyHistory = await prisma.TeamTargetHistory.findMany({
-                    where: {
-                        team_id: team.id,
-                        start_date: {
-                            gte: startDate,
-                            lte: endDate,
-                        },
-                    },
-                    select: {
-                        team_target: true, // Monthly target from history
-                        total_achived: true, // Monthly achieved from history
-                    },
-                });
-
-                console.log(`HOD: Fetched ${teamMonthlyHistory.length} monthly history records for team ${team.team_name} in the quarter.`);
-
-                // Aggregate historical monthly targets and achievements
-                const aggregatedHistory = teamMonthlyHistory.reduce((acc, monthlyRecord) => {
-                    acc.historicalTargetSum += parseFloat(monthlyRecord.team_target || '0');
-                    acc.achievedSum += parseFloat(monthlyRecord.total_achived || '0');
-                    return acc;
-                }, { historicalTargetSum: 0, achievedSum: 0 });
-
-
-                allTeamsQuarterly.push({
-                    team_id: team.id,
-                    team_name: team.team_name,
-                    target: quarterlyTargetBasedOnCurrent, // Target based on current monthly * 3
-                    achieved: aggregatedHistory.achievedSum, // Sum of historical achieved
-                    historical_quarterly_target: aggregatedHistory.historicalTargetSum, // Sum of historical targets
-                    difference: aggregatedHistory.achievedSum - aggregatedHistory.historicalTargetSum, // Difference based on historical target
-                });
-            }
-
-            responseData.allTeamsQuarterly = allTeamsQuarterly;
-             console.log(`HOD: Calculated quarterly performance for ${responseData.allTeamsQuarterly.length} teams.`);
-
-
-        } else if (userRole.endsWith('_leader')) {
-            // Operation Leader or Sales Leader: See own quarter performance and team performance
-            console.log('Role: Leader. Fetching own and team quarterly performance.');
-
-            // 1. Fetch Own Quarter Performance
-             console.log('Leader: Fetching own current target and quarterly history...');
-             const ownMember = await prisma.team_member.findUnique({
-                where: { id: userId },
-                select: {
-                    target: true, // Get current monthly target
-                }
-             });
-
-             const ownQuarterlyTargetBasedOnCurrent = parseFloat(ownMember?.target || '0') * 3; // Calculate quarterly target based on current
-
-
-            const memberMonthlyHistory = await prisma.TeamMemberTargetHistory.findMany({
-                where: {
-                    team_member_id: userId,
-                     // Filter by the date range of the target quarter
-                    start_date: {
-                        gte: startDate,
-                        lte: endDate,
-                    },
-                },
-                select: {
-                    target_amount: true, // Monthly target from history
-                    total_achived: true, // Monthly achieved from history
-                },
-            });
-            console.log(`Leader: Fetched ${memberMonthlyHistory.length} monthly own history records for the quarter.`);
-
-            // Aggregate historical monthly targets and achievements
-             const aggregatedOwnHistory = memberMonthlyHistory.reduce((acc, monthlyRecord) => {
-                 acc.historicalTargetSum += parseFloat(monthlyRecord.target_amount || '0');
-                 acc.achievedSum += parseFloat(monthlyRecord.total_achived || '0');
-                 return acc;
-             }, { historicalTargetSum: 0, achievedSum: 0 });
-
-
-            responseData.ownQuarterlyPerformance = {
-                target: ownQuarterlyTargetBasedOnCurrent, // Target based on current monthly * 3
-                achieved: aggregatedOwnHistory.achievedSum, // Sum of historical achieved
-                historical_quarterly_target: aggregatedOwnHistory.historicalTargetSum, // Sum of historical targets
-                difference: aggregatedOwnHistory.achievedSum - aggregatedOwnHistory.historicalTargetSum, // Difference based on historical target
-            };
-            console.log('Leader: Own quarterly performance calculated.');
-
-
-            // 2. Fetch Team Quarter Performance (only if the leader is part of a team)
-            if (userTeamId) {
-                console.log(`Leader: Fetching team (ID: ${userTeamId}) current target and quarterly history...`);
-                 const team = await prisma.team.findUnique({
-                    where: { id: userTeamId },
-                     select: {
-                        team_name: true, // To get the team name
-                        team_target: true, // Get current monthly target
-                    },
-                });
-
-                const teamQuarterlyTargetBasedOnCurrent = parseFloat(team?.team_target || '0') * 3; // Calculate quarterly target based on current
-
-                 const teamMonthlyHistory = await prisma.TeamTargetHistory.findMany({
-                    where: {
-                        team_id: userTeamId,
-                         // Filter by the date range of the target quarter
-                        start_date: {
-                            gte: startDate,
-                            lte: endDate,
-                        },
-                    },
-                     select: {
-                         team_target: true, // Monthly target from history
-                         total_achived: true, // Monthly achieved from history
-                     },
-                });
-                 console.log(`Leader: Fetched ${teamMonthlyHistory.length} monthly team history records for the quarter.`);
-
-                 // Aggregate historical monthly targets and achievements
-                 const aggregatedTeamHistory = teamMonthlyHistory.reduce((acc, monthlyRecord) => {
-                     acc.historicalTargetSum += parseFloat(monthlyRecord.team_target || '0');
-                     acc.achievedSum += parseFloat(monthlyRecord.total_achived || '0');
-                     return acc;
-                 }, { historicalTargetSum: 0, achievedSum: 0 });
-
-                const teamName = team?.team_name || 'Unknown Team';
-
-                responseData.teamQuarterlyPerformance = {
-                    team_id: userTeamId,
-                    team_name: teamName,
-                    target: teamQuarterlyTargetBasedOnCurrent, // Target based on current monthly * 3
-                    achieved: aggregatedTeamHistory.achievedSum, // Sum of historical achieved
-                    historical_quarterly_target: aggregatedTeamHistory.historicalTargetSum, // Sum of historical targets
-                    difference: aggregatedTeamHistory.achievedSum - aggregatedTeamHistory.historicalTargetSum, // Difference based on historical target
-                };
-                console.log('Leader: Team quarterly performance calculated.');
-
-
-                 // 3. Fetch Member Performance within the leader's team for the quarter
-                 console.log(`Leader: Fetching team members' current targets and quarterly history for team (ID: ${userTeamId})...`);
-
-                const teamMembers = await prisma.team_member.findMany({
-                    where: { team_id: userTeamId },
-                    select: {
-                        id: true,
-                        first_name: true,
-                        last_name: true,
-                        target: true, // Get current monthly target for each member
-                    }
-                });
-
-                 const teamMembersQuarterly = [];
-
-                 for (const member of teamMembers) {
-                     const memberQuarterlyTargetBasedOnCurrent = parseFloat(member.target || '0') * 3; // Calculate quarterly target based on current
-
-                     const memberMonthlyHistory = await prisma.TeamMemberTargetHistory.findMany({
-                        where: {
-                            team_member_id: member.id,
-                            start_date: {
-                                gte: startDate,
-                                lte: endDate,
-                            },
-                        },
-                         select: {
-                             target_amount: true, // Monthly target from history
-                             total_achived: true, // Monthly achieved from history
-                         },
-                         orderBy: {
-                            start_date: 'asc'
-                         }
-                     });
-                     console.log(`Leader: Fetched ${memberMonthlyHistory.length} monthly history records for team member ${member.first_name || member.id} in the quarter.`);
-
-
-                    // Aggregate historical monthly targets and achievements
-                    const aggregatedMemberHistory = memberMonthlyHistory.reduce((acc, monthlyRecord) => {
-                        acc.historicalTargetSum += parseFloat(monthlyRecord.target_amount || '0');
-                        acc.achievedSum += parseFloat(monthlyRecord.total_achived || '0');
-                        return acc;
-                    }, { historicalTargetSum: 0, achievedSum: 0 });
-
-
-                     teamMembersQuarterly.push({
-                        team_member_id: member.id,
-                        team_member_name: `${member.first_name || ''} ${member.last_name || ''}`.trim(),
-                        quarterly_target: memberQuarterlyTargetBasedOnCurrent, // Target based on current monthly * 3
-                        achieved: aggregatedMemberHistory.achievedSum, // Sum of historical achieved
-                        historical_quarterly_target: aggregatedMemberHistory.historicalTargetSum, // Sum of historical targets
-                        difference: aggregatedMemberHistory.achievedSum - aggregatedMemberHistory.historicalTargetSum, // Difference based on historical target
-                    });
-                 }
-
-                 responseData.teamMembersQuarterly = teamMembersQuarterly;
-                 console.log(`Leader: Calculated quarterly performance for ${responseData.teamMembersQuarterly.length} team members.`);
-
-
-            } else {
-                 console.log('Leader does not have a team_id. Skipping team and team member performance fetch.');
-            }
-
-
-        } else if (userRole.endsWith('_member')) {
-             // Operation Member or Sales Member: See only own quarter performance
-             console.log('Role: Member. Fetching own current target and quarterly history.');
-
-             const ownMember = await prisma.team_member.findUnique({
-                where: { id: userId },
-                select: {
-                    target: true, // Get current monthly target
-                }
-             });
-
-             const ownQuarterlyTargetBasedOnCurrent = parseFloat(ownMember?.target || '0') * 3; // Calculate quarterly target based on current
-
-
-             const memberMonthlyHistory = await prisma.TeamMemberTargetHistory.findMany({
-                where: {
-                    team_member_id: userId,
-                     // Filter by the date range of the target quarter
-                    start_date: {
-                        gte: startDate,
-                        lte: endDate,
-                    },
-                },
-                select: {
-                    target_amount: true, // Monthly target from history
-                    total_achived: true, // Monthly achieved from history
-                },
-            });
-             console.log(`Member: Fetched ${memberMonthlyHistory.length} monthly own history records for the quarter.`);
-
-
-             // Aggregate historical monthly targets and achievements
-            const aggregatedOwnHistory = memberMonthlyHistory.reduce((acc, monthlyRecord) => {
-                acc.historicalTargetSum += parseFloat(monthlyRecord.target_amount || '0');
-                acc.achievedSum += parseFloat(monthlyRecord.total_achived || '0');
-                return acc;
-            }, { historicalTargetSum: 0, achievedSum: 0 });
-
-
-            responseData.ownQuarterlyPerformance = {
-                target: ownQuarterlyTargetBasedOnCurrent, // Target based on current monthly * 3
-                achieved: aggregatedOwnHistory.achievedSum, // Sum of historical achieved
-                historical_quarterly_target: aggregatedOwnHistory.historicalTargetSum, // Sum of historical targets
-                difference: aggregatedOwnHistory.achievedSum - aggregatedOwnHistory.historicalTargetSum, // Difference based on historical target
-            };
-            console.log('Member: Own quarterly performance calculated.');
-
+          monthlyTarget = currentTeamMembers.reduce((sum, member) => {
+            return sum + (parseFloat(member.target) || 0);
+          }, 0);
         } else {
-            // Handle other roles or no role found
-            console.log(`Access denied for role: ${userRole}`);
-            return res.status(403).json({ error: 'Access denied for this role.' });
+          // Past month - use history table
+          const historyRecords = await prisma.TeamMemberTargetHistory.findMany({
+            where: {
+              team_id: teamId,
+              start_date: {
+                gte: monthStart,
+                lte: monthEnd,
+              },
+            },
+            select: { target_amount: true }
+          });
+
+          monthlyTarget = historyRecords.reduce((sum, record) => {
+            return sum + (parseFloat(record.target_amount) || 0);
+          }, 0);
         }
 
-        res.json(responseData);
+        // Calculate achievement based on department
+        if (team?.department?.department_name?.toLowerCase() === 'sales') {
+          // Sales achievement: ordered projects
+          const orderedProjects = await prisma.project.findMany({
+            where: {
+              date: {
+                gte: monthStart,
+                lte: monthEnd,
+              },
+              team_member: {
+                team_id: teamId
+              }
+            },
+            select: { order_amount: true }
+          });
 
-    } catch (error) {
-        console.error('Error fetching quarterly performance:', error);
-        // Added error.message to provide more details in the response
-        res.status(500).json({ error: 'Failed to fetch performance data', details: error.message });
+          monthlyAchievement = orderedProjects.reduce((sum, project) => {
+            return sum + (parseFloat(project.order_amount) || 0);
+          }, 0);
+        } else {
+          // Non-sales achievement: delivered projects
+          const deliveredProjects = await prisma.project.findMany({
+            where: {
+              delivery_date: {
+                gte: monthStart,
+                lte: monthEnd,
+              },
+              is_delivered: true,
+              team_id: teamId
+            },
+            select: { after_fiverr_amount: true, after_Fiverr_bonus: true }
+          });
+
+          monthlyAchievement = deliveredProjects.reduce((sum, project) => {
+            const afterFiverr = parseFloat(project.after_fiverr_amount) || 0;
+            const bonus = parseFloat(project.after_Fiverr_bonus) || 0;
+            return sum + afterFiverr + bonus;
+          }, 0);
+        }
+
+        // Generate weekly breakdown
+        const weeklyBreakdown = generateWeeklyBreakdown(
+          targetYear, 
+          monthIndex, 
+          monthlyTarget, 
+          monthlyAchievement, 
+          null, 
+          teamId, 
+          team?.department?.department_name
+        );
+
+        const weeklyData = await calculateWeeklyAchievements(
+          weeklyBreakdown, 
+          null, 
+          teamId, 
+          team?.department?.department_name
+        );
+
+        monthlyData.push({
+          month: getMonthName(monthIndex),
+          monthIndex: monthIndex + 1,
+          target: monthlyTarget,
+          achieved: monthlyAchievement,
+          difference: monthlyAchievement - monthlyTarget,
+          weeklyBreakdown: weeklyData
+        });
+      }
+
+      return monthlyData;
+    };
+
+    // Helper function to calculate team quarterly target and achievement
+    const calculateTeamQuarterlyData = async (teamId) => {
+      const monthlyData = await calculateTeamMonthlyData(teamId);
+      
+      const totalTarget = monthlyData.reduce((sum, month) => sum + month.target, 0);
+      const totalAchievement = monthlyData.reduce((sum, month) => sum + month.achieved, 0);
+
+      return {
+        totalTarget,
+        totalAchievement,
+        difference: totalAchievement - totalTarget,
+        monthlyBreakdown: monthlyData
+      };
+    };
+
+    // Helper function to calculate monthly data for a member
+    const calculateMemberMonthlyData = async (memberId) => {
+      const monthlyData = [];
+
+      // Get current member with department info
+      const currentMember = await prisma.team_member.findUnique({
+        where: { id: memberId },
+        include: { department: true, team: true }
+      });
+
+      for (const monthIndex of quarterMonths) {
+        const monthYear = targetYear;
+        const monthStart = new Date(Date.UTC(monthYear, monthIndex, 1));
+        const monthEnd = new Date(Date.UTC(monthYear, monthIndex + 1, 0, 23, 59, 59, 999));
+        const isCurrentMonth = (monthYear === currentYear && monthIndex === currentMonth);
+        const isFutureMonth = (monthYear > currentYear || (monthYear === currentYear && monthIndex > currentMonth));
+
+        let monthlyTarget = 0;
+        let monthlyAchievement = 0;
+
+        if (isFutureMonth) {
+          // Future month - target is 0
+          monthlyTarget = 0;
+        } else if (isCurrentMonth) {
+          // Current month - use current target
+          monthlyTarget = parseFloat(currentMember?.target) || 0;
+        } else {
+          // Past month - use history table
+          const historyRecord = await prisma.TeamMemberTargetHistory.findFirst({
+            where: {
+              team_member_id: memberId,
+              start_date: {
+                gte: monthStart,
+                lte: monthEnd,
+              },
+            },
+            select: { target_amount: true }
+          });
+
+          monthlyTarget = parseFloat(historyRecord?.target_amount) || 0;
+        }
+
+        // Calculate achievement based on department
+        if (currentMember?.department?.department_name?.toLowerCase() === 'sales') {
+          // Sales achievement: ordered projects by this member
+          const orderedProjects = await prisma.project.findMany({
+            where: {
+              date: {
+                gte: monthStart,
+                lte: monthEnd,
+              },
+              ordered_by: memberId
+            },
+            select: { order_amount: true }
+          });
+
+          monthlyAchievement = orderedProjects.reduce((sum, project) => {
+            return sum + (parseFloat(project.order_amount) || 0);
+          }, 0);
+        } else {
+          // Non-sales achievement: Check member_distribution first
+          const memberDistributions = await prisma.member_distribution.findMany({
+            where: {
+              team_member_id: memberId,
+              project: {
+                delivery_date: {
+                  gte: monthStart,
+                  lte: monthEnd,
+                },
+                is_delivered: true
+              }
+            },
+            select: { amount: true }
+          });
+
+          if (memberDistributions.length > 0) {
+            monthlyAchievement = memberDistributions.reduce((sum, distribution) => {
+              return sum + (parseFloat(distribution.amount) || 0);
+            }, 0);
+          } else {
+            // Fallback: calculate based on team projects
+            const teamDeliveredProjects = await prisma.project.findMany({
+              where: {
+                delivery_date: {
+                  gte: monthStart,
+                  lte: monthEnd,
+                },
+                is_delivered: true,
+                team_id: currentMember?.team_id
+              },
+              select: { 
+                after_fiverr_amount: true, 
+                after_Fiverr_bonus: true 
+              }
+            });
+
+            const teamMemberCount = await prisma.team_member.count({
+              where: { team_id: currentMember?.team_id }
+            });
+
+            const teamTotalAchievement = teamDeliveredProjects.reduce((sum, project) => {
+              const afterFiverr = parseFloat(project.after_fiverr_amount) || 0;
+              const bonus = parseFloat(project.after_Fiverr_bonus) || 0;
+              return sum + afterFiverr + bonus;
+            }, 0);
+
+            monthlyAchievement = teamMemberCount > 0 ? teamTotalAchievement / teamMemberCount : 0;
+          }
+        }
+
+        // Generate weekly breakdown
+        const weeklyBreakdown = generateWeeklyBreakdown(
+          targetYear, 
+          monthIndex, 
+          monthlyTarget, 
+          monthlyAchievement, 
+          memberId, 
+          currentMember?.team_id, 
+          currentMember?.department?.department_name
+        );
+
+        const weeklyData = await calculateWeeklyAchievements(
+          weeklyBreakdown, 
+          memberId, 
+          currentMember?.team_id, 
+          currentMember?.department?.department_name
+        );
+
+        monthlyData.push({
+          month: getMonthName(monthIndex),
+          monthIndex: monthIndex + 1,
+          target: monthlyTarget,
+          achieved: monthlyAchievement,
+          difference: monthlyAchievement - monthlyTarget,
+          weeklyBreakdown: weeklyData
+        });
+      }
+
+      return monthlyData;
+    };
+
+    // Helper function to calculate member quarterly data
+    const calculateMemberQuarterlyData = async (memberId) => {
+      const monthlyData = await calculateMemberMonthlyData(memberId);
+      
+      const totalTarget = monthlyData.reduce((sum, month) => sum + month.target, 0);
+      const totalAchievement = monthlyData.reduce((sum, month) => sum + month.achieved, 0);
+
+      return {
+        totalTarget,
+        totalAchievement,
+        difference: totalAchievement - totalTarget,
+        monthlyBreakdown: monthlyData
+      };
+    };
+
+    // Role-based data fetching
+    if (userRole?.startsWith('hod_')) {
+      // HOD: See all teams quarterly performance
+      console.log('Role: HOD. Fetching all teams quarterly performance.');
+
+      const allTeams = await prisma.team.findMany({
+        select: {
+          id: true,
+          team_name: true,
+        },
+      });
+
+      const allTeamsQuarterly = [];
+
+      for (const team of allTeams) {
+        const teamData = await calculateTeamQuarterlyData(team.id);
+        allTeamsQuarterly.push({
+          team_id: team.id,
+          team_name: team.team_name,
+          target: teamData.totalTarget,
+          achieved: teamData.totalAchievement,
+          difference: teamData.difference,
+          monthlyBreakdown: teamData.monthlyBreakdown,
+        });
+      }
+
+      responseData.allTeamsQuarterly = allTeamsQuarterly;
+
+    } else if (userRole?.endsWith('_leader')) {
+      // Leader: See own and team quarterly performance
+      console.log('Role: Leader. Fetching own and team quarterly performance.');
+
+      // Own performance
+      const ownData = await calculateMemberQuarterlyData(userId);
+      responseData.ownQuarterlyPerformance = {
+        target: ownData.totalTarget,
+        achieved: ownData.totalAchievement,
+        difference: ownData.difference,
+        monthlyBreakdown: ownData.monthlyBreakdown,
+      };
+
+      // Team performance (if leader has a team)
+      if (userTeamId) {
+        const teamData = await calculateTeamQuarterlyData(userTeamId);
+        responseData.teamQuarterlyPerformance = {
+          team_id: userTeamId,
+          team_name: user.team?.team_name || 'Unknown Team',
+          target: teamData.totalTarget,
+          achieved: teamData.totalAchievement,
+          difference: teamData.difference,
+          monthlyBreakdown: teamData.monthlyBreakdown,
+        };
+
+        // Team members performance
+        const teamMembers = await prisma.team_member.findMany({
+          where: { team_id: userTeamId },
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+          }
+        });
+
+        const teamMembersQuarterly = [];
+        for (const member of teamMembers) {
+          const memberData = await calculateMemberQuarterlyData(member.id);
+          teamMembersQuarterly.push({
+            team_member_id: member.id,
+            team_member_name: `${member.first_name || ''} ${member.last_name || ''}`.trim(),
+            target: memberData.totalTarget,
+            achieved: memberData.totalAchievement,
+            difference: memberData.difference,
+            monthlyBreakdown: memberData.monthlyBreakdown,
+          });
+        }
+
+        responseData.teamMembersQuarterly = teamMembersQuarterly;
+      }
+
+    } else if (userRole?.endsWith('_member')) {
+      // Member: See only own quarterly performance
+      console.log('Role: Member. Fetching own quarterly performance.');
+
+      const ownData = await calculateMemberQuarterlyData(userId);
+      responseData.ownQuarterlyPerformance = {
+        target: ownData.totalTarget,
+        achieved: ownData.totalAchievement,
+        difference: ownData.difference,
+        monthlyBreakdown: ownData.monthlyBreakdown,
+      };
+
+    } else {
+      console.log(`Access denied for role: ${userRole}`);
+      return res.status(403).json({ error: 'Access denied for this role.' });
     }
+
+    res.json(responseData);
+
+  } catch (error) {
+    console.error('Error fetching quarterly performance:', error);
+    res.status(500).json({ error: 'Failed to fetch performance data', details: error.message });
+  }
 };
-
-
 
 
 
@@ -1538,702 +1822,1285 @@ const previousMonthDateRange = () => {
   return { startOfLastMonth, endOfLastMonth };
 };
 
-const getDaysInMonth = (year, month) => {
-    return new Date(year, month + 1, 0).getDate();
+// const getDaysInMonth = (year, month) => {
+//     return new Date(year, month + 1, 0).getDate();
+// };
+
+const getDayDateRange = (dayOffset = 0) => {
+  const now = new Date();
+  const targetDate = new Date(now);
+  targetDate.setDate(now.getDate() - dayOffset);
+  
+  const startOfDay = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0));
+  const endOfDay = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999));
+  
+  return { startOfDay, endOfDay };
 };
 
-
 exports.getAllConsolidatedReports = async (req, res) => {
-    try {
-        const { startOfToday, endOfToday } = getTodayDateRange();
-        console.log('Start of today:', startOfToday);
-        console.log('End of today:', endOfToday);
-        const { startOfMonth, endOfMonth } = getMonthDateRange();
-        console.log('Start of month:', startOfMonth);
-        console.log('End of month:', endOfMonth);
-        const { startOfLastMonth, endOfLastMonth } = previousMonthDateRange();
-        console.log('Start of last month:', startOfLastMonth);
-        console.log('End of last month:', endOfLastMonth);
-        const SALES_DEPARTMENT_NAME = 'sales'; // Or from config
+  try {
+    // Check if custom month and year are provided
+    const { month, year } = req.query;
+    let startOfMonth, endOfMonth;
+    let isCurrentMonth = true;
+    let searchYear, searchMonth;
 
-        const reports = {};
+    if (month) {
+      // Parse month name to get the correct month
+      const monthNames = {
+        'january': 0, 'jan': 0,
+        'february': 1, 'feb': 1,
+        'march': 2, 'mar': 2,
+        'april': 3, 'apr': 3,
+        'may': 4,
+        'june': 5, 'jun': 5,
+        'july': 6, 'jul': 6,
+        'august': 7, 'aug': 7,
+        'september': 8, 'sep': 8,
+        'october': 9, 'oct': 9,
+        'november': 10, 'nov': 10,
+        'december': 11, 'dec': 11
+      };
 
-        // Calculate days in current month for daily target estimation
-        const today = new Date();
-        const daysInCurrentMonth = getDaysInMonth(today.getFullYear(), today.getMonth());
-        // Consider if you need to account for only working days. For this example, we use total calendar days.
-
-        // --- 1) Total project delivery this month ---
-        const deliveredProjectsMonth = await prisma.project.findMany({
-            where: {
-                status: 'delivered',
-                is_delivered: true,
-                delivery_date: {
-                    gte: startOfMonth,
-                    lte: endOfMonth,
-                },
-            },
-            include: {
-                profile: { select: { profile_name: true } },
-                team: { select: { team_name: true } },
-            },
+      const monthName = month.toLowerCase();
+      const monthIndex = monthNames[monthName];
+      
+      if (monthIndex === undefined) {
+        return res.status(400).json({ 
+          error: 'Invalid month name. Please use full month names like "january", "february", etc.' 
         });
+      }
 
-        const countDeliveredMonth = deliveredProjectsMonth.length;
-        const totalAmountDeliveredMonth = deliveredProjectsMonth.reduce((sum, project) => {
-            const fiverrAmount = project.after_fiverr_amount ? parseFloat(project.after_fiverr_amount) : 0;
-            const bonusAmount = project.after_Fiverr_bonus ? parseFloat(project.after_Fiverr_bonus) : 0;
-            return sum + fiverrAmount + bonusAmount;
-        }, 0);
-
-        reports.totalMonthlyDeliveries = {
-            count: countDeliveredMonth,
-            total_after_fiverr_and_bonus: totalAmountDeliveredMonth.toFixed(2),
-            project_details: deliveredProjectsMonth.map(project => ({
-                project_name: project.project_name,
-                order_id: project.order_id,
-                profile_name: project.profile ? project.profile.profile_name : 'N/A',
-                team_name: project.team ? project.team.team_name : 'N/A',
-                after_fiverr_amount: project.after_fiverr_amount,
-                after_Fiverr_bonus: project.after_Fiverr_bonus,
-            })),
-        };
-
-        // --- 2) Total project ordered this month ---
-        const orderedProjectsMonth = await prisma.project.findMany({
-            where: {
-                date: { // Assuming 'date' field represents the order creation date
-                    gte: startOfMonth,
-                    lte: endOfMonth,
-                },
-            },
-            include: {
-                profile: { select: { profile_name: true } },
-                team: { select: { team_name: true } },
-            },
+      // Use provided year or current year as fallback
+      const providedYear = year ? parseInt(year) : new Date().getFullYear();
+      
+      // Validate year
+      if (year && (isNaN(providedYear) || providedYear < 1900 || providedYear > 2100)) {
+        return res.status(400).json({ 
+          error: 'Invalid year. Please provide a valid year between 1900 and 2100.' 
         });
+      }
 
-        const countOrderedMonth = orderedProjectsMonth.length;
-        const totalAmountOrderedMonth = orderedProjectsMonth.reduce((sum, project) => {
-            const fiverrAmount = project.after_fiverr_amount ? parseFloat(project.after_fiverr_amount) : 0;
-            const bonusAmount = project.after_Fiverr_bonus ? parseFloat(project.after_Fiverr_bonus) : 0;
-            return sum + fiverrAmount + bonusAmount;
-        }, 0);
+      searchYear = providedYear;
+      searchMonth = monthIndex;
+      
+      // Set start and end of the specified month and year
+      startOfMonth = new Date(Date.UTC(searchYear, searchMonth, 1, 0, 0, 0, 0));
+      endOfMonth = new Date(Date.UTC(searchYear, searchMonth + 1, 0, 23, 59, 59, 999));
+      
+      // Check if this is current month and year
+      const now = new Date();
+      isCurrentMonth = (searchYear === now.getFullYear() && searchMonth === now.getMonth());
+    } else {
+      // Use current month date range
+      const monthRanges = getMonthDateRange();
+      startOfMonth = monthRanges.startOfMonth;
+      endOfMonth = monthRanges.endOfMonth;
+      
+      const now = new Date();
+      searchYear = now.getFullYear();
+      searchMonth = now.getMonth();
+    }
 
-        reports.totalMonthlyOrders = {
-            count: countOrderedMonth,
-            total_after_fiverr_and_bonus: totalAmountOrderedMonth.toFixed(2),
-            project_details: orderedProjectsMonth.map(project => ({
-                project_name: project.project_name,
-                order_id: project.order_id,
-                profile_name: project.profile ? project.profile.profile_name : 'N/A',
-                team_name: project.team ? project.team.team_name : 'N/A',
-                after_fiverr_amount: project.after_fiverr_amount,
-                after_Fiverr_bonus: project.after_Fiverr_bonus,
-            })),
-        };
+    console.log('Start of month:', startOfMonth);
+    console.log('End of month:', endOfMonth);
+    console.log('Search Year:', searchYear);
+    console.log('Search Month:', searchMonth);
+    console.log('Is current month:', isCurrentMonth);
+    
+    const SALES_DEPARTMENT_NAME = 'sales'; // Or from config
 
-        // --- 3) Total cancel this month ---
-        const cancelledProjectsMonth = await prisma.project.findMany({
-            where: {
-                status: 'cancelled', // Assuming a 'cancelled' status
-                update_at: { // Assuming cancellation date is reflected in update_at
-                    gte: startOfMonth,
-                    lte: endOfMonth,
-                },
-            },
-            include: {
-                profile: { select: { profile_name: true } },
-                team: { select: { team_name: true } },
-            },
+    const reports = {};
+
+    // Calculate days in search month for daily target estimation
+    const daysInSearchMonth = getDaysInMonth(searchYear, searchMonth);
+    
+    // Get current day of month to calculate per-day reports (for current month) or use last day for previous months
+    const currentDayOfMonth = isCurrentMonth ? new Date().getDate() : daysInSearchMonth;
+
+    // --- Profile Overview Section ---
+    // Get all profiles for overview
+    const allProfiles = await prisma.profile.findMany({
+      include: {
+        department: true,
+      },
+    });
+
+    const profileOverviewData = [];
+
+    for (const profile of allProfiles) {
+      const id = profile.id;
+      
+      const today = new Date();
+      const currentYear = today.getFullYear();
+      const currentMonth = today.getMonth();
+
+      const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+      const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999);
+
+      const todayStart = new Date(currentYear, currentMonth, today.getDate(), 0, 0, 0, 0);
+      const todayEnd = new Date(currentYear, currentMonth, today.getDate(), 23, 59, 59, 999);
+
+      // Category (Department Name)
+      const categories = profile.department && profile.department.length > 0
+        ? profile.department.map(dep => dep.department_name).join(', ')
+        : 'N/A';
+
+      // Total Earnings (All time delivered projects)
+      const totalEarningsResult = await prisma.project.aggregate({
+        _sum: {
+          after_fiverr_amount: true,
+          after_Fiverr_bonus: true,
+        },
+        where: {
+          profile_id: id,
+          is_delivered: true,
+        },
+      });
+      const sumOfTotalEarnings = (Number(totalEarningsResult._sum.after_fiverr_amount) || 0) + (Number(totalEarningsResult._sum.after_Fiverr_bonus) || 0);
+
+      // Promotion Amount (Today's Date)
+      const todaysPromotion = await prisma.profile_promotion.findFirst({
+        where: {
+          profile_id: id,
+          created_date: {
+            gte: todayStart,
+            lte: todayEnd,
+          },
+        },
+        orderBy: {
+          created_date: 'desc',
+        },
+      });
+      const promotionAmountTodayValue = todaysPromotion ? Number(todaysPromotion.promotion_amount) : 0;
+
+      // This Month's Special Orders (Count and Amount)
+      const thisMonthSpecialOrdersCount = await prisma.project_special_order.count({
+        where: {
+          profile_id: id,
+          created_date: {
+            gte: firstDayOfMonth,
+            lte: lastDayOfMonth,
+          },
+        },
+      });
+
+      const thisMonthSpecialOrdersAmountResult = await prisma.project_special_order.aggregate({
+        _sum: {
+          special_order_amount: true,
+        },
+        where: {
+          profile_id: id,
+          created_date: {
+            gte: firstDayOfMonth,
+            lte: lastDayOfMonth,
+          },
+        },
+      });
+      const thisMonthSpecialOrdersAmount = Number(thisMonthSpecialOrdersAmountResult._sum.special_order_amount) || 0;
+
+      // This Month's Earnings (Delivered this month)
+      const thisMonthEarningsResult = await prisma.project.aggregate({
+        _sum: {
+          after_fiverr_amount: true,
+          after_Fiverr_bonus: true,
+        },
+        where: {
+          profile_id: id,
+          is_delivered: true,
+          delivery_date: {
+            gte: firstDayOfMonth,
+            lte: lastDayOfMonth,
+          },
+        },
+      });
+      const sumOfThisMonthEarnings = (Number(thisMonthEarningsResult._sum.after_fiverr_amount) || 0) + (Number(thisMonthEarningsResult._sum.after_Fiverr_bonus) || 0);
+
+      // Today's Earnings (Delivered today)
+      const todaysEarningsResult = await prisma.project.aggregate({
+        _sum: {
+          after_fiverr_amount: true,
+          after_Fiverr_bonus: true,
+        },
+        where: {
+          profile_id: id,
+          is_delivered: true,
+          delivery_date: {
+            gte: todayStart,
+            lte: todayEnd,
+          },
+        },
+      });
+      const sumOfTodaysEarnings = (Number(todaysEarningsResult._sum.after_fiverr_amount) || 0) + (Number(todaysEarningsResult._sum.after_Fiverr_bonus) || 0);
+
+      // Rank Keywords (Today's Keywords)
+      const todaysRankingEntry = await prisma.profile_ranking.findFirst({
+        where: {
+          profile_id: id,
+          created_date: {
+            gte: todayStart,
+            lte: todayEnd,
+          },
+        },
+        orderBy: {
+          created_date: 'desc',
+        },
+      });
+      const rankKeywordsToday = todaysRankingEntry ? todaysRankingEntry.keywords : 'N/A';
+
+      // Total Projects
+      const totalProjectsCount = await prisma.project.count({
+        where: {
+          profile_id: id,
+        },
+      });
+
+      // Average Rating
+      let averageRating = 0;
+      if (profile.total_rating !== null && profile.complete_count !== null && Number(profile.complete_count) > 0) {
+        averageRating = Number(profile.total_rating) / Number(profile.complete_count);
+      } else {
+        const ratingAggregation = await prisma.project.aggregate({
+          _sum: { rating: true },
+          _count: { rating: true },
+          where: {
+            profile_id: id,
+            is_delivered: true,
+            rating: { not: null }
+          }
         });
-
-        const countCancelledMonth = cancelledProjectsMonth.length;
-        const totalAfterFiverrCancelledMonth = cancelledProjectsMonth.reduce((sum, project) => {
-            return sum + (project.after_fiverr_amount ? parseFloat(project.after_fiverr_amount) : 0);
-        }, 0);
-
-        reports.totalMonthlyCancellations = {
-            count: countCancelledMonth,
-            total_after_fiverr: totalAfterFiverrCancelledMonth.toFixed(2),
-            project_details: cancelledProjectsMonth.map(project => ({
-                project_name: project.project_name,
-                order_id: project.order_id,
-                profile_name: project.profile ? project.profile.profile_name : 'N/A',
-                team_name: project.team ? project.team.team_name : 'N/A',
-                after_fiverr_amount: project.after_fiverr_amount,
-            })),
-        };
-
-        // --- 4) Today's delivery ---
-        const deliveredProjectsToday = await prisma.project.findMany({
-            where: {
-                status: 'delivered',
-                is_delivered: true,
-                delivery_date: {
-                    gte: startOfToday,
-                    lte: endOfToday,
-                },
-            },
-            include: {
-                profile: { select: { profile_name: true } },
-                team: { select: { team_name: true } },
-            },
-        });
-
-        const countDeliveredToday = deliveredProjectsToday.length;
-        const totalAmountDeliveredToday = deliveredProjectsToday.reduce((sum, project) => {
-            const fiverrAmount = project.after_fiverr_amount ? parseFloat(project.after_fiverr_amount) : 0;
-            const bonusAmount = project.after_Fiverr_bonus ? parseFloat(project.after_Fiverr_bonus) : 0;
-            return sum + fiverrAmount + bonusAmount;
-        }, 0);
-
-        reports.todaysDeliveries = {
-            count: countDeliveredToday,
-            total_after_fiverr_and_bonus: totalAmountDeliveredToday.toFixed(2),
-            project_details: deliveredProjectsToday.map(project => ({
-                project_name: project.project_name,
-                order_id: project.order_id,
-                profile_name: project.profile ? project.profile.profile_name : 'N/A',
-                team_name: project.team ? project.team.team_name : 'N/A',
-                after_fiverr_amount: project.after_fiverr_amount,
-                after_Fiverr_bonus: project.after_Fiverr_bonus,
-            })),
-        };
-
-        // --- 5) Today's order project ---
-        const orderedProjectsToday = await prisma.project.findMany({
-            where: {
-                date: {
-                    gte: startOfToday,
-                    lte: endOfToday,
-                },
-            },
-            include: {
-                profile: { select: { profile_name: true } },
-                team: { select: { team_name: true } }, // Delivery team
-                team_member: { select: { first_name: true, last_name: true, team: { select: { team_name: true } } } }, // Ordering member & their team
-            },
-        });
-
-        const countOrderedToday = orderedProjectsToday.length;
-        const totalAmountOrderedToday = orderedProjectsToday.reduce((sum, project) => {
-            return sum + (project.order_amount ? parseFloat(project.order_amount) : 0); // Using order_amount as per original
-        }, 0);
-
-        reports.todaysOrders = {
-            count: countOrderedToday,
-            total_amount: totalAmountOrderedToday.toFixed(2),
-            project_details: orderedProjectsToday.map(project => ({
-                project_name: project.project_name,
-                order_id: project.order_id,
-                order_amount: project.order_amount,
-                profile_name: project.profile ? project.profile.profile_name : 'N/A',
-                delivery_team_name: project.team ? project.team.team_name : 'N/A', // Clarified as delivery team
-                ordered_by_member: project.team_member ? `${project.team_member.first_name} ${project.team_member.last_name}` : 'N/A',
-                ordered_by_member_team: project.team_member?.team ? project.team_member.team.team_name : 'N/A', // Team of the member who ordered
-            })),
-        };
-
-        // --- 6) Promotion Costs ---
-        const todaysPromotions = await prisma.profile_promotion.findMany({
-            where: { created_date: { gte: startOfToday, lte: endOfToday } },
-            include: { profile: { select: { profile_name: true } } },
-        });
-        const totalTodayPromotionCost = todaysPromotions.reduce((sum, promo) => sum + (promo.promotion_amount ? parseFloat(promo.promotion_amount) : 0), 0);
-        const totalActualIncreaseToday = todaysPromotions.reduce((sum, promo) => sum + (promo.actual_increase ? parseFloat(promo.actual_increase) : 0), 0);
-
-        const monthlyPromotions = await prisma.profile_promotion.findMany({
-            where: { created_date: { gte: startOfMonth, lte: endOfMonth } },
-            include: { profile: { select: { profile_name: true } } },
-        });
-        const totalMonthlyPromotionCost = monthlyPromotions.reduce((sum, promo) => sum + (promo.promotion_amount ? parseFloat(promo.promotion_amount) : 0), 0);
-        const totalActualIncreaseMonth = monthlyPromotions.reduce((sum, promo) => sum + (promo.actual_increase ? parseFloat(promo.actual_increase) : 0), 0);
-
-        reports.promotionCosts = {
-            today_promotion: {
-                total_cost: totalTodayPromotionCost.toFixed(2),
-                total_actual_increase: totalActualIncreaseToday.toFixed(2),
-                profile_costs: todaysPromotions.map(promo => ({
-                    profile_name: promo.profile ? promo.profile.profile_name : 'N/A',
-                    promotion_amount: promo.promotion_amount,
-                    actual_increase: promo.actual_increase,
-                })),
-            },
-            this_month_promotion: {
-                total_cost: totalMonthlyPromotionCost.toFixed(2),
-                total_actual_increase: totalActualIncreaseMonth.toFixed(2),
-                profile_costs: monthlyPromotions.map(promo => ({
-                    profile_name: promo.profile ? promo.profile.profile_name : 'N/A',
-                    promotion_amount: promo.promotion_amount,
-                    actual_increase: promo.actual_increase,
-                })),
-            },
-        };
-
-        // --- 7) Project Special Order Stats ---
-        const todaysSpecialOrders = await prisma.project_special_order.findMany({
-            where: { created_date: { gte: startOfToday, lte: endOfToday } },
-            include: { profile: { select: { profile_name: true } } },
-        });
-        const todaySpecialOrderCount = todaysSpecialOrders.length;
-        const totalTodaySpecialOrderCost = todaysSpecialOrders.reduce((sum, order) => sum + (order.special_order_amount ? parseFloat(order.special_order_amount) : 0), 0);
-
-        const monthlySpecialOrders = await prisma.project_special_order.findMany({
-            where: { created_date: { gte: startOfMonth, lte: endOfMonth } },
-            include: { profile: { select: { profile_name: true } } },
-        });
-        const monthlySpecialOrderCount = monthlySpecialOrders.length;
-        const totalMonthlySpecialOrderCost = monthlySpecialOrders.reduce((sum, order) => sum + (order.special_order_amount ? parseFloat(order.special_order_amount) : 0), 0);
-
-        reports.specialOrderStats = {
-            today_special_order: {
-                count: todaySpecialOrderCount,
-                total_cost: totalTodaySpecialOrderCost.toFixed(2),
-                order_details: todaysSpecialOrders.map(order => ({
-                    client_name: order.client_name,
-                    profile_name: order.profile ? order.profile.profile_name : 'N/A',
-                    amount: order.special_order_amount,
-                })),
-            },
-            this_month_special_order: {
-                count: monthlySpecialOrderCount,
-                total_cost: totalMonthlySpecialOrderCost.toFixed(2),
-                order_details: monthlySpecialOrders.map(order => ({
-                    client_name: order.client_name,
-                    profile_name: order.profile ? order.profile.profile_name : 'N/A',
-                    amount: order.special_order_amount,
-                })),
-            },
-        };
-
-        // --- 8) Operational Performance ---
-        const allTeamMembersForTargets = await prisma.team_member.findMany({
-            include: {
-                department: { select: { department_name: true } },
-            }
-        });
-
-        const operationalTeamMembers = allTeamMembersForTargets.filter(
-            member => member.department && member.department.department_name !== SALES_DEPARTMENT_NAME
-        );
-
-        const totalOperationMonthlyTarget = operationalTeamMembers.reduce(
-            (sum, member) => sum + (member.target ? parseFloat(member.target) : 0), 0
-        );
-        // Estimate daily operational target assuming member.target is a monthly target
-        const totalOperationDailyTarget = totalOperationMonthlyTarget / daysInCurrentMonth;
-
-        reports.operationalPerformance = {
-            targets: {
-                today: { total_member_target_sum: totalOperationDailyTarget.toFixed(2) },
-                this_month: { total_member_target_sum: totalOperationMonthlyTarget.toFixed(2) },
-            },
-            achievements: {
-                today: { total_achievement: "0.00", team_breakdown: [] },
-                this_month: { total_achievement: "0.00", team_breakdown: [] },
-            }
-        };
-
-        // --- Operational Achievement This Month ---
-        const opDeliveredProjectsMonth = await prisma.project.findMany({
-            where: {
-                status: 'delivered',
-                is_delivered: true,
-                delivery_date: { gte: startOfMonth, lte: endOfMonth },
-                team: {
-                    department: {
-                        department_name: { not: SALES_DEPARTMENT_NAME }
-                    }
-                }
-            },
-            include: {
-                team: { select: { team_name: true, team_target: true, department: { select: { department_name: true } } } },
-                profile: { select: { profile_name: true } },
-            }
-        });
-
-        const monthlyOpAchievementByTeam = {};
-        let totalMonthlyOpAchievement = 0;
-
-        for (const project of opDeliveredProjectsMonth) {
-            if (project.team && project.team.department && project.team.department.department_name !== SALES_DEPARTMENT_NAME) {
-                const teamName = project.team.team_name || 'N/A_Team';
-                if (!monthlyOpAchievementByTeam[teamName]) {
-                    monthlyOpAchievementByTeam[teamName] = {
-                        team_name: teamName,
-                        team_target: project.team.team_target ? parseFloat(project.team.team_target).toFixed(2) : "0.00",
-                        achievement: 0,
-                        project_count: 0,
-                        project_details: []
-                    };
-                }
-                const projectValue = (project.after_fiverr_amount ? parseFloat(project.after_fiverr_amount) : 0) +
-                    (project.after_Fiverr_bonus ? parseFloat(project.after_Fiverr_bonus) : 0);
-                monthlyOpAchievementByTeam[teamName].achievement += projectValue;
-                monthlyOpAchievementByTeam[teamName].project_count += 1;
-                monthlyOpAchievementByTeam[teamName].project_details.push({
-                    project_name: project.project_name,
-                    order_id: project.order_id,
-                    profile_name: project.profile?.profile_name || 'N/A',
-                    after_fiverr_amount: project.after_fiverr_amount,
-                    after_Fiverr_bonus: project.after_Fiverr_bonus,
-                });
-                totalMonthlyOpAchievement += projectValue;
-            }
+        if (ratingAggregation._count.rating > 0) {
+          averageRating = (Number(ratingAggregation._sum.rating) || 0) / ratingAggregation._count.rating;
         }
-        reports.operationalPerformance.achievements.this_month = {
-            total_achievement: totalMonthlyOpAchievement.toFixed(2),
-            team_breakdown: Object.values(monthlyOpAchievementByTeam).map(team => ({
-                ...team,
-                achievement: team.achievement.toFixed(2)
-            }))
-        };
+      }
 
-        // --- Operational Achievement Today ---
-        const opDeliveredProjectsToday = await prisma.project.findMany({
-            where: {
-                status: 'delivered',
-                is_delivered: true,
-                delivery_date: { gte: startOfToday, lte: endOfToday },
-                team: {
-                    department: {
-                        department_name: { not: SALES_DEPARTMENT_NAME }
-                    }
-                }
-            },
-            include: {
-                team: { select: { team_name: true, team_target: true, department: { select: { department_name: true } } } },
-                profile: { select: { profile_name: true } },
-            }
-        });
+      // Current Ranking (Today's Ranking Page and Row)
+      const currentRankingInfo = todaysRankingEntry
+        ? `Page: ${todaysRankingEntry.ranking_page || 'N/A'}, Row: ${todaysRankingEntry.row || 'N/A'}`
+        : 'N/A';
 
-        const todayOpAchievementByTeam = {};
-        let totalTodayOpAchievement = 0;
+      // Total Cancelled
+      const totalCancelledCount = await prisma.project.count({
+        where: {
+          profile_id: id,
+          status: 'cancelled',
+        },
+      });
 
-        for (const project of opDeliveredProjectsToday) {
-            if (project.team && project.team.department && project.team.department.department_name !== SALES_DEPARTMENT_NAME) {
-                const teamName = project.team.team_name || 'N/A_Team';
-                if (!todayOpAchievementByTeam[teamName]) {
-                    todayOpAchievementByTeam[teamName] = {
-                        team_name: teamName,
-                        team_target: project.team.team_target ? parseFloat(project.team.team_target).toFixed(2) : "0.00",
-                        achievement: 0,
-                        project_count: 0,
-                        project_details: []
-                    };
-                }
-                const projectValue = (project.after_fiverr_amount ? parseFloat(project.after_fiverr_amount) : 0) +
-                    (project.after_Fiverr_bonus ? parseFloat(project.after_Fiverr_bonus) : 0);
-                todayOpAchievementByTeam[teamName].achievement += projectValue;
-                todayOpAchievementByTeam[teamName].project_count += 1;
-                todayOpAchievementByTeam[teamName].project_details.push({
-                    project_name: project.project_name,
-                    order_id: project.order_id,
-                    profile_name: project.profile?.profile_name || 'N/A',
-                    after_fiverr_amount: project.after_fiverr_amount,
-                    after_Fiverr_bonus: project.after_Fiverr_bonus,
-                });
-                totalTodayOpAchievement += projectValue;
-            }
-        }
-        reports.operationalPerformance.achievements.today = {
-            total_achievement: totalTodayOpAchievement.toFixed(2),
-            team_breakdown: Object.values(todayOpAchievementByTeam).map(team => ({
-                ...team,
-                achievement: team.achievement.toFixed(2)
-            }))
-        };
-
-        // --- 9) Sales Performance ---
-        const salesTeamMembers = allTeamMembersForTargets.filter(
-            member => member.department && member.department.department_name === SALES_DEPARTMENT_NAME
-        );
-        const totalSalesMonthlyTarget = salesTeamMembers.reduce(
-            (sum, member) => sum + (member.target ? parseFloat(member.target) : 0), 0
-        );
-        // Estimate daily sales target assuming member.target is a monthly target
-        const totalSalesDailyTarget = totalSalesMonthlyTarget / daysInCurrentMonth;
-
-        reports.salesPerformance = {
-            targets: {
-                today: { total_member_target_sum: totalSalesDailyTarget.toFixed(2) },
-                this_month: { total_member_target_sum: totalSalesMonthlyTarget.toFixed(2) },
-            },
-            achievements: {
-                today: { total_achievement: "0.00", team_breakdown: [] },
-                this_month: { total_achievement: "0.00", team_breakdown: [] },
-            }
-        };
-
-        // --- Sales Achievement This Month ---
-        const salesOrderedProjectsMonth = await prisma.project.findMany({
-            where: {
-                date: { gte: startOfMonth, lte: endOfMonth }, // Order date
-                team_member: { // The team member who ordered the project
-                    department: {
-                        department_name: SALES_DEPARTMENT_NAME
-                    }
-                }
-            },
-            include: {
-                team_member: { include: { team: { select: { team_name: true } }, department: { select: { department_name: true } } } },
-                profile: { select: { profile_name: true } },
-            }
-        });
-
-        const monthlySalesAchievementByTeam = {};
-        let totalMonthlySalesAchievement = 0;
-
-        for (const project of salesOrderedProjectsMonth) {
-            if (project.team_member && project.team_member.team && project.team_member.department && project.team_member.department.department_name === SALES_DEPARTMENT_NAME) {
-                const teamName = project.team_member.team.team_name || 'N/A_Sales_Team';
-                if (!monthlySalesAchievementByTeam[teamName]) {
-                    monthlySalesAchievementByTeam[teamName] = {
-                        team_name: teamName,
-                        achievement: 0,
-                        order_count: 0,
-                        project_details: []
-                    };
-                }
-                const orderValue = project.order_amount ? parseFloat(project.order_amount) : 0;
-                monthlySalesAchievementByTeam[teamName].achievement += orderValue;
-                monthlySalesAchievementByTeam[teamName].order_count += 1;
-                monthlySalesAchievementByTeam[teamName].project_details.push({
-                    project_name: project.project_name,
-                    order_id: project.order_id,
-                    order_amount: project.order_amount,
-                    profile_name: project.profile?.profile_name || 'N/A',
-                    ordered_by_member: `${project.team_member.first_name || ''} ${project.team_member.last_name || ''}`.trim() || 'N/A',
-                });
-                totalMonthlySalesAchievement += orderValue;
-            }
-        }
-        reports.salesPerformance.achievements.this_month = {
-            total_achievement: totalMonthlySalesAchievement.toFixed(2),
-            team_breakdown: Object.values(monthlySalesAchievementByTeam).map(team => ({
-                ...team,
-                achievement: team.achievement.toFixed(2)
-            }))
-        };
-
-        // --- Sales Achievement Today ---
-        const salesOrderedProjectsToday = await prisma.project.findMany({
-            where: {
-                date: { gte: startOfToday, lte: endOfToday }, // Order date
-                team_member: { // The team member who ordered the project
-                    department: {
-                        department_name: SALES_DEPARTMENT_NAME
-                    }
-                }
-            },
-            include: {
-                team_member: { include: { team: { select: { team_name: true } }, department: { select: { department_name: true } } } },
-                profile: { select: { profile_name: true } },
-            }
-        });
-
-        const todaySalesAchievementByTeam = {};
-        let totalTodaySalesAchievement = 0;
-
-        for (const project of salesOrderedProjectsToday) {
-            if (project.team_member && project.team_member.team && project.team_member.department && project.team_member.department.department_name === SALES_DEPARTMENT_NAME) {
-                const teamName = project.team_member.team.team_name || 'N/A_Sales_Team';
-                if (!todaySalesAchievementByTeam[teamName]) {
-                    todaySalesAchievementByTeam[teamName] = {
-                        team_name: teamName,
-                        achievement: 0,
-                        order_count: 0,
-                        project_details: []
-                    };
-                }
-                const orderValue = project.order_amount ? parseFloat(project.order_amount) : 0;
-                todaySalesAchievementByTeam[teamName].achievement += orderValue;
-                todaySalesAchievementByTeam[teamName].order_count += 1;
-                todaySalesAchievementByTeam[teamName].project_details.push({
-                    project_name: project.project_name,
-                    order_id: project.order_id,
-                    order_amount: project.order_amount,
-                    profile_name: project.profile?.profile_name || 'N/A',
-                    ordered_by_member: `${project.team_member.first_name || ''} ${project.team_member.last_name || ''}`.trim() || 'N/A',
-                });
-                totalTodaySalesAchievement += orderValue;
-            }
-        }
-        reports.salesPerformance.achievements.today = {
-            total_achievement: totalTodaySalesAchievement.toFixed(2),
-            team_breakdown: Object.values(todaySalesAchievementByTeam).map(team => ({
-                ...team,
-                achievement: team.achievement.toFixed(2)
-            }))
-        };
-
-        // --- 10) Projects Needing Assignment ---
-        const projectsNeedingAssignment = await prisma.project.findMany({
-            where: {
-                team_id: null,
-                // Consider adding more filters here if needed, e.g.,
-                // status: { notIn: ['cancelled', 'delivered'] }, // Only active projects
-            },
-            include: {
-                profile: { select: { profile_name: true } },
-                team_member: { select: { first_name: true, last_name: true } },
-            },
-        });
-
-        const countNeedingAssignment = projectsNeedingAssignment.length;
-        const totalAfterFiverrAndBonusNeedingAssignment = projectsNeedingAssignment.reduce((sum, project) => {
-            const fiverrAmount = project.after_fiverr_amount ? parseFloat(project.after_fiverr_amount) : 0;
-            const bonusAmount = project.after_Fiverr_bonus ? parseFloat(project.after_Fiverr_bonus) : 0;
-            return sum + fiverrAmount + bonusAmount;
-        }, 0);
-
-        reports.projectsNeedingAssignment = {
-            count: countNeedingAssignment,
-            total_after_fiverr_and_bonus: totalAfterFiverrAndBonusNeedingAssignment.toFixed(2),
-            project_details: projectsNeedingAssignment.map(project => ({
-                project_name: project.project_name,
-                order_id: project.order_id,
-                profile_name: project.profile ? project.profile.profile_name : 'N/A',
-                order_amount: project.order_amount,
-                after_fiverr_amount: project.after_fiverr_amount,
-                after_Fiverr_bonus: project.after_Fiverr_bonus,
-                project_date: project.date,
-                ordered_by: project.team_member ? `${project.team_member.first_name} ${project.team_member.last_name}` : 'N/A',
-                status: project.status,
-            })),
-        };
-
-        // --- 11) Total Projects Not Delivered ---
-        const projectsNotDelivered = await prisma.project.findMany({
-            where: {
-                is_delivered: false,
-                status: { not: 'cancelled' }, // Exclude cancelled projects
-            },
-            include: {
-                profile: { select: { profile_name: true } },
-                team: { select: { team_name: true } },
-            },
-        });
-
-        const countNotDelivered = projectsNotDelivered.length;
-        const totalAmountNotDelivered = projectsNotDelivered.reduce((sum, project) => {
-            const fiverrAmount = project.after_fiverr_amount ? parseFloat(project.after_fiverr_amount) : 0;
-            const bonusAmount = project.after_Fiverr_bonus ? parseFloat(project.after_Fiverr_bonus) : 0;
-            return sum + fiverrAmount + bonusAmount;
-        }, 0);
-
-        reports.totalProjectsNotDelivered = {
-            count: countNotDelivered,
-            total_after_fiverr_and_bonus: totalAmountNotDelivered.toFixed(2),
-            project_details: projectsNotDelivered.map(project => ({
-                project_name: project.project_name,
-                order_id: project.order_id,
-                profile_name: project.profile ? project.profile.profile_name : 'N/A',
-                team_name: project.team ? project.team.team_name : 'N/A',
-                after_fiverr_amount: project.after_fiverr_amount,
-                after_Fiverr_bonus: project.after_Fiverr_bonus,
-                status: project.status,
-            })),
-        };
-
-        // --- 12) Carry Forward Projects ---
-        // This logic is now extracted into its own function, but kept here for the consolidated report if needed.
-        const carryForwardProjects = await prisma.project.findMany({
-            where: {
-                is_delivered: false,
-                date: { // Using 'date' field to check if order date is before current month
-                    
-                },
-                status: { not: 'cancelled' }, // Not cancelled
-            },
-            include: {
-                profile: { select: { profile_name: true } },
-                team: { select: { team_name: true } },
-            },
-        });
-
-        const countCarryForward = carryForwardProjects.length;
-        const totalAmountCarryForward = carryForwardProjects.reduce((sum, project) => {
-            const fiverrAmount = project.after_fiverr_amount ? parseFloat(project.after_fiverr_amount) : 0;
-            const bonusAmount = project.after_Fiverr_bonus ? parseFloat(project.after_Fiverr_bonus) : 0;
-            return sum + fiverrAmount + bonusAmount;
-        }, 0);
-
-        reports.carryForwardProjects = {
-            count: countCarryForward,
-            total_after_fiverr_and_bonus: totalAmountCarryForward.toFixed(2),
-            project_details: carryForwardProjects.map(project => ({
-                project_name: project.project_name,
-                order_id: project.order_id,
-                profile_name: project.profile ? project.profile.profile_name : 'N/A',
-                team_name: project.team ? project.team.team_name : 'N/A',
-                after_fiverr_amount: project.after_fiverr_amount,
-                after_Fiverr_bonus: project.after_Fiverr_bonus,
-                order_date: project.date, // Changed to order_date for clarity
-                status: project.status,
-            })),
-        };
+      // Daily breakdown for this profile (last 7 days)
+      const dailyBreakdown = [];
+      for (let i = 6; i >= 0; i--) {
+        const { startOfDay, endOfDay } = getDayDateRange(i);
         
-// --- 13) other cost Report ---
-const todayOtherCosts = await prisma.othercost.findMany({
-    where: {
-        created_date: {
-            gte: startOfToday,
-            lte: endOfToday,
-        },
-    },
-});
+        const dailyEarnings = await prisma.project.aggregate({
+          _sum: {
+            after_fiverr_amount: true,
+            after_Fiverr_bonus: true,
+          },
+          where: {
+            profile_id: id,
+            is_delivered: true,
+            delivery_date: {
+              gte: startOfDay,
+              lte: endOfDay,
+            },
+          },
+        });
+        
+        const dailyPromotion = await prisma.profile_promotion.aggregate({
+          _sum: {
+            promotion_amount: true,
+            actual_increase: true,
+          },
+          where: {
+            profile_id: id,
+            created_date: {
+              gte: startOfDay,
+              lte: endOfDay,
+            },
+          },
+        });
 
-const thisMonthOtherCosts = await prisma.othercost.findMany({
-    where: {
-        created_date: {
-            gte: startOfMonth,
-            lte: endOfMonth,
-        },
-    },
-});
+        const dailySpecialOrders = await prisma.project_special_order.aggregate({
+          _sum: {
+            special_order_amount: true,
+          },
+          _count: true,
+          where: {
+            profile_id: id,
+            created_date: {
+              gte: startOfDay,
+              lte: endOfDay,
+            },
+          },
+        });
 
-// Calculate total costs and ensure cost_amount is a number in the details
-const calculateReportData = (costs) => {
-    const totalCost = costs.reduce((sum, cost) => {
-        // Ensure cost_amount is treated as a number for summation
-        // Prisma's Decimal type might need explicit conversion if not configured to return numbers
-        const amount = typeof cost.cost_amount === 'string' ? parseFloat(cost.cost_amount) : cost.cost_amount;
-        return sum + (amount || 0);
+        dailyBreakdown.push({
+          date: startOfDay.toISOString().split('T')[0],
+          earnings: (Number(dailyEarnings._sum.after_fiverr_amount) || 0) + (Number(dailyEarnings._sum.after_Fiverr_bonus) || 0),
+          promotion_amount: Number(dailyPromotion._sum.promotion_amount) || 0,
+          promotion_increase: Number(dailyPromotion._sum.actual_increase) || 0,
+          special_orders_count: dailySpecialOrders._count || 0,
+          special_orders_amount: Number(dailySpecialOrders._sum.special_order_amount) || 0,
+        });
+      }
+
+      const profileOverview = {
+        profileId: profile.id,
+        profileName: profile.profile_name,
+        category: categories,
+        totalEarnings: parseFloat(sumOfTotalEarnings.toFixed(2)),
+        promotionAmountToday: promotionAmountTodayValue > 0 ? parseFloat(promotionAmountTodayValue.toFixed(2)) : 0,
+        thisMonthSpecialOrdersCount,
+        thisMonthSpecialOrdersAmount: parseFloat(thisMonthSpecialOrdersAmount.toFixed(2)),
+        thisMonthEarnings: parseFloat(sumOfThisMonthEarnings.toFixed(2)),
+        todaysEarnings: parseFloat(sumOfTodaysEarnings.toFixed(2)),
+        rankKeywordsToday,
+        totalProjectsCount,
+        averageRating: averageRating > 0 ? parseFloat(averageRating.toFixed(2)) : 0,
+        currentRanking: currentRankingInfo,
+        totalCancelledCount,
+        dailyBreakdown: dailyBreakdown,
+      };
+
+      profileOverviewData.push(profileOverview);
+    }
+
+    reports.profileOverviews = profileOverviewData;
+
+    // --- 1) Total project delivery this month ---
+    const deliveredProjectsMonth = await prisma.project.findMany({
+      where: {
+        status: 'delivered',
+        is_delivered: true,
+        delivery_date: {
+          gte: startOfMonth,
+          lte: endOfMonth,
+        },
+      },
+      include: {
+        profile: { select: { profile_name: true } },
+        team: { select: { team_name: true } },
+      },
+    });
+
+    const countDeliveredMonth = deliveredProjectsMonth.length;
+    const totalAmountDeliveredMonth = deliveredProjectsMonth.reduce((sum, project) => {
+      const fiverrAmount = project.after_fiverr_amount ? parseFloat(project.after_fiverr_amount) : 0;
+      const bonusAmount = project.after_Fiverr_bonus ? parseFloat(project.after_Fiverr_bonus) : 0;
+      return sum + fiverrAmount + bonusAmount;
     }, 0);
 
-    const costDetails = costs.map(cost => ({
+    reports.totalMonthlyDeliveries = {
+      count: countDeliveredMonth,
+      total_after_fiverr_and_bonus: totalAmountDeliveredMonth.toFixed(2),
+      per_day_average: (totalAmountDeliveredMonth / currentDayOfMonth).toFixed(2),
+      project_details: deliveredProjectsMonth.map(project => ({
+        project_name: project.project_name,
+        order_id: project.order_id,
+        profile_name: project.profile ? project.profile.profile_name : 'N/A',
+        team_name: project.team ? project.team.team_name : 'N/A',
+        after_fiverr_amount: project.after_fiverr_amount,
+        after_Fiverr_bonus: project.after_Fiverr_bonus,
+      })),
+    };
+
+    // --- 2) Total project ordered this month ---
+    const orderedProjectsMonth = await prisma.project.findMany({
+      where: {
+        date: { // Assuming 'date' field represents the order creation date
+          gte: startOfMonth,
+          lte: endOfMonth,
+        },
+      },
+      include: {
+        profile: { select: { profile_name: true } },
+        team: { select: { team_name: true } },
+      },
+    });
+
+    const countOrderedMonth = orderedProjectsMonth.length;
+    const totalAmountOrderedMonth = orderedProjectsMonth.reduce((sum, project) => {
+      const fiverrAmount = project.after_fiverr_amount ? parseFloat(project.after_fiverr_amount) : 0;
+      const bonusAmount = project.after_Fiverr_bonus ? parseFloat(project.after_Fiverr_bonus) : 0;
+      return sum + fiverrAmount + bonusAmount;
+    }, 0);
+
+    reports.totalMonthlyOrders = {
+      count: countOrderedMonth,
+      total_after_fiverr_and_bonus: totalAmountOrderedMonth.toFixed(2),
+      per_day_average: (totalAmountOrderedMonth / currentDayOfMonth).toFixed(2),
+      project_details: orderedProjectsMonth.map(project => ({
+        project_name: project.project_name,
+        order_id: project.order_id,
+        profile_name: project.profile ? project.profile.profile_name : 'N/A',
+        team_name: project.team ? project.team.team_name : 'N/A',
+        after_fiverr_amount: project.after_fiverr_amount,
+        after_Fiverr_bonus: project.after_Fiverr_bonus,
+      })),
+    };
+
+    // --- 3) Total cancel this month ---
+    const cancelledProjectsMonth = await prisma.project.findMany({
+      where: {
+        status: 'cancelled', // Assuming a 'cancelled' status
+        update_at: { // Assuming cancellation date is reflected in update_at
+          gte: startOfMonth,
+          lte: endOfMonth,
+        },
+      },
+      include: {
+        profile: { select: { profile_name: true } },
+        team: { select: { team_name: true } },
+      },
+    });
+
+    const countCancelledMonth = cancelledProjectsMonth.length;
+    const totalAfterFiverrCancelledMonth = cancelledProjectsMonth.reduce((sum, project) => {
+      return sum + (project.after_fiverr_amount ? parseFloat(project.after_fiverr_amount) : 0);
+    }, 0);
+
+    reports.totalMonthlyCancellations = {
+      count: countCancelledMonth,
+      total_after_fiverr: totalAfterFiverrCancelledMonth.toFixed(2),
+      per_day_average: (totalAfterFiverrCancelledMonth / currentDayOfMonth).toFixed(2),
+      project_details: cancelledProjectsMonth.map(project => ({
+        project_name: project.project_name,
+        order_id: project.order_id,
+        profile_name: project.profile ? project.profile.profile_name : 'N/A',
+        team_name: project.team ? project.team.team_name : 'N/A',
+        after_fiverr_amount: project.after_fiverr_amount,
+      })),
+    };
+
+    // --- 4) Daily delivery breakdown ---
+    const dailyDeliveries = [];
+    for (let dayOffset = 0; dayOffset < currentDayOfMonth; dayOffset++) {
+      const targetDate = new Date(startOfMonth);
+      targetDate.setDate(targetDate.getDate() + dayOffset);
+      
+      const startOfDay = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0));
+      const endOfDay = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999));
+      
+      const deliveredProjectsDay = await prisma.project.findMany({
+        where: {
+          status: 'delivered',
+          is_delivered: true,
+          delivery_date: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+        },
+        include: {
+          profile: { select: { profile_name: true } },
+          team: { select: { team_name: true } },
+        },
+      });
+
+      const countDeliveredDay = deliveredProjectsDay.length;
+      const totalAmountDeliveredDay = deliveredProjectsDay.reduce((sum, project) => {
+        const fiverrAmount = project.after_fiverr_amount ? parseFloat(project.after_fiverr_amount) : 0;
+        const bonusAmount = project.after_Fiverr_bonus ? parseFloat(project.after_Fiverr_bonus) : 0;
+        return sum + fiverrAmount + bonusAmount;
+      }, 0);
+
+      dailyDeliveries.push({
+        date: startOfDay.toISOString().split('T')[0],
+        count: countDeliveredDay,
+        total_after_fiverr_and_bonus: totalAmountDeliveredDay.toFixed(2),
+        project_details: deliveredProjectsDay.map(project => ({
+          project_name: project.project_name,
+          order_id: project.order_id,
+          profile_name: project.profile ? project.profile.profile_name : 'N/A',
+          team_name: project.team ? project.team.team_name : 'N/A',
+          after_fiverr_amount: project.after_fiverr_amount,
+          after_Fiverr_bonus: project.after_Fiverr_bonus,
+        })),
+      });
+    }
+
+    reports.dailyDeliveries = dailyDeliveries.reverse(); // Sort by date descending
+
+    // --- 5) Daily order breakdown ---
+    const dailyOrders = [];
+    for (let dayOffset = 0; dayOffset < currentDayOfMonth; dayOffset++) {
+      const targetDate = new Date(startOfMonth);
+      targetDate.setDate(targetDate.getDate() + dayOffset);
+      
+      const startOfDay = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0));
+      const endOfDay = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999));
+
+      const orderedProjectsDay = await prisma.project.findMany({
+        where: {
+          date: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+        },
+        include: {
+          profile: { select: { profile_name: true } },
+          team: { select: { team_name: true } },
+          team_member: { select: { first_name: true, last_name: true, team: { select: { team_name: true } } } },
+        },
+      });
+
+      const countOrderedDay = orderedProjectsDay.length;
+      const totalAmountOrderedDay = orderedProjectsDay.reduce((sum, project) => {
+        return sum + (project.order_amount ? parseFloat(project.order_amount) : 0);
+      }, 0);
+
+      dailyOrders.push({
+        date: startOfDay.toISOString().split('T')[0],
+        count: countOrderedDay,
+        total_amount: totalAmountOrderedDay.toFixed(2),
+        project_details: orderedProjectsDay.map(project => ({
+          project_name: project.project_name,
+          order_id: project.order_id,
+          order_amount: project.order_amount,
+          profile_name: project.profile ? project.profile.profile_name : 'N/A',
+          delivery_team_name: project.team ? project.team.team_name : 'N/A',
+          ordered_by_member: project.team_member ? `${project.team_member.first_name} ${project.team_member.last_name}` : 'N/A',
+          ordered_by_member_team: project.team_member?.team ? project.team_member.team.team_name : 'N/A',
+        })),
+      });
+    }
+
+    reports.dailyOrders = dailyOrders.reverse(); // Sort by date descending
+
+    // --- 6) Promotion Costs ---
+    const dailyPromotions = [];
+    for (let dayOffset = 0; dayOffset < currentDayOfMonth; dayOffset++) {
+      const targetDate = new Date(startOfMonth);
+      targetDate.setDate(targetDate.getDate() + dayOffset);
+      
+      const startOfDay = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0));
+      const endOfDay = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999));
+      
+      const dayPromotions = await prisma.profile_promotion.findMany({
+        where: { created_date: { gte: startOfDay, lte: endOfDay } },
+        include: { profile: { select: { profile_name: true } } },
+      });
+      
+      const totalDayPromotionCost = dayPromotions.reduce((sum, promo) => sum + (promo.promotion_amount ? parseFloat(promo.promotion_amount) : 0), 0);
+      const totalActualIncreaseDay = dayPromotions.reduce((sum, promo) => sum + (promo.actual_increase ? parseFloat(promo.actual_increase) : 0), 0);
+
+      dailyPromotions.push({
+        date: startOfDay.toISOString().split('T')[0],
+        total_cost: totalDayPromotionCost.toFixed(2),
+        total_actual_increase: totalActualIncreaseDay.toFixed(2),
+        profile_costs: dayPromotions.map(promo => ({
+          profile_name: promo.profile ? promo.profile.profile_name : 'N/A',
+          promotion_amount: promo.promotion_amount,
+          actual_increase: promo.actual_increase,
+        })),
+      });
+    }
+
+    const monthlyPromotions = await prisma.profile_promotion.findMany({
+      where: { created_date: { gte: startOfMonth, lte: endOfMonth } },
+      include: { profile: { select: { profile_name: true } } },
+    });
+    const totalMonthlyPromotionCost = monthlyPromotions.reduce((sum, promo) => sum + (promo.promotion_amount ? parseFloat(promo.promotion_amount) : 0), 0);
+    const totalActualIncreaseMonth = monthlyPromotions.reduce((sum, promo) => sum + (promo.actual_increase ? parseFloat(promo.actual_increase) : 0), 0);
+
+    reports.promotionCosts = {
+      daily_promotion: dailyPromotions.reverse(), // Sort by date descending
+      this_month_promotion: {
+        total_cost: totalMonthlyPromotionCost.toFixed(2),
+        total_actual_increase: totalActualIncreaseMonth.toFixed(2),
+        per_day_average_cost: (totalMonthlyPromotionCost / currentDayOfMonth).toFixed(2),
+        profile_costs: monthlyPromotions.map(promo => ({
+          profile_name: promo.profile ? promo.profile.profile_name : 'N/A',
+          promotion_amount: promo.promotion_amount,
+          actual_increase: promo.actual_increase,
+        })),
+      },
+    };
+
+    // --- 7) Project Special Order Stats ---
+    const dailySpecialOrders = [];
+    for (let dayOffset = 0; dayOffset < currentDayOfMonth; dayOffset++) {
+      const targetDate = new Date(startOfMonth);
+      targetDate.setDate(targetDate.getDate() + dayOffset);
+      
+      const startOfDay = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0));
+      const endOfDay = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999));
+      
+      const daySpecialOrders = await prisma.project_special_order.findMany({
+        where: { created_date: { gte: startOfDay, lte: endOfDay } },
+        include: { profile: { select: { profile_name: true } } },
+      });
+      
+      const daySpecialOrderCount = daySpecialOrders.length;
+      const totalDaySpecialOrderCost = daySpecialOrders.reduce((sum, order) => sum + (order.special_order_amount ? parseFloat(order.special_order_amount) : 0), 0);
+
+      dailySpecialOrders.push({
+        date: startOfDay.toISOString().split('T')[0],
+        count: daySpecialOrderCount,
+        total_cost: totalDaySpecialOrderCost.toFixed(2),
+        order_details: daySpecialOrders.map(order => ({
+          client_name: order.client_name,
+          profile_name: order.profile ? order.profile.profile_name : 'N/A',
+          amount: order.special_order_amount,
+        })),
+      });
+    }
+
+    const monthlySpecialOrders = await prisma.project_special_order.findMany({
+      where: { created_date: { gte: startOfMonth, lte: endOfMonth } },
+      include: { profile: { select: { profile_name: true } } },
+    });
+    const monthlySpecialOrderCount = monthlySpecialOrders.length;
+    const totalMonthlySpecialOrderCost = monthlySpecialOrders.reduce((sum, order) => sum + (order.special_order_amount ? parseFloat(order.special_order_amount) : 0), 0);
+
+    reports.specialOrderStats = {
+      daily_special_order: dailySpecialOrders.reverse(), // Sort by date descending
+      this_month_special_order: {
+        count: monthlySpecialOrderCount,
+        total_cost: totalMonthlySpecialOrderCost.toFixed(2),
+        per_day_average_cost: (totalMonthlySpecialOrderCost / currentDayOfMonth).toFixed(2),
+        order_details: monthlySpecialOrders.map(order => ({
+          client_name: order.client_name,
+          profile_name: order.profile ? order.profile.profile_name : 'N/A',
+          amount: order.special_order_amount,
+        })),
+      },
+    };
+
+    // --- 8) Operational Performance with team member target calculation ---
+    let totalOperationMonthlyTarget = 0;
+    const teamTargetMap = {};
+
+    if (isCurrentMonth) {
+      // For current month, use current team member targets
+      const operationalTeams = await prisma.team.findMany({
+        where: {
+          department: {
+            department_name: { not: SALES_DEPARTMENT_NAME }
+          }
+        },
+        include: {
+          team_member: {
+            select: {
+              target: true,
+            }
+          }
+        }
+      });
+
+      operationalTeams.forEach(team => {
+        const teamMemberTargetSum = team.team_member.reduce((sum, member) => {
+          return sum + (member.target ? parseFloat(member.target) : 0);
+        }, 0);
+        teamTargetMap[team.id] = teamMemberTargetSum;
+        totalOperationMonthlyTarget += teamMemberTargetSum;
+      });
+    } else {
+      // For previous months, use team member history
+      const operationalMemberHistory = await prisma.TeamMemberTargetHistory.findMany({
+        where: {
+          start_date: {
+            gte: startOfMonth,
+            lte: endOfMonth,
+          },
+          team_member: {
+            department: {
+              department_name: { not: SALES_DEPARTMENT_NAME }
+            }
+          }
+        },
+        include: {
+          team_member: {
+            include: {
+              department: true
+            }
+          }
+        }
+      });
+
+      // Group by team_id to calculate team targets
+      const teamTargetAggregates = {};
+      operationalMemberHistory.forEach(history => {
+        const teamId = history.team_id;
+        if (teamId) {
+          if (!teamTargetAggregates[teamId]) {
+            teamTargetAggregates[teamId] = 0;
+          }
+          teamTargetAggregates[teamId] += parseFloat(history.target_amount || 0);
+        }
+      });
+
+      Object.keys(teamTargetAggregates).forEach(teamId => {
+        const target = teamTargetAggregates[teamId];
+        teamTargetMap[parseInt(teamId)] = target;
+        totalOperationMonthlyTarget += target;
+      });
+    }
+
+    const totalOperationDailyTarget = totalOperationMonthlyTarget / daysInSearchMonth;
+
+    reports.operationalPerformance = {
+      targets: {
+        per_day_target: totalOperationDailyTarget.toFixed(2),
+        this_month: { total_member_target_sum: totalOperationMonthlyTarget.toFixed(2) },
+      },
+      achievements: {
+        per_day_all: [],
+        this_month: { total_achievement: "0.00", team_breakdown: [] },
+      }
+    };
+
+    // --- Operational Achievement Daily ---
+    for (let dayOffset = 0; dayOffset < currentDayOfMonth; dayOffset++) {
+      const targetDate = new Date(startOfMonth);
+      targetDate.setDate(targetDate.getDate() + dayOffset);
+      
+      const startOfDay = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0));
+      const endOfDay = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999));
+      
+      const opDeliveredProjectsDay = await prisma.project.findMany({
+        where: {
+          status: 'delivered',
+          is_delivered: true,
+          delivery_date: { gte: startOfDay, lte: endOfDay },
+          team: {
+            department: {
+              department_name: { not: SALES_DEPARTMENT_NAME }
+            }
+          }
+        },
+        include: {
+          team: { 
+            select: { 
+              id: true,
+              team_name: true, 
+              department: { select: { department_name: true } } 
+            } 
+          },
+          profile: { select: { profile_name: true } },
+        }
+      });
+
+      const dayOpAchievementByTeam = {};
+      let totalDayOpAchievement = 0;
+
+      for (const project of opDeliveredProjectsDay) {
+        if (project.team && project.team.department && project.team.department.department_name !== SALES_DEPARTMENT_NAME) {
+          const teamName = project.team.team_name || 'N/A_Team';
+          const teamId = project.team.id;
+          if (!dayOpAchievementByTeam[teamName]) {
+            dayOpAchievementByTeam[teamName] = {
+              team_name: teamName,
+              team_target: (teamTargetMap[teamId] || 0).toFixed(2),
+              achievement: 0,
+              project_count: 0,
+              project_details: []
+            };
+          }
+          const projectValue = (project.after_fiverr_amount ? parseFloat(project.after_fiverr_amount) : 0) +
+            (project.after_Fiverr_bonus ? parseFloat(project.after_Fiverr_bonus) : 0);
+          dayOpAchievementByTeam[teamName].achievement += projectValue;
+          dayOpAchievementByTeam[teamName].project_count += 1;
+          dayOpAchievementByTeam[teamName].project_details.push({
+            project_name: project.project_name,
+            order_id: project.order_id,
+            profile_name: project.profile?.profile_name || 'N/A',
+            after_fiverr_amount: project.after_fiverr_amount,
+            after_Fiverr_bonus: project.after_Fiverr_bonus,
+          });
+          totalDayOpAchievement += projectValue;
+        }
+      }
+      
+      reports.operationalPerformance.achievements.per_day_all.push({
+        date: startOfDay.toISOString().split('T')[0],
+        total_achievement: totalDayOpAchievement.toFixed(2),
+        team_breakdown: Object.values(dayOpAchievementByTeam).map(team => ({
+          ...team,
+          achievement: team.achievement.toFixed(2)
+        }))
+      });
+    }
+
+    // Sort per_day_all by date descending
+    reports.operationalPerformance.achievements.per_day_all.reverse();
+
+    // --- Operational Achievement This Month ---
+    const opDeliveredProjectsMonth = await prisma.project.findMany({
+      where: {
+        status: 'delivered',
+        is_delivered: true,
+        delivery_date: { gte: startOfMonth, lte: endOfMonth },
+        team: {
+          department: {
+            department_name: { not: SALES_DEPARTMENT_NAME }
+          }
+        }
+      },
+      include: {
+        team: { 
+          select: { 
+            id: true,
+            team_name: true, 
+            department: { select: { department_name: true } } 
+          } 
+        },
+        profile: { select: { profile_name: true } },
+      }
+    });
+
+    const monthlyOpAchievementByTeam = {};
+    let totalMonthlyOpAchievement = 0;
+
+    for (const project of opDeliveredProjectsMonth) {
+      if (project.team && project.team.department && project.team.department.department_name !== SALES_DEPARTMENT_NAME) {
+        const teamName = project.team.team_name || 'N/A_Team';
+        const teamId = project.team.id;
+        if (!monthlyOpAchievementByTeam[teamName]) {
+          monthlyOpAchievementByTeam[teamName] = {
+            team_name: teamName,
+            team_target: (teamTargetMap[teamId] || 0).toFixed(2),
+            achievement: 0,
+            project_count: 0,
+            project_details: []
+          };
+        }
+        const projectValue = (project.after_fiverr_amount ? parseFloat(project.after_fiverr_amount) : 0) +
+          (project.after_Fiverr_bonus ? parseFloat(project.after_Fiverr_bonus) : 0);
+        monthlyOpAchievementByTeam[teamName].achievement += projectValue;
+        monthlyOpAchievementByTeam[teamName].project_count += 1;
+        monthlyOpAchievementByTeam[teamName].project_details.push({
+          project_name: project.project_name,
+          order_id: project.order_id,
+          profile_name: project.profile?.profile_name || 'N/A',
+          after_fiverr_amount: project.after_fiverr_amount,
+          after_Fiverr_bonus: project.after_Fiverr_bonus,
+        });
+        totalMonthlyOpAchievement += projectValue;
+      }
+    }
+    reports.operationalPerformance.achievements.this_month = {
+      total_achievement: totalMonthlyOpAchievement.toFixed(2),
+      per_day_average: (totalMonthlyOpAchievement / currentDayOfMonth).toFixed(2),
+      team_breakdown: Object.values(monthlyOpAchievementByTeam).map(team => ({
+        ...team,
+        achievement: team.achievement.toFixed(2)
+      }))
+    };
+
+    // --- 9) Sales Performance ---
+    let totalSalesMonthlyTarget = 0;
+    const salesTeamTargetMap = {};
+
+    if (isCurrentMonth) {
+      // For current month, use current team member targets
+      const salesTeams = await prisma.team.findMany({
+        where: {
+          department: {
+            department_name: SALES_DEPARTMENT_NAME
+          }
+        },
+        include: {
+          team_member: {
+            select: {
+              target: true,
+            }
+          }
+        }
+      });
+
+      salesTeams.forEach(team => {
+        const teamMemberTargetSum = team.team_member.reduce((sum, member) => {
+          return sum + (member.target ? parseFloat(member.target) : 0);
+        }, 0);
+        salesTeamTargetMap[team.id] = teamMemberTargetSum;
+        totalSalesMonthlyTarget += teamMemberTargetSum;
+      });
+    } else {
+      // For previous months, use team member history
+      const salesMemberHistory = await prisma.TeamMemberTargetHistory.findMany({
+        where: {
+          start_date: {
+            gte: startOfMonth,
+            lte: endOfMonth,
+          },
+          team_member: {
+            department: {
+              department_name: SALES_DEPARTMENT_NAME
+            }
+          }
+        },
+        include: {
+          team_member: {
+            include: {
+              department: true
+            }
+          }
+        }
+      });
+
+      // Group by team_id to calculate team targets
+      const salesTeamTargetAggregates = {};
+      salesMemberHistory.forEach(history => {
+        const teamId = history.team_id;
+        if (teamId) {
+          if (!salesTeamTargetAggregates[teamId]) {
+            salesTeamTargetAggregates[teamId] = 0;
+          }
+          salesTeamTargetAggregates[teamId] += parseFloat(history.target_amount || 0);
+        }
+      });
+
+      Object.keys(salesTeamTargetAggregates).forEach(teamId => {
+        const target = salesTeamTargetAggregates[teamId];
+        salesTeamTargetMap[parseInt(teamId)] = target;
+        totalSalesMonthlyTarget += target;
+      });
+    }
+
+    const totalSalesDailyTarget = totalSalesMonthlyTarget / daysInSearchMonth;
+
+    reports.salesPerformance = {
+      targets: {
+        per_day_target: totalSalesDailyTarget.toFixed(2),
+        this_month: { total_member_target_sum: totalSalesMonthlyTarget.toFixed(2) },
+      },
+      achievements: {
+        per_day_all: [],
+        this_month: { total_achievement: "0.00", team_breakdown: [] },
+      }
+    };
+
+    // --- Sales Achievement Daily ---
+    for (let dayOffset = 0; dayOffset < currentDayOfMonth; dayOffset++) {
+      const targetDate = new Date(startOfMonth);
+      targetDate.setDate(targetDate.getDate() + dayOffset);
+      
+      const startOfDay = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0));
+      const endOfDay = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999));
+      
+      const salesOrderedProjectsDay = await prisma.project.findMany({
+        where: {
+          date: { gte: startOfDay, lte: endOfDay },
+          team_member: {
+            department: {
+              department_name: SALES_DEPARTMENT_NAME
+            }
+          }
+        },
+        include: {
+          team_member: { 
+            include: { 
+              team: { select: { id: true, team_name: true } }, 
+              department: { select: { department_name: true } } 
+            } 
+          },
+          profile: { select: { profile_name: true } },
+        }
+      });
+
+      const daySalesAchievementByTeam = {};
+      let totalDaySalesAchievement = 0;
+
+      for (const project of salesOrderedProjectsDay) {
+        if (project.team_member && project.team_member.team && project.team_member.department && project.team_member.department.department_name === SALES_DEPARTMENT_NAME) {
+          const teamName = project.team_member.team.team_name || 'N/A_Sales_Team';
+          const teamId = project.team_member.team.id;
+          if (!daySalesAchievementByTeam[teamName]) {
+            daySalesAchievementByTeam[teamName] = {
+              team_name: teamName,
+              achievement: 0,
+              order_count: 0,
+              project_details: []
+            };
+          }
+          const orderValue = project.order_amount ? parseFloat(project.order_amount) : 0;
+          daySalesAchievementByTeam[teamName].achievement += orderValue;
+          daySalesAchievementByTeam[teamName].order_count += 1;
+          daySalesAchievementByTeam[teamName].project_details.push({
+            project_name: project.project_name,
+            order_id: project.order_id,
+            order_amount: project.order_amount,
+            profile_name: project.profile?.profile_name || 'N/A',
+            ordered_by_member: `${project.team_member.first_name || ''} ${project.team_member.last_name || ''}`.trim() || 'N/A',
+          });
+          totalDaySalesAchievement += orderValue;
+        }
+      }
+      
+      reports.salesPerformance.achievements.per_day_all.push({
+        date: startOfDay.toISOString().split('T')[0],
+        total_achievement: totalDaySalesAchievement.toFixed(2),
+        team_breakdown: Object.values(daySalesAchievementByTeam).map(team => ({
+          ...team,
+          achievement: team.achievement.toFixed(2)
+        }))
+      });
+    }
+
+    // Sort per_day_all by date descending
+    reports.salesPerformance.achievements.per_day_all.reverse();
+
+    // --- Sales Achievement This Month ---
+    const salesOrderedProjectsMonth = await prisma.project.findMany({
+      where: {
+        date: { gte: startOfMonth, lte: endOfMonth }, // Order date
+        team_member: { // The team member who ordered the project
+          department: {
+            department_name: SALES_DEPARTMENT_NAME
+          }
+        }
+      },
+      include: {
+        team_member: { 
+          include: { 
+            team: { select: { id: true, team_name: true } }, 
+            department: { select: { department_name: true } } 
+          } 
+        },
+        profile: { select: { profile_name: true } },
+      }
+    });
+
+    const monthlySalesAchievementByTeam = {};
+    let totalMonthlySalesAchievement = 0;
+
+    for (const project of salesOrderedProjectsMonth) {
+      if (project.team_member && project.team_member.team && project.team_member.department && project.team_member.department.department_name === SALES_DEPARTMENT_NAME) {
+        const teamName = project.team_member.team.team_name || 'N/A_Sales_Team';
+        const teamId = project.team_member.team.id;
+        if (!monthlySalesAchievementByTeam[teamName]) {
+          monthlySalesAchievementByTeam[teamName] = {
+            team_name: teamName,
+            achievement: 0,
+            order_count: 0,
+            project_details: []
+          };
+        }
+        const orderValue = project.order_amount ? parseFloat(project.order_amount) : 0;
+        monthlySalesAchievementByTeam[teamName].achievement += orderValue;
+        monthlySalesAchievementByTeam[teamName].order_count += 1;
+        monthlySalesAchievementByTeam[teamName].project_details.push({
+          project_name: project.project_name,
+          order_id: project.order_id,
+          order_amount: project.order_amount,
+          profile_name: project.profile?.profile_name || 'N/A',
+          ordered_by_member: `${project.team_member.first_name || ''} ${project.team_member.last_name || ''}`.trim() || 'N/A',
+        });
+        totalMonthlySalesAchievement += orderValue;
+      }
+    }
+    reports.salesPerformance.achievements.this_month = {
+      total_achievement: totalMonthlySalesAchievement.toFixed(2),
+      per_day_average: (totalMonthlySalesAchievement / currentDayOfMonth).toFixed(2),
+      team_breakdown: Object.values(monthlySalesAchievementByTeam).map(team => ({
+        ...team,
+        achievement: team.achievement.toFixed(2)
+      }))
+    };
+
+    // --- 10) Projects Needing Assignment ---
+    const projectsNeedingAssignment = await prisma.project.findMany({
+      where: {
+        team_id: null,
+        // Consider adding more filters here if needed, e.g.,
+        // status: { notIn: ['cancelled', 'delivered'] }, // Only active projects
+      },
+      include: {
+        profile: { select: { profile_name: true } },
+        team_member: { select: { first_name: true, last_name: true } },
+      },
+    });
+
+    const countNeedingAssignment = projectsNeedingAssignment.length;
+    const totalAfterFiverrAndBonusNeedingAssignment = projectsNeedingAssignment.reduce((sum, project) => {
+      const fiverrAmount = project.after_fiverr_amount ? parseFloat(project.after_fiverr_amount) : 0;
+      const bonusAmount = project.after_Fiverr_bonus ? parseFloat(project.after_Fiverr_bonus) : 0;
+      return sum + fiverrAmount + bonusAmount;
+    }, 0);
+
+    reports.projectsNeedingAssignment = {
+      count: countNeedingAssignment,
+      total_after_fiverr_and_bonus: totalAfterFiverrAndBonusNeedingAssignment.toFixed(2),
+      project_details: projectsNeedingAssignment.map(project => ({
+        project_name: project.project_name,
+        order_id: project.order_id,
+        profile_name: project.profile ? project.profile.profile_name : 'N/A',
+        order_amount: project.order_amount,
+        after_fiverr_amount: project.after_fiverr_amount,
+        after_Fiverr_bonus: project.after_Fiverr_bonus,
+        project_date: project.date,
+        ordered_by: project.team_member ? `${project.team_member.first_name} ${project.team_member.last_name}` : 'N/A',
+        status: project.status,
+      })),
+    };
+
+    // --- 11) Total Projects Not Delivered ---
+    const projectsNotDelivered = await prisma.project.findMany({
+      where: {
+        is_delivered: false,
+        status: { not: 'cancelled' }, // Exclude cancelled projects
+      },
+      include: {
+        profile: { select: { profile_name: true } },
+        team: { select: { team_name: true } },
+      },
+    });
+
+    const countNotDelivered = projectsNotDelivered.length;
+    const totalAmountNotDelivered = projectsNotDelivered.reduce((sum, project) => {
+      const fiverrAmount = project.after_fiverr_amount ? parseFloat(project.after_fiverr_amount) : 0;
+      const bonusAmount = project.after_Fiverr_bonus ? parseFloat(project.after_Fiverr_bonus) : 0;
+      return sum + fiverrAmount + bonusAmount;
+    }, 0);
+
+    reports.totalProjectsNotDelivered = {
+      count: countNotDelivered,
+      total_after_fiverr_and_bonus: totalAmountNotDelivered.toFixed(2),
+      project_details: projectsNotDelivered.map(project => ({
+        project_name: project.project_name,
+        order_id: project.order_id,
+        profile_name: project.profile ? project.profile.profile_name : 'N/A',
+        team_name: project.team ? project.team.team_name : 'N/A',
+        after_fiverr_amount: project.after_fiverr_amount,
+        after_Fiverr_bonus: project.after_Fiverr_bonus,
+        status: project.status,
+      })),
+    };
+
+    // --- 12) Carry Forward Projects ---
+    // This logic is now extracted into its own function, but kept here for the consolidated report if needed.
+    const carryForwardProjects = await prisma.project.findMany({
+      where: {
+        is_delivered: false,
+        date: { // Using 'date' field to check if order date is before current month
+          lt: new Date(new Date().getFullYear(), new Date().getMonth(), 1), // Date not this month
+        },
+        status: { not: 'cancelled' }, // Not cancelled
+      },
+      include: {
+        profile: { select: { profile_name: true } },
+        team: { select: { team_name: true } },
+      },
+    });
+
+    const countCarryForward = carryForwardProjects.length;
+    const totalAmountCarryForward = carryForwardProjects.reduce((sum, project) => {
+      const fiverrAmount = project.after_fiverr_amount ? parseFloat(project.after_fiverr_amount) : 0;
+      const bonusAmount = project.after_Fiverr_bonus ? parseFloat(project.after_Fiverr_bonus) : 0;
+      return sum + fiverrAmount + bonusAmount;
+    }, 0);
+
+    reports.carryForwardProjects = {
+      count: countCarryForward,
+      total_after_fiverr_and_bonus: totalAmountCarryForward.toFixed(2),
+      project_details: carryForwardProjects.map(project => ({
+        project_name: project.project_name,
+        order_id: project.order_id,
+        profile_name: project.profile ? project.profile.profile_name : 'N/A',
+        team_name: project.team ? project.team.team_name : 'N/A',
+        after_fiverr_amount: project.after_fiverr_amount,
+        after_Fiverr_bonus: project.after_Fiverr_bonus,
+        order_date: project.date, // Changed to order_date for clarity
+        status: project.status,
+      })),
+    };
+    
+    // --- 13) other cost Report ---
+    const dailyOtherCosts = [];
+    for (let dayOffset = 0; dayOffset < currentDayOfMonth; dayOffset++) {
+      const targetDate = new Date(startOfMonth);
+      targetDate.setDate(targetDate.getDate() + dayOffset);
+      
+      const startOfDay = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0));
+      const endOfDay = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999));
+      
+      const dayOtherCosts = await prisma.othercost.findMany({
+        where: {
+          created_date: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+        },
+      });
+
+      const totalDayCost = dayOtherCosts.reduce((sum, cost) => {
+        const amount = typeof cost.cost_amount === 'string' ? parseFloat(cost.cost_amount) : cost.cost_amount;
+        return sum + (amount || 0);
+      }, 0);
+
+      const costDetails = dayOtherCosts.map(cost => ({
         id: cost.id,
         date: cost.date,
         details: cost.details,
-        // Ensure cost_amount is a number in the final JSON response
         cost_amount: typeof cost.cost_amount === 'string' ? parseFloat(cost.cost_amount) : cost.cost_amount,
-    }));
+      }));
 
-    return {
+      dailyOtherCosts.push({
+        date: startOfDay.toISOString().split('T')[0],
+        count: dayOtherCosts.length,
+        total_cost: Number(totalDayCost),
+        cost_details: costDetails,
+      });
+    }
+
+    const thisMonthOtherCosts = await prisma.othercost.findMany({
+      where: {
+        created_date: {
+          gte: startOfMonth,
+          lte: endOfMonth,
+        },
+      },
+    });
+
+    const calculateReportData = (costs) => {
+      const totalCost = costs.reduce((sum, cost) => {
+        const amount = typeof cost.cost_amount === 'string' ? parseFloat(cost.cost_amount) : cost.cost_amount;
+        return sum + (amount || 0);
+      }, 0);
+
+      const costDetails = costs.map(cost => ({
+        id: cost.id,
+        date: cost.date,
+        details: cost.details,
+        cost_amount: typeof cost.cost_amount === 'string' ? parseFloat(cost.cost_amount) : cost.cost_amount,
+      }));
+
+      return {
         count: costs.length,
-        // Explicitly convert total_cost to a Number to prevent any unintended string conversion
         total_cost: Number(totalCost),
         cost_details: costDetails,
+      };
     };
+
+    const thisMonthReportData = calculateReportData(thisMonthOtherCosts);
+
+    reports.otherCosts = {
+      per_day_all: dailyOtherCosts.reverse(), // Sort by date descending
+      this_month: {
+        ...thisMonthReportData,
+        per_day_average_cost: (thisMonthReportData.total_cost / currentDayOfMonth).toFixed(2),
+      },
+    };
+
+    res.status(200).json(reports);
+
+  } catch (error) {
+    console.error('Error fetching all consolidated reports:', error);
+    res.status(500).json({ error: 'An error occurred while fetching consolidated reports.' });
+  }
 };
 
-const todayReportData = calculateReportData(todayOtherCosts);
-const thisMonthReportData = calculateReportData(thisMonthOtherCosts);
 
-reports.otherCosts = {
-    today: todayReportData,
-    this_month: thisMonthReportData,
-};
 
-        res.status(200).json(reports);
 
-    } catch (error) {
-        console.error('Error fetching all consolidated reports:', error);
-        res.status(500).json({ error: 'An error occurred while fetching consolidated reports.' });
-    }
-};
+
+
+
+
+
+
+
 
 // --- New Exported Function for Total Projects Not Delivered ---
 exports.getTotalProjectsNotDelivered = async (req, res) => {
