@@ -13,7 +13,9 @@ const {
   getProjectsByClientName,
   getAllDepartmentNames,
   getProjectById,
-  showallStatusRevisionProjects
+  showallStatusRevisionProjects,
+  getProjectsByOrderId,
+  getOrderSuggestionsFromProjects,
 } = require("../controllers/projectController"); // Import the controller functions
 
 module.exports = (getIO) => {
@@ -30,7 +32,7 @@ module.exports = (getIO) => {
     })
   );
 
-  router.get("/clientSuggestions", getClientSuggestionsFromProjects);
+  router.post("/clientSuggestions", getClientSuggestionsFromProjects);
   
 
   router.get("/teamwiseDelivery", teamwiseDelivery);
@@ -54,6 +56,11 @@ module.exports = (getIO) => {
   //showallStatusRevisionProjects
   router.get("/showallStatusRevisionProjects/:id", showallStatusRevisionProjects);
 
+
+
+
+router.post("/orderSuggestions", getOrderSuggestionsFromProjects); // For getting order ID suggestions
+router.get("/byOrderId", getProjectsByOrderId); // For fetching projects by a specific order ID
 
   return router;
 };

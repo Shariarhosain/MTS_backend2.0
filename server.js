@@ -35,12 +35,13 @@ app.use(cookieParser()); // This should be before your routes
 
 // Routes
 // Pass the getIO function where needed
-app.use('/api/project', verifyToken, ProjectRoute(getIO)); // Ensure ProjectRoute is returning a function
+app.use('/api/project', verifyToken,ProjectRoute(getIO)); // Ensure ProjectRoute is returning a function
 app.use('/api/teamMember', require('./routes/teamMemberRoute'));
 app.use('/api/profile', ProfileRoute);
 app.use('/api/today-task', verifyToken, todayTaskRoute); // Ensure todayTaskRoute is returning a function
 app.use('/api/department', DepartmentRoute); // Ensure DepartmentRoute is returning a function
 app.use('/api/team', verifyToken, TeamRoute); // Ensure TeamRoute is returning a function
+app.use('/api/attendance', verifyToken, require('./routes/test')); // Ensure attendance route is returning a function
 
 // --- Cron Job Definition ---
 // Function to calculate and record monthly targets and achievements
@@ -63,83 +64,6 @@ async function recordMonthlyTargetsAndAchievements() {
         }
 
         console.log(`Recording data for month: ${startOfCurrentMonth.toISOString()} to ${endOfCurrentMonth.toISOString()}`);
-
-        // --- Record Team History ---
-        const teams = await prisma.team.findMany({
-            include: {
-                team_member: {
-                    select: {
-                        id: true,
-                        role: true,
-                        first_name: true, // Include first name for history table
-                        last_name: true, // Include last name for history table
-                    },
-                },
-            },
-        });
-
-        for (const team of teams) {
-            let teamMonthlyAchievement = new Decimal(0);
-            const isSalesTeam = team.team_member.some(member => member.role?.toLowerCase().startsWith('sales_'));
-
-            if (isSalesTeam) {
-                // Sales Team Achievement: Sum of non-cancelled projects ordered by team members in the current month
-                const teamMemberIds = team.team_member.map(member => member.id);
-                if (teamMemberIds.length > 0) {
-                    const salesProjects = await prisma.project.findMany({
-                        where: {
-                            ordered_by: { in: teamMemberIds },
-                            date: {
-                                gte: startOfCurrentMonth,
-                                lte: endOfCurrentMonth,
-                            },
-                            status: { not: 'cancelled' },
-                        },
-                        select: { after_fiverr_amount: true, after_Fiverr_bonus: true },
-                    });
-                    teamMonthlyAchievement = salesProjects.reduce((sum, project) =>
-                        sum.plus(new Decimal(project.after_fiverr_amount || 0)).plus(new Decimal(project.after_Fiverr_bonus || 0))
-                        , new Decimal(0));
-                }
-
-            } else {
-                // Operations Team Achievement: Sum of delivered projects assigned to this team in the current month
-                const opsProjects = await prisma.project.findMany({
-                    where: {
-                        team_id: team.id,
-                        is_delivered: true,
-                        delivery_date: {
-                            gte: startOfCurrentMonth,
-                            lte: endOfCurrentMonth,
-                        },
-                    },
-                    select: { after_fiverr_amount: true, after_Fiverr_bonus: true },
-                });
-                teamMonthlyAchievement = opsProjects.reduce((sum, project) =>
-                    sum.plus(new Decimal(project.after_fiverr_amount || 0)).plus(new Decimal(project.after_Fiverr_bonus || 0))
-                    , new Decimal(0));
-            }
-
-             // Get team member names as a comma-separated string
-            const teamMemberNames = team.team_member
-                .map(member => `${member.first_name || ''} ${member.last_name || ''}`.trim())
-                .filter(name => name) // Filter out empty names
-                .join(', ');
-
-            // Record team history
-            await prisma.TeamTargetHistory.create({
-                data: {
-                    team_id: team.id,
-                    team_name: team.team_name || 'Unknown Team', // Include team name
-                    team_target: new Decimal(team.team_target || 0),
-                    team_member_names: teamMemberNames, // Include team member names
-                    total_achived: teamMonthlyAchievement, // Use total_achived as per your schema
-                    start_date: startOfCurrentMonth,
-                    end_date: endOfCurrentMonth,
-                },
-            });
-            console.log(`Recorded monthly history for Team ${team.team_name || team.id}`);
-        }
 
         // --- Record Team Member History ---
         const teamMembers = await prisma.team_member.findMany({
@@ -204,7 +128,6 @@ async function recordMonthlyTargetsAndAchievements() {
                     team_member_id: member.id,
                     team_member_name: `${member.first_name || ''} ${member.last_name || ''}`.trim(), // Include member name
                     target_amount: new Decimal(member.target || 0),
-                    total_achived: memberMonthlyAchievement, // Use total_achived as per your schema
                     team_id: member.team_id || null, // Include team_id
                     team_name: member.team?.team_name || 'Unknown Team', // Include team_name
                     start_date: startOfCurrentMonth,
@@ -223,10 +146,7 @@ async function recordMonthlyTargetsAndAchievements() {
     // Removed prisma.$disconnect() as it's a long-running server
 }
 
-// Schedule the cron job
-// This will run the job every day at 23:59 UTC.
-// The date check inside the function ensures the main logic
-// only executes on the last day of the month at that time.
+
 cron.schedule('59 23 * * *', recordMonthlyTargetsAndAchievements, {
   scheduled: true,
   timezone: "UTC" // Use UTC timezone for cron schedule

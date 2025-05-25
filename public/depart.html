@@ -24,7 +24,11 @@
   </div>
 
   <script>
-    const socket = io();
+     const socket = io('http://localhost:3000', {
+    auth: {
+      token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJaTjAxb21pMGNYTklsMHFkbzVHUnhNWHY5N0MzIiwiaWF0IjoxNzQ3NTU2NjA2LCJleHAiOjE3NDc1OTk4MDZ9.RbOmROPEmHibhs47OJ5w4vQ4WGvCfb5m7Pfs3wjS-zc'
+    }
+  });
   
     // Fetch department names when the page loads
     socket.emit('getDepartmentNames');
