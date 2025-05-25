@@ -496,34 +496,46 @@ exports.getAllProjects = async (req, res, io) => {
     profile_id: null,
     team_id: null, */
 
-    exports.deleteProject = async (req, res) => {
+exports.deleteProject = async (req, res) => {
   const { id } = req.params;
 
   try {
-    // 1. Check if project exists 
+    // 1. Check if project exists
     const existingProject = await prisma.project.findUnique({
       where: { id: Number(id) },
     });
 
-    //first check if the project delivered or not
+    if (!existingProject) {
+      return res.status(404).json({ error: "Project not found." });
+    }
+
+    // 2. Check if project is delivered - do not delete if delivered
     if (existingProject.delivery_date) {
       return res.status(400).json({ error: "Cannot delete a delivered project." });
     }
 
-    // 1. Unlink related records
+    // 3. Delete dependent today_task records
+    await prisma.today_task.deleteMany({
+      where: { project_id: Number(id) },
+    });
+
+    // 4. Delete dependent member_distribution records
+    await prisma.member_distribution.deleteMany({
+      where: { project_id: Number(id) },
+    });
+
+    // 5. Unlink other foreign keys if necessary
     await prisma.project.update({
       where: { id: Number(id) },
       data: {
-        department_id: null, // Unlink department
+        department_id: null,
         ordered_by: null,
-          profile_id: null, // Unlink profile
-
-          team_id: null, // Unlink team
-        
+        profile_id: null,
+        team_id: null,
       },
     });
 
-    // 2. Delete the project
+    // 6. Delete the project itself
     await prisma.project.delete({
       where: { id: Number(id) },
     });
@@ -536,7 +548,6 @@ exports.getAllProjects = async (req, res, io) => {
     });
   }
 };
-
 
 
 
