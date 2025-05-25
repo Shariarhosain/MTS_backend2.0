@@ -490,6 +490,55 @@ exports.getAllProjects = async (req, res, io) => {
 
 
 
+//first unlink then delete the project
+/*  department_id: null,
+    ordered_by: null,
+    profile_id: null,
+    team_id: null, */
+
+    exports.deleteProject = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // 1. Check if project exists 
+    const existingProject = await prisma.project.findUnique({
+      where: { id: Number(id) },
+    });
+
+    //first check if the project delivered or not
+    if (existingProject.delivery_date) {
+      return res.status(400).json({ error: "Cannot delete a delivered project." });
+    }
+
+    // 1. Unlink related records
+    await prisma.project.update({
+      where: { id: Number(id) },
+      data: {
+        department_id: null, // Unlink department
+        ordered_by: null,
+          profile_id: null, // Unlink profile
+
+          team_id: null, // Unlink team
+        
+      },
+    });
+
+    // 2. Delete the project
+    await prisma.project.delete({
+      where: { id: Number(id) },
+    });
+
+    return res.status(200).json({ message: "Project deleted successfully." });
+  } catch (error) {
+    console.error("Error deleting project:", error);
+    return res.status(500).json({
+      error: "An error occurred while deleting the project.",
+    });
+  }
+};
+
+
+
 
 exports.totalOrderCard = async (req, res) => {
   try{

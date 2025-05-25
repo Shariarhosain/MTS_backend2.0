@@ -4,7 +4,21 @@ const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
-
+prisma.$use(async (params, next) => {
+  if (params.model === 'team' && params.action.startsWith('find')) {
+    if (params.args?.where) {
+      params.args.where = {
+        AND: [
+          params.args.where,
+          { is_active: true }
+        ]
+      };
+    } else {
+      params.args.where = { is_active: true };
+    }
+  }
+  return next(params);
+});
 
 
 

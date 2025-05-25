@@ -16,6 +16,7 @@ const {
   showallStatusRevisionProjects,
   getProjectsByOrderId,
   getOrderSuggestionsFromProjects,
+  deleteProject
 } = require("../controllers/projectController"); // Import the controller functions
 
 module.exports = (getIO) => {
@@ -31,6 +32,8 @@ module.exports = (getIO) => {
       await getAllProjects(req, res, getIO()); // Ensure this is asynchronous
     })
   );
+
+  router.delete("/:id", deleteProject); // Route to delete a project by ID
 
   router.post("/clientSuggestions", getClientSuggestionsFromProjects);
   
