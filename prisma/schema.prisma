@@ -143,14 +143,14 @@ model profile_ranking {
 
 model profile_promotion {
   id               Int       @id @default(autoincrement())
-  profile_id       Int
+  profile_id       Int?
   promotion_amount Decimal? @db.Decimal(65, 0)
   actual_increase  Decimal? @db.Decimal(65, 0) // ✅ প্রতিদিন বাড়া অংশ
   clicks           Int?      // ✅ নতুন
   impressions      Int?      // ✅ নতুন
   created_date     DateTime?
   update_at        DateTime?
-  profile          profile   @relation(fields: [profile_id], references: [id])
+  profile          profile?   @relation(fields: [profile_id], references: [id])
 }
 
 
@@ -198,6 +198,10 @@ model member_distribution {
   id             Int          @id @default(autoincrement())
   team_member_id Int
   amount         Decimal?     @db.Decimal(65, 0)
+  operation_leader_comments String?
+  is_operation_leader Boolean? @default(false)
+
+  operation_member_comments String?
   team_member    team_member  @relation(fields: [team_member_id], references: [id])
   project_id     Int
   project        project      @relation(fields: [project_id], references: [id])
@@ -261,6 +265,8 @@ model othercost {
 // }
 
 
+
+
 model TeamMemberTargetHistory {
   id             Int         @id @default(autoincrement()) // Required
   team_member_id Int     
@@ -277,11 +283,13 @@ model TeamMemberTargetHistory {
 
 
 model  Project_special_order {
-  id             Int          @id @default(autoincrement())
-  profile_id     Int
-  profile        profile      @relation(fields: [profile_id], references: [id])
+  id           Int          @id @default(autoincrement())
+  profile_id     Int?
+  profile        profile?     @relation(fields: [profile_id], references: [id])
   special_order_amount Decimal?     @db.Decimal(65, 0)
   delivery_date     DateTime? @db.Date
+  status         String?
+  delivery_status_date DateTime?
   client_name          String?
   created_date   DateTime?
   update_at      DateTime?

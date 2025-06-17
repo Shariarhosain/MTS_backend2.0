@@ -4,50 +4,54 @@ const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
-prisma.$use(async (params, next) => {
-  if (params.model === 'team' && params.action.startsWith('find')) {
-    // Get start and end of current month in JS Date format
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    console.log('Start of Month:', startOfMonth);
-    const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    console.log('Start of Next Month:', startOfNextMonth);
-    const activeOrRecentlyInactiveFilter = {
-      OR: [
-        { is_active: true },
-        {
-          AND: [
-            { is_active: false },
-            { 
-              deactivated_at: {
-                gte: startOfMonth,
-                lt: startOfNextMonth,
-              }
-            }
-          ]
-        }
-      ]
-    };
+// prisma.$use(async (params, next) => {
+//   if (params.model === 'team' && params.action.startsWith('find')) {
+//     // Get start and end of current month in JS Date format
+//     const now = new Date();
+//     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+//     console.log('Start of Month:', startOfMonth);
+//     const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+//     console.log('Start of Next Month:', startOfNextMonth);
+//     const activeOrRecentlyInactiveFilter = {
+//       OR: [
+//         { is_active: true },
+//         {
+//           AND: [
+//             { is_active: false },
+//             { 
+//               deactivated_at: {
+//                 gte: startOfMonth,
+//                 lt: startOfNextMonth,
+//               }
+//             }
+//           ]
+//         }
+//       ]
+//     };
 
-    if (params.args?.where) {
-      params.args.where = {
-        AND: [
-          params.args.where,
-          activeOrRecentlyInactiveFilter
-        ]
-      };
-    } else {
-      params.args.where = activeOrRecentlyInactiveFilter;
-    }
-  }
+//     if (params.args?.where) {
+//       params.args.where = {
+//         AND: [
+//           params.args.where,
+//           activeOrRecentlyInactiveFilter
+//         ]
+//       };
+//     } else {
+//       params.args.where = activeOrRecentlyInactiveFilter;
+//     }
+//   }
 
-  return next(params);
-});
+//   return next(params);
+// });
 
 
 
 
 // Helper function to determine the role based on department name and if they are the leader
+
+
+
+
 const determineRole = (departmentName, memberId, leaderId) => {
     if (memberId === leaderId) {
         return departmentName === 'sales' ? 'sales_leader' : 'operation_leader';

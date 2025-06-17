@@ -1,3 +1,4 @@
+const { de } = require('@faker-js/faker');
 const { PrismaClient } = require('@prisma/client');
 const { profile } = require('console');
 const prisma = new PrismaClient();
@@ -735,6 +736,7 @@ exports.createProjectSpecialOrder = async (req, res) => {
         special_order_amount: special_order_amount ? parseFloat(special_order_amount) : null,
         delivery_date: delivery_date ? new Date(delivery_date) : null,
         client_name,
+        status: 'nra', // Default status, can be changed later
         created_date: new Date(),
         update_at: new Date(),
       },
@@ -748,12 +750,21 @@ exports.createProjectSpecialOrder = async (req, res) => {
     res.status(500).json({ error: 'Failed to create special order' });
   }
 };
+
+
 exports.updateProjectSpecialOrder = async (req, res) => {
   const { id } = req.params;
-  const { profileName, special_order_amount, delivery_date, client_name } = req.body;
+  const { profileName, special_order_amount, delivery_date, client_name,status } = req.body;
 
   try {
+    if(status =='delivered'){
+      // If status is 'delivered', set delivery_date to today's date
+      delivery_date = new Date();
+    }
     const dataForUpdate = {
+      // Initialize with the fields that can be updated
+      status: status || 'nra', // Default to 'nra' if not provided
+      delivery_date: delivery_date || null,
       update_at: new Date(), // Always update the modification timestamp
     };
 
@@ -866,6 +877,21 @@ exports.getProjectSpecialOrder = async (req, res) => {
 exports.deleteProjectSpecialOrder = async (req, res) => {
   const { id } = req.params;
   try {
+    //if exists,  frist unlink the profile_id
+    const specialOrder = await prisma.project_special_order.findUnique({
+      where: { id: parseInt(id) },
+    });
+    if (!specialOrder) {
+      return res.status(404).json({ message: `Special order with ID ${id} not found.` });
+    }
+    // If the special order has a profile_id, you might want to unlink it first
+    if (specialOrder.profile_id) {
+      await prisma.project_special_order.update({
+        where: { id: parseInt(id) },
+        data: { profile_id: null }, // Unlink the profile_id
+      });
+    }
+    // Now delete the special order
     await prisma.project_special_order.delete({
       where: { id: parseInt(id) },
     });

@@ -357,25 +357,30 @@ exports.getAllProjects = async (req, res, io) => {
     // 2️⃣ Find team based on UID
     const teamMember = await prisma.team_member.findFirst({
       where: { uid },
-      include: { team: true },
+      include: { 
+        team: true,
+        department: true // Include department to get department info
+      },
     });
 
     console.log("🔍 Team Member:", teamMember);
 
-    if (!teamMember || !teamMember.team) {
-      return res.status(404).json({ error: "Team not found for the user." });
+    if (!teamMember) {
+      return res.status(404).json({ error: "Team member not found for the user." });
     }
 
     const team = teamMember.team;
 
     // ✅ Dynamic role detection
-    const isSalesTeam = teamMember.role?.startsWith("sales_");
+    const isSalesTeam = teamMember.role?.startsWith("sales_") || teamMember.role?.startsWith("business_");
     const isOpsTeam = teamMember.role?.startsWith("operation_");
+    const isHod = teamMember.role?.startsWith("hod_");
 
-    console.log("🔎 Team:", team.team_name);
+    console.log("🔎 Team:", team?.team_name);
     console.log("🧭 Role:", teamMember.role);
     console.log("🧭 Is Sales Team:", isSalesTeam);
     console.log("🧭 Is Operations Team:", isOpsTeam);
+    console.log("🧭 Is HOD:", isHod);
 
     // 3️⃣ Define Date Range for current month
     const currentDate = new Date();
@@ -406,8 +411,16 @@ exports.getAllProjects = async (req, res, io) => {
       ],
     };
 
-    if (!isSalesTeam) {
-      // Only restrict to team if not part of sales
+    if (isHod && teamMember.department) {
+      // HOD sees all projects in their department
+      projectFilter = {
+        AND: [
+          projectFilter,
+          { department_id: teamMember.department.id },
+        ],
+      };
+    } else if (!isSalesTeam && team) {
+      // Only restrict to team if not part of sales and not HOD
       projectFilter = {
         AND: [
           projectFilter,
@@ -476,6 +489,7 @@ exports.getAllProjects = async (req, res, io) => {
       message: "Projects retrieved successfully.",
       isSalesTeam,
       isOpsTeam,
+      isHod,
       projects: formattedProjects,
     });
 
