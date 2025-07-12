@@ -128,4 +128,3 @@ MTS Backend 2.0 allows organizations to manage projects, teams, attendance, perf
 
 ---
 
-You can copy and paste this into your README.md file for a clear, attractive, and user-friendly design. Do you want to create a pull request to update your README.md with this design?
